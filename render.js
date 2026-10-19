@@ -170,9 +170,71 @@ const G = {
 };
 let CW = 0, CH = 0, dpr = 1, cs = 20, ox = 0, oy = 0, antPx = 20, antU = 10, nestR = 18, nestX = 0, nestY = 0;
 let slotSize = 50, slotGap = 10, slotY = 0, trayTop = 0, trayHeadY = 0, trayGap = 30, headSize = 50, colW = 80;
+// framePad：木の額縁の太さ　slotCX / trayCX：スロット・トレイの並びのまんなか　panelL / panelR：トレイの左右のはし
+// boardSide：横長の画面で「絵を左・スロットとトレイを右」にしているか
+let framePad = 10, slotCX = 0, trayCX = 0, panelL = 8, panelR = 0, boardSide = false;
 let cubeSpr = [], cubeRes = [], candySpr = [];
 const antCache = new Map(), boardCv = document.createElement('canvas'), boardG = boardCv.getContext('2d');
 
+/* ---- レイアウト：絵をできるだけ大きく ----
+   たて長：上から「絵」「スロット＋巣穴（横ならび）」「トレイ」。絵が横幅いっぱいになったら、余った高さで箱を大きくする
+   横長　：左に「絵」、右に「巣穴」「スロット」「トレイ」
+   両方を計算して、横長のほうが絵が SIDE_MIN 倍以上大きくなるときだけ横長にする */
+const SIDE_MIN = 1.08;
+const q4 = v => Math.floor(v * 4) / 4;
+// 箱の大きさ h のトレイに必要な高さ（手前の箱＋うしろに2つ重ねてのぞかせる）
+const trayNeed = h => Math.round(h * 1.66 + 26);
+// スロットの大きさ s の列に必要な高さ（箱からのぞくアリの頭もふくむ）
+const rowNeed = s => Math.round(s * 1.4 + 8);
+// たて長：スロット列の右はしに巣穴（巣穴の幅＝スロット約2.2こ分）
+function planTall(W, H, n) {
+  const fp = framePad, cw = Math.min((CW - 16) / n, 120), g = clamp(CW * 0.02, 4, 10);
+  const sMax = clamp((CW - 24 - g * 5) / (SLOT_COUNT + 2.2), 24, 62);
+  let h = clamp(Math.min(cw * 0.62, CH * 0.09), 34, 60), s = clamp(Math.min(sMax, CH * 0.08), 24, sMax);
+  let trayH = trayNeed(h), rowH = rowNeed(s);
+  const avail = CH - trayH - rowH - 10;
+  const raw = Math.min((CW - 12 - fp * 2) / (W + 2), (avail - 8 - fp * 2) / (H + 2));
+  const c = clamp(q4(raw), 3, 46), frameW = (W + 2) * c + fp * 2, frameH = (H + 2) * c + fp * 2;
+  // 絵が横幅いっぱいで止まったら、余った高さでトレイの箱 → スロットの順に大きくする
+  let spare = avail - frameH - 8;
+  if (spare > 0) {
+    const h2 = clamp(h + spare * 0.6 / 1.66, h, Math.max(h, Math.min(66, cw * 0.62)));
+    spare -= trayNeed(h2) - trayH; h = h2; trayH = trayNeed(h);
+  }
+  if (spare > 0) {
+    const s2 = clamp(s + spare * 0.5 / 1.4, s, Math.max(s, sMax));
+    spare -= rowNeed(s2) - rowH; s = s2; rowH = rowNeed(s);
+  }
+  spare = Math.max(0, spare);
+  const top = 4 + spare * 0.35, rowTop = top + frameH + 14 + spare * 0.35;
+  const nr = s * 0.5, nestW = nr * 4.4, slotsW = s * SLOT_COUNT + g * (SLOT_COUNT - 1), left = (CW - slotsW - g - nestW) / 2;
+  return {
+    side: false, raw, c, h, s, g, cw, pw: 0,
+    ox: (CW - frameW) / 2 + fp + c, oy: top + fp + c,
+    slotCX: left + slotsW / 2, slotY: rowTop + s * 0.74 + 4,
+    nestRoom: nr, nestX: left + slotsW + g + nestW / 2, nestY: rowTop + rowH / 2 + nr * 0.1,
+    trayTop: CH - trayH, trayCX: CW / 2, panelL: 8, panelR: CW - 8
+  };
+}
+// 横長：左に絵、右の操作エリアに 巣穴 → スロット → トレイ（トレイは指の届く下）
+function planWide(W, H, n) {
+  if (CW < CH * 1.1 || CW < 460) return null;
+  const fp = framePad, pw = clamp(CW * 0.34, 240, 440), pl = CW - pw;
+  const cw = Math.min((pw - 16) / n, 120), g = clamp(pw * 0.025, 4, 12);
+  const h = clamp(Math.min(cw * 0.62, CH * 0.13), 30, 66);
+  const s = clamp(Math.min((pw - 24 - g * (SLOT_COUNT - 1)) / SLOT_COUNT, CH * 0.11), 24, 62);
+  const trayH = trayNeed(h), rowH = rowNeed(s), nr = clamp(Math.min(pw / 5, (CH - trayH - rowH - 16) / 2.6), 10, 40);
+  const raw = Math.min((pl - 12 - fp * 2) / (W + 2), (CH - 12 - fp * 2) / (H + 2));
+  const c = clamp(q4(raw), 3, 46), frameW = (W + 2) * c + fp * 2, frameH = (H + 2) * c + fp * 2;
+  const spare = Math.max(0, CH - trayH - rowH - nr * 2.5 - 12), rowTop = CH - trayH - rowH - spare * 0.25;
+  return {
+    side: true, raw, c, h, s, g, cw, pw,
+    ox: (pl - frameW) / 2 + fp + c, oy: (CH - frameH - 8) / 2 + fp + c,
+    slotCX: pl + pw / 2, slotY: rowTop + s * 0.74 + 4,
+    nestRoom: nr, nestX: pl + pw / 2, nestY: rowTop - spare * 0.25 - 4 - nr * 1.15,
+    trayTop: CH - trayH, trayCX: pl + pw / 2, panelL: pl + 2, panelR: CW - 8
+  };
+}
 function layout() {
   const r = stage.getBoundingClientRect();
   CW = r.width; CH = r.height;
@@ -180,36 +242,41 @@ function layout() {
   canvas.width = Math.max(1, Math.round(CW * dpr)); canvas.height = Math.max(1, Math.round(CH * dpr));
   Fx.resize();
   if (!G.s) return;
-  // 上から「絵の板」「巣穴の場所（nestH）」「スロット」「トレイ」の順に並べる
-  const W = G.s.W, H = G.s.H, trayH = clamp(CH * 0.25, 120, 210), slotH = clamp(CH * 0.13, 64, 100), nestH = clamp(CH * 0.085, 46, 78);
-  const boardH = CH - trayH - slotH - nestH - 6;
-  cs = clamp(Math.floor(Math.min((CW - 32) / (W + 2), (boardH - 26) / (H + 2)) * 4) / 4, 3, 46);
-  ox = (CW - (W + 2) * cs) / 2 + cs;
-  oy = 12 + (boardH - 20 - (H + 2) * cs) / 2 + cs;
-  slotSize = Math.max(28, Math.min((CW - 24) / SLOT_COUNT - 10, slotH * 0.7, 62));
-  slotGap = Math.max(4, Math.min(14, (CW - 24 - slotSize * SLOT_COUNT) / (SLOT_COUNT - 1)));
-  slotY = boardH + nestH + slotH * 0.5 + 4;
-  trayTop = boardH + nestH + slotH + 4;
-  colW = Math.min((CW - 16) / G.s.cols.length, 120);
-  headSize = Math.max(30, Math.min(colW * 0.62, (trayH - 22) / 2.25, 66));
-  trayHeadY = trayTop + headSize * 0.5 + 12;
-  trayGap = headSize * 0.62;
+  const W = G.s.W, H = G.s.H, n = G.s.cols.length;
+  framePad = clamp(Math.round(Math.min(CW, CH) * 0.018), 6, 10);
+  const A = planTall(W, H, n), B = planWide(W, H, n), P = B && B.raw >= A.raw * SIDE_MIN ? B : A;
+  boardSide = P.side; cs = P.c; ox = P.ox; oy = P.oy;
+  slotSize = P.s; slotGap = P.g; slotCX = P.slotCX; slotY = P.slotY;
+  trayTop = P.trayTop; trayCX = P.trayCX; panelL = P.panelL; panelR = P.panelR;
+  colW = P.cw; headSize = P.h; trayHeadY = trayTop + headSize * 0.5 + 10; trayGap = headSize * 0.42;
   antPx = clamp(cs * 1.4, 13, 30); antU = antPx / 2;
-  // 巣穴：板の外（板の下のふちとスロットのあいだ）。nestX, nestY は穴のまんなか
-  const frameBot = oy + (H + 1) * cs + 14, slotTop = slotY - slotSize * 0.64;
-  nestR = clamp(Math.min(antPx * 0.95 * NEST_SCALE, (slotTop - frameBot) / 2.3), 12, 50);
-  nestX = CW / 2;
-  nestY = Math.min(frameBot + 6 + nestR * 0.6, (frameBot + slotTop) / 2 - nestR * 0.16);
+  nestR = clamp(Math.min(P.nestRoom, antPx * 0.95 * NEST_SCALE), 10, 50);
+  nestX = P.nestX; nestY = P.nestY;
+  // 横ならびのときは、下のボタンを右の操作エリアの下に寄せる（高さは変えないので、レイアウトが行ったり来たりしない）
+  document.body.classList.toggle('wide', boardSide);
+  document.body.style.setProperty('--pw', P.pw + 'px');
   antCache.clear();
   buildSprites();
   G.boardDirty = true;
 }
-const slotX = i => CW / 2 + (i - (SLOT_COUNT - 1) / 2) * (slotSize + slotGap);
-const trayX = j => CW / 2 + (j - (G.s.cols.length - 1) / 2) * colW;
+const slotX = i => slotCX + (i - (SLOT_COUNT - 1) / 2) * (slotSize + slotGap);
+const trayX = j => trayCX + (j - (G.s.cols.length - 1) / 2) * colW;
 const toW = (gx, gy) => ({ x: ox + (gx - 0.5) * cs, y: oy + (gy - 0.5) * cs });
-function slotEntry(i) { return { ex: clamp(Math.round((slotX(i) - ox) / cs + 0.5), 0, G.s.W + 1), ey: G.s.H + 1 }; }
-// 巣穴の門：板の下のふちのうち、巣穴の真上にあるマス（アリはここから板の外に出て巣穴へ入る）
-function nestGate() { return { ex: clamp(Math.round((nestX - ox) / cs + 0.5), 0, G.s.W + 1), ey: G.s.H + 1 }; }
+// 絵のまんなか（横）
+const bcx = () => ox + G.s.W * cs / 2;
+// 画面上の点にいちばん近い「外周のマス」（アリが板に出入りする場所）
+function ringCell(px, py) {
+  const W = G.s.W, H = G.s.H;
+  let ex = clamp(Math.round((px - ox) / cs + 0.5), 0, W + 1), ey = clamp(Math.round((py - oy) / cs + 0.5), 0, H + 1);
+  if (ex > 0 && ex <= W && ey > 0 && ey <= H) {
+    const d = [ex, W + 1 - ex, ey, H + 1 - ey], m = Math.min(...d);
+    if (m === d[0]) ex = 0; else if (m === d[1]) ex = W + 1; else if (m === d[2]) ey = 0; else ey = H + 1;
+  }
+  return { ex, ey };
+}
+function slotEntry(i) { return ringCell(slotX(i), slotY - slotSize * 0.3); }
+// 巣穴の門：巣穴にいちばん近い外周のマス（アリはここから板の外に出て巣穴へ入る）
+function nestGate() { return ringCell(nestX, nestY); }
 // 巣穴の穴の位置（マス単位。アリの座標と同じ単位）
 function nestHole() { return { x: (nestX - ox) / cs + 0.5, y: (nestY - oy) / cs + 0.5 }; }
 function makeCube(ci, px, washed) {
@@ -343,10 +410,12 @@ function moveAlong(a, dist) {
 function maybeSay(a, kind, p, force) {
   if (!save.settings.talk) return;
   if (!G.saidOnce) p = 1;
-  if (!force && (G.bubbles.length >= 3 || G.rt - G.lastSay < 0.5 || Math.random() > p)) return;
+  // セリフ同士がすぐ重なって消え合わないよう、発言インターバル（0.5）も少し広げると読みやすくなります
+  if (!force && (G.bubbles.length >= 3 || G.rt - G.lastSay < 0.8 || Math.random() > p)) return;
   if (G.bubbles.length >= 4) G.bubbles.shift();
   G.saidOnce = true; G.lastSay = G.rt;
-  G.bubbles.push({ a, text: talkLine(kind, a.c, G.level && G.level.theme), t: 0, life: 1.4 });
+  // life を 1.4 から 2.5（お好みの秒数）に変更
+  G.bubbles.push({ a, text: talkLine(kind, a.c, G.level && G.level.theme), t: 0, life: 2.5 });
   Sound.squeak();
 }
 function popup(text, x, y, col, big) {
@@ -366,9 +435,9 @@ function startFever() {
   if (R) R.fevers++;
   document.body.classList.add('fever');
   Sound.BPM = 124; Sound.fever(); haptic(25);
-  popup('FEVER!!', CW / 2, oy + G.s.H * cs * 0.4, '#ff5a9a', true);
+  popup('FEVER!!', bcx(), oy + G.s.H * cs * 0.4, '#ff5a9a', true);
   const r = canvas.getBoundingClientRect();
-  Fx.burst(r.left + CW / 2, r.top + oy + G.s.H * cs / 2, 40, 360, ['star', 'dot']);
+  Fx.burst(r.left + bcx(), r.top + oy + G.s.H * cs / 2, 40, 360, ['star', 'dot']);
   const a = G.ants[G.ants.length - 1];
   if (a) maybeSay(a, 'fever', 1, true);
 }
@@ -398,7 +467,7 @@ function pickCube(a) {
     // フィーバー：小さい面でも大きい面でも、1面で2〜3回たまるくらいの速さ
     if (!fev) { G.fever.g += 2.0 / G.level.total * (1 + Math.min(G.combo, 30) / 30) * G.perk.fever; if (G.fever.g >= 1) startFever(); }
     if (COMBO_MARK.indexOf(G.combo) >= 0) {
-      popup(G.combo + ' コンボ！', CW / 2, oy + G.s.H * cs * 0.22, G.combo >= 50 ? '#ffd23f' : '#ffffff');
+      popup(G.combo + ' コンボ！', bcx(), oy + G.s.H * cs * 0.22, G.combo >= 50 ? '#ffd23f' : '#ffffff');
       if (!said) { maybeSay(a, 'combo', 0.9); said = true; }
     }
   }
@@ -406,7 +475,7 @@ function pickCube(a) {
   if (G.vleft === 0 && G.pendingWin) {
     G.slowmo = 0.5;
     const r = canvas.getBoundingClientRect();
-    Fx.burst(r.left + CW / 2, r.top + oy + G.s.H * cs / 2, 60, 420, ['star', 'conf', 'dot']);
+    Fx.burst(r.left + bcx(), r.top + oy + G.s.H * cs / 2, 60, 420, ['star', 'conf', 'dot']);
     Sound.boom();
   }
 }
@@ -498,7 +567,7 @@ function checkEnd(rdt) {
 function renderBoard() {
   G.boardDirty = false; G.boardSoft = false; G.boardT = G.rt;
   if (boardCv.width !== canvas.width || boardCv.height !== canvas.height) { boardCv.width = canvas.width; boardCv.height = canvas.height; }
-  const g = boardG, W = G.s.W, H = G.s.H, EW = W + 2, pad = 10;
+  const g = boardG, W = G.s.W, H = G.s.H, EW = W + 2, pad = framePad;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, boardCv.width, boardCv.height);
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   const x0 = ox - cs - pad, y0 = oy - cs - pad, bw = (W + 2) * cs + pad * 2, bh = (H + 2) * cs + pad * 2;
@@ -548,14 +617,14 @@ function drawGold() {
 }
 function drawFever() {
   if (G.fever.t <= 0) return;
-  const W = G.s.W, H = G.s.H, bx = ox - cs - 9, by = oy - cs - 9, bw = (W + 2) * cs + 18, bh = (H + 2) * cs + 18;
+  const W = G.s.W, H = G.s.H, p = framePad - 1, bx = ox - cs - p, by = oy - cs - p, bw = (W + 2) * cs + p * 2, bh = (H + 2) * cs + p * 2;
   ctx.lineWidth = 5; ctx.strokeStyle = 'hsl(' + ((G.rt * 240) % 360) + ',95%,62%)';
   roundRect(ctx, bx, by, bw, bh, 24); ctx.stroke();
-  const txt = 'FEVER ' + G.fever.t.toFixed(1);
+  const txt = 'FEVER ' + G.fever.t.toFixed(1), cx = bcx(), ty = Math.max(11, by + 1);
   ctx.font = fnt(900, 13);
   const tw = ctx.measureText(txt).width + 18;
-  ctx.fillStyle = 'hsl(' + ((G.rt * 240 + 180) % 360) + ',90%,60%)'; roundRect(ctx, CW / 2 - tw / 2, by - 9, tw, 20, 10); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, CW / 2, by + 1);
+  ctx.fillStyle = 'hsl(' + ((G.rt * 240 + 180) % 360) + ',90%,60%)'; roundRect(ctx, cx - tw / 2, ty - 10, tw, 20, 10); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, ty);
 }
 // 巣穴：板の外に置く土の山。(nestX, nestY) が穴のまんなか
 function drawNest() {
@@ -668,10 +737,10 @@ function drawZz(x, y, sz) {
   ctx.fillStyle = '#a08ab0'; ctx.font = fnt(900, r * 1.1); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('z', x, y + bob);
 }
 function drawTray() {
-  const tg = ctx.createLinearGradient(0, trayTop, 0, CH);
+  const L = panelL, TW = panelR - panelL, tg = ctx.createLinearGradient(0, trayTop, 0, CH);
   tg.addColorStop(0, '#fff1d0'); tg.addColorStop(1, '#ffd99a');
-  ctx.fillStyle = 'rgba(160,100,40,.2)'; roundRect(ctx, 8, trayTop + 5, CW - 16, CH - trayTop - 6, 22); ctx.fill();
-  ctx.fillStyle = tg; roundRect(ctx, 8, trayTop, CW - 16, CH - trayTop - 8, 22); ctx.fill();
+  ctx.fillStyle = 'rgba(160,100,40,.2)'; roundRect(ctx, L, trayTop + 5, TW, CH - trayTop - 6, 22); ctx.fill();
+  ctx.fillStyle = tg; roundRect(ctx, L, trayTop, TW, CH - trayTop - 8, 22); ctx.fill();
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
   for (let j = 0; j < G.s.cols.length; j++) {
     const col = G.s.cols[j], h = G.s.heads[j], rest = col.length - h;
@@ -702,9 +771,10 @@ function drawTray() {
         ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y + s * 0.38 + th / 2);
       }
     }
+    // のこりの箱の数：3つ目の箱の右に出す（トレイを低くしたので下には置かない）
     if (rest > 3) {
-      ctx.fillStyle = 'rgba(120,70,30,.75)'; ctx.font = fnt(800, headSize * 0.22); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('+' + (rest - 3), x, trayHeadY + 2 * trayGap + headSize * 0.52);
+      ctx.fillStyle = 'rgba(120,70,30,.75)'; ctx.font = fnt(800, Math.max(10, headSize * 0.24)); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('+' + (rest - 3), x + headSize * 0.36, trayHeadY + 2 * trayGap);
     }
   }
 }
@@ -783,7 +853,7 @@ function drawPopups() {
 function drawPreview() {
   const P = G.preview;
   if (!P) return;
-  const W = G.s.W, H = G.s.H;
+  const W = G.s.W, H = G.s.H, mx = bcx();
   ctx.fillStyle = 'rgba(70,40,70,.45)'; roundRect(ctx, ox - cs, oy - cs, (W + 2) * cs, (H + 2) * cs, cs * 0.8); ctx.fill();
   P.cells.forEach((i, k) => {
     const x = ox + (i % W) * cs, y = oy + Math.floor(i / W) * cs;
@@ -798,8 +868,8 @@ function drawPreview() {
   const msg = P.cells.length ? P.cells.length + ' / ' + P.n + ' 個を運ぶよ' + (P.cells.length < P.n ? '（残りは居座る）' : '') : '今は届くキャンディがないよ（おやすみ）';
   ctx.font = fnt(800, 13);
   const tw = ctx.measureText(msg).width + 24, ty = Math.max(16, oy - cs + 14);
-  ctx.fillStyle = '#fff'; roundRect(ctx, CW / 2 - tw / 2, ty - 14, tw, 28, 14); ctx.fill();
-  ctx.fillStyle = '#5a3d5c'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(msg, CW / 2, ty);
+  ctx.fillStyle = '#fff'; roundRect(ctx, mx - tw / 2, ty - 14, tw, 28, 14); ctx.fill();
+  ctx.fillStyle = '#5a3d5c'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(msg, mx, ty);
 }
 function drawGuides() {
   if (G.hintCol >= 0) {

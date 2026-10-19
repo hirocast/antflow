@@ -154,6 +154,41 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
   document.head.appendChild(st);
 })();
 
+/* ================= 絵を大きく見せるための画面の調整 =================
+   ・画面の高さが低いときは、ヘッダーとフッターを低くする
+   ・画面幅が700px以上なら、アプリの幅を最大1400pxまで広げる（横長なら絵を左・操作を右にならべる）
+   ・body.wide（render.js の layout が付ける）のときは、下のボタンを右の操作エリアの下に寄せる */
+(function injectLayoutStyle() {
+  const st = document.createElement('style');
+  st.textContent = `
+#app{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+@media (min-width:700px){#app{max-width:min(1400px,100vw)}}
+@media (max-height:820px){
+ header{flex-basis:54px}
+ .lv{padding:2px 9px;min-width:78px}
+ .lv b{font-size:15px}
+ .lv .st{font-size:10px}
+ footer{flex-basis:62px;padding-bottom:6px}
+ .fb{height:48px;border-radius:18px}
+ .fb span{font-size:18px}
+ .fb small{font-size:10px}
+}
+@media (max-height:480px){
+ header{flex-basis:46px}
+ .lv{flex-direction:row;align-items:baseline;gap:6px}
+ .lv .st,#leftTxt{display:none}
+ .ib{width:34px;height:34px;font-size:16px;border-radius:12px}
+ .coin{height:32px;font-size:13px}
+ footer{flex-basis:50px;padding-bottom:4px}
+ .fb{height:40px;flex-direction:row;gap:4px}
+ .fb span{font-size:16px}
+}
+body.wide footer{align-self:flex-end;width:var(--pw);max-width:100%;padding-left:6px}
+body.wide .fb{max-width:none}
+`;
+  document.head.appendChild(st);
+})();
+
 /* ================= 画面の部品を追加（index.html は変更不要） ================= */
 (function buildMetaUI() {
   $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b>'; return d; })(), $('#bAlbum'));
@@ -394,7 +429,7 @@ function resetVisual() {
 function niceRead() {
   if (!G.run) return;
   G.run.nice++;
-  popup('ナイス先読み！', CW / 2, slotY - slotSize * 0.95, '#7cffb0');
+  popup('ナイス先読み！', slotCX, slotY - slotSize * 0.95, '#7cffb0');
   Sound.nice();
   Tut.add('nice');
 }
@@ -989,7 +1024,7 @@ function joinRect(a, b) {
 const TR = {
   board: () => G.s ? cvRect(ox - cs - 8, oy - cs - 8, (G.s.W + 2) * cs + 16, (G.s.H + 2) * cs + 16) : null,
   nest: () => cvRect(nestX - nestR * 2.3, nestY - nestR * 1.8, nestR * 4.6, nestR * 3.1),
-  tray: () => cvRect(6, trayTop - 2, CW - 12, CH - trayTop - 4),
+  tray: () => cvRect(panelL - 2, trayTop - 2, panelR - panelL + 4, CH - trayTop - 4),
   col: j => j >= 0 && G.s ? cvRect(trayX(j) - headSize * 0.74, trayHeadY - headSize * 0.62, headSize * 1.48, headSize * 1.3) : null,
   slots: () => cvRect(slotX(0) - slotSize * 0.8, slotY - slotSize * 0.74, slotX(SLOT_COUNT - 1) - slotX(0) + slotSize * 1.6, slotSize * 1.48),
   slot: i => cvRect(slotX(i) - slotSize * 0.72, slotY - slotSize * 0.95, slotSize * 1.44, slotSize * 1.7),
