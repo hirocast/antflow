@@ -328,7 +328,7 @@ function confirmSpend(opts, onOk) {
   const prev = G.overlay;
   $('#cfTitle').textContent = opts.title;
   $('#cfDesc').textContent = opts.desc;
-  $('#cfCost').textContent = '消費：' + opts.cost;
+  $('#cfCost').textContent = opts.costText || ('消費：' + opts.cost);
   $('#bCfOk').textContent = opts.okLabel || 'つかう！';
   G.cf = { prev, onOk };
   Sound.tap();
@@ -1068,7 +1068,15 @@ function doUndo() {
 }
 function doRetry() {
   if (G.loading || (G.overlay && G.overlay !== 'jam')) return;
-  hideOv(); loadLevel(G.levelId); Sound.undo();
+  confirmSpend({
+    title: '⟳ やりなおし',
+    desc: 'このステージを最初からやり直します。いままでの手数はリセットされます。',
+    costText: '消費：なし（むりょう）',
+    okLabel: 'やりなおす！'
+  }, () => {
+    if (G.loading || (G.overlay && G.overlay !== 'jam')) return;
+    hideOv(); loadLevel(G.levelId); Sound.undo();
+  });
 }
 function doHint() {
   if (G.overlay || G.pendingWin || G.loading || !G.s) return;
