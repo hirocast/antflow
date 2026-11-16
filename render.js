@@ -135,15 +135,19 @@ function drawHat(g, u, skin) {
 }
 function paintBubble(g, x, y, text, fs, sc, al) {
   g.save();
-  g.globalAlpha = al; g.translate(x, y); g.scale(sc, sc);
+  g.globalAlpha = al;
   g.font = fnt(800, fs);
   const bw = g.measureText(text).width + fs * 0.9, bh = fs * 1.55, by = -bh - fs * 0.45;
+  const cx = CW > bw + 12 ? clamp(x, 6 + bw / 2, CW - 6 - bw / 2) : CW / 2;
+  const dx = (cx - x) / (sc || 1), yy = Math.max(y, 6 - by * (sc || 1));
+  const tx = clamp(0, dx - bw / 2 + fs * 0.6, dx + bw / 2 - fs * 0.6);
+  g.translate(x, yy); g.scale(sc, sc);
   g.fillStyle = '#fff'; g.strokeStyle = '#5a3d5c'; g.lineWidth = Math.max(1.2, fs * 0.12);
-  g.beginPath(); g.moveTo(-fs * 0.3, -fs * 0.5); g.lineTo(0, 0); g.lineTo(fs * 0.3, -fs * 0.5); g.closePath(); g.fill(); g.stroke();
-  roundRect(g, -bw / 2, by, bw, bh, bh / 2); g.fill(); g.stroke();
-  g.beginPath(); g.moveTo(-fs * 0.2, -fs * 0.52); g.lineTo(0, -fs * 0.12); g.lineTo(fs * 0.2, -fs * 0.52); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(tx - fs * 0.3, -fs * 0.5); g.lineTo(tx, 0); g.lineTo(tx + fs * 0.3, -fs * 0.5); g.closePath(); g.fill(); g.stroke();
+  roundRect(g, dx - bw / 2, by, bw, bh, bh / 2); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(tx - fs * 0.2, -fs * 0.52); g.lineTo(tx, -fs * 0.12); g.lineTo(tx + fs * 0.2, -fs * 0.52); g.closePath(); g.fill();
   g.fillStyle = '#5a3d5c'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, 0, by + bh / 2 + fs * 0.04);
+  g.fillText(text, dx, by + bh / 2 + fs * 0.04);
   g.restore();
 }
 

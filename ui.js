@@ -197,7 +197,7 @@ body.wide .fb{max-width:none}
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
   $('#ttl').insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div>');
-  $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま</button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
+  $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
   const tf = $('#ov-title .fine');
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
@@ -587,7 +587,7 @@ function showClear() {
   $('#clearTime').textContent = '⏱ ' + t + '秒（★★★ ' + par[0] + '秒・★★ ' + par[1] + '秒）' + (newBest ? '　🏅自己ベスト！' : '');
   $('#resList').innerHTML = lines.map((l, i) => '<div style="animation-delay:' + (0.9 + i * 0.12).toFixed(2) + 's"><span>' + l[0] + '</span><b>🪙+' + l[1] + '</b></div>').join('');
   $('#resFood').textContent = '🍬 エサ +' + food + '（しょくりょうこ ' + save.food + '）';
-  $('#bClearQueen').textContent = '👑 女王さまにエサをあげる（🍬' + save.food + '）';
+  updateClearQueenBtn();
   const rt = $('#resTotal');
   rt.textContent = '0';
   setTimeout(() => {
@@ -734,12 +734,47 @@ function drawMascot(cv, t) {
 }
 
 /* ================= ホーム画面・女王さま・ミッション・きせかえ ================= */
+function queenStatus() {
+  const max = save.qlv >= Q_MAX;
+  if (max) return { max: true, toNext: 0, afterLv: Q_MAX, canLvUp: false, unlocks: [], canUnlock: false, nextUnlock: null, toUnlock: 0 };
+  const toNext = Math.max(0, qNeed(save.qlv) - save.qexp);
+  let lv = save.qlv, exp = save.qexp + save.food;
+  while (lv < Q_MAX && exp >= qNeed(lv)) { exp -= qNeed(lv); lv++; }
+  const unlocks = [];
+  ROOMS.forEach(r => { if (r[0] > save.qlv && r[0] <= lv) unlocks.push(r[1] + r[2]); });
+  Q_PERKS.forEach(p => { if (p[0] > save.qlv && p[0] <= lv) unlocks.push(p[1]); });
+  let nextLv = Q_MAX + 1;
+  const nextLabels = [];
+  ROOMS.forEach(r => { if (r[0] > save.qlv && r[0] < nextLv) nextLv = r[0]; });
+  Q_PERKS.forEach(p => { if (p[0] > save.qlv && p[0] < nextLv) nextLv = p[0]; });
+  let nextUnlock = null, toUnlock = 0;
+  if (nextLv <= Q_MAX) {
+    ROOMS.forEach(r => { if (r[0] === nextLv) nextLabels.push(r[1] + r[2]); });
+    Q_PERKS.forEach(p => { if (p[0] === nextLv) nextLabels.push(p[1]); });
+    let sum = -save.qexp;
+    for (let l = save.qlv; l < nextLv; l++) sum += qNeed(l);
+    nextUnlock = { lv: nextLv, label: nextLabels.join('・') };
+    toUnlock = Math.max(0, sum - save.food);
+  }
+  return { max: false, toNext, afterLv: lv, canLvUp: lv > save.qlv, unlocks, canUnlock: unlocks.length > 0, nextUnlock, toUnlock };
+}
+function updateClearQueenBtn() {
+  const btn = $('#bClearQueen'), qs = queenStatus();
+  if (!btn) return;
+  btn.classList.toggle('pulse', qs.canUnlock);
+  if (qs.canUnlock) btn.textContent = '👑 ごはんをあげると新要素解放！（🍬' + save.food + '）';
+  else if (qs.canLvUp) btn.textContent = '👑 ごはんをあげるとLvアップ！（🍬' + save.food + '）';
+  else if (!qs.max && qs.nextUnlock) btn.textContent = '👑 女王さまにエサ（🍬' + save.food + '｜次の解放まであと' + qs.toUnlock + '）';
+  else btn.textContent = '👑 女王さまにエサをあげる（🍬' + save.food + '）';
+}
 function renderTitle() {
   const el = $('#titleInfo');
   if (!el) return;
   el.innerHTML = '<span>🪙 ' + save.coins + '</span><span>⭐ ' + totalStars() + '</span><span>👑 Lv.' + save.qlv + '</span>';
   misCheck();
   $('#misDot').classList.toggle('on', save.mis.list.some(m => !m.done));
+  const qs = queenStatus();
+  $('#queenDot').classList.toggle('on', qs.canUnlock);
 }
 // metaFrom：とじたときに戻る画面（'title' / 'clear' / それ以外はゲーム画面）
 function closeMeta() {
@@ -753,12 +788,16 @@ function openColony(from) {
   showOv('colony');
 }
 function renderColony() {
-  const lv = save.qlv, max = lv >= Q_MAX, need = qNeed(lv), chunk = Math.min(save.food, 100);
+  const lv = save.qlv, max = lv >= Q_MAX, need = qNeed(lv), chunk = Math.min(save.food, 100), qs = queenStatus();
   $('#qLv').textContent = 'Lv.' + lv;
   $('#qTitle').textContent = qTitle(lv);
   $('#qBar').style.width = (max ? 100 : clamp(100 * save.qexp / need, 0, 100)) + '%';
-  $('#qExp').textContent = max ? 'さいだいレベル！' : 'つぎのレベルまで ' + save.qexp + ' / ' + need;
-  $('#qFood').textContent = '🍬 しょくりょうこのエサ：' + save.food + ' こ（ステージで運んだキャンディがたまるよ）';
+  $('#qExp').textContent = max ? 'さいだいレベル！' : 'つぎのレベルまで あと ' + qs.toNext + ' こ（' + save.qexp + ' / ' + need + '）';
+  let foodMsg = '🍬 しょくりょうこのエサ：' + save.food + ' こ';
+  if (qs.canUnlock) foodMsg += ' ✨ いまあげると「' + qs.unlocks.join('・') + '」が解放されるよ！';
+  else if (qs.canLvUp) foodMsg += ' ✨ いまあげると Lv.' + qs.afterLv + ' にあがるよ！';
+  else if (qs.nextUnlock) foodMsg += ' ｜ 次の解放（Lv.' + qs.nextUnlock.lv + ' ' + qs.nextUnlock.label + '）まで あと ' + qs.toUnlock + ' こ';
+  $('#qFood').textContent = foodMsg;
   $('#bFeed').disabled = !save.food || max;
   $('#bFeed').textContent = save.food && !max ? '🍬 ごはん（+' + chunk + '）' : '🍬 ごはんをあげる';
   $('#bFeedAll').disabled = !save.food || max;
@@ -787,7 +826,7 @@ function doFeed(all) {
   G.perk = perks(); G.spdMul = G.perk.speed;
   misAdd('feed', 1, null);
   renderColony(); updateCoins();
-  $('#bClearQueen').textContent = '👑 女王さまにエサをあげる（🍬' + save.food + '）';
+  updateClearQueenBtn();
 }
 function drawColony(cv, t) {
   const Wc = 300, Hc = 170;
