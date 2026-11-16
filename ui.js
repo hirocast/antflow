@@ -1061,22 +1061,41 @@ function toast(msg, ms) {
   toastTimer = setTimeout(() => t.classList.remove('show'), ms || 2200);
 }
 function startPlay() { if (G.loading) showOv('load'); else { hideOv(); updateTip(); } }
+function findSolvableUndo() {
+  const n = G.undo.length, sol = G.level.solution;
+  if (!n) return -1;
+  let k = 0;
+  while (k < n && k < sol.length && G.moves[k] === sol[k]) k++;
+  k = Math.min(k, n - 1);
+  const t0 = Date.now();
+  for (let i = n - 1; i > k; i--) {
+    if (Date.now() - t0 > 500) break;
+    if (solve(G.undo[i], 80, 15000).path) return i;
+  }
+  return k;
+}
 function doUndo() {
   if (G.loading || (G.overlay && G.overlay !== 'jam') || !G.undo.length) return;
   const info = payInfo('undo');
   if (!info.ok) { pay('undo'); return; }
+  const n = G.undo.length;
+  const t = G.overlay === 'jam' && G.rewindTo >= 0 && G.rewindTo < n ? G.rewindTo : findSolvableUndo();
+  const cnt = n - t;
   confirmSpend({
-    title: '↶ 1てもどす',
-    desc: '直前にえらんだ箱を1手まえの状態にもどします。',
+    title: cnt === 1 ? '↶ 1てもどす' : '↶ ' + cnt + 'てもどす',
+    desc: cnt === 1
+      ? '直前にえらんだ箱を1手まえ（解ける盤面）にもどします。'
+      : 'いまの盤面からはクリアできないため、まだ解ける盤面（' + cnt + '手まえ）まで一気にもどします。',
     cost: info.cost,
     okLabel: 'もどす！'
   }, () => {
-    if (G.loading || (G.overlay && G.overlay !== 'jam') || !G.undo.length) return;
+    if (G.loading || (G.overlay && G.overlay !== 'jam') || t < 0 || t >= G.undo.length) return;
     if (!pay('undo')) return;
     G.rewindTok++;
-    G.s = G.undo.pop(); G.moves.pop(); G.queued = null;
+    G.s = G.undo[t]; G.undo.length = t; G.moves.length = t; G.queued = null;
     if (G.run) G.run.undos++;
     resetVisual(); hideOv(); Sound.undo(); updateTip();
+    if (cnt > 1) toast('↶ 解ける盤面（' + cnt + '手まえ）までもどしたよ', 2400);
   });
 }
 function doRetry() {
