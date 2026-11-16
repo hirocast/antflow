@@ -255,7 +255,7 @@ Sound.nice = function () { if (this.ok()) [659.25, 987.77].forEach((f, i) => thi
 
 /* ================= 育成・経済（セーブに項目を足す。古いセーブもそのまま使える） ================= */
 // tut：見おわったチュートリアルの記録
-const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, road: 0, best: {}, skins: ['none'], skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {} };
+const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {} };
 function metaInit(force) {
   for (const k in META_DEF) {
     const d = META_DEF[k], v = save[k];
@@ -267,6 +267,8 @@ function metaInit(force) {
   save.qlv = clamp(Math.floor(save.qlv) || 1, 1, Q_MAX);
   save.coins = Math.max(0, Math.floor(save.coins) || 0);
   save.food = Math.max(0, Math.floor(save.food) || 0);
+  save.hintT = Math.max(0, Math.floor(save.hintT) || 0);
+  save.scanT = Math.max(0, Math.floor(save.scanT) || 0);
   for (const k in save.best) if (!(+k >= 1 && +k <= TOTAL) || !save.best[k] || typeof save.best[k].t !== 'number') delete save.best[k];
   if (!Array.isArray(save.mis.list)) save.mis = JSON.parse(JSON.stringify(META_DEF.mis));
   persist();
@@ -282,7 +284,11 @@ function priceOf(k) { return k === 'hint' ? Math.round(PRICE.hint * (1 - perks()
 function priceLabel(k) {
   const R = G.run;
   if (k === 'undo' && R && R.freeU > 0) return 'むりょう×' + R.freeU;
-  if (k === 'hint' && R && R.freeH > 0) return 'むりょう';
+  if (k === 'hint') {
+    if (R && R.freeH > 0) return 'むりょう';
+    if (save.hintT > 0) return '🎟️×' + save.hintT;
+  }
+  if (k === 'scan' && save.scanT > 0) return '🎟️×' + save.scanT;
   return '🪙' + priceOf(k);
 }
 function refreshPrices() {
@@ -298,11 +304,15 @@ function updateCoins(bump) {
   refreshPrices();
   if (G.overlay === 'title') renderTitle();
 }
-// 支払い：むりょう回数 → コインの順に使う。足りなければ false
+// 支払い：むりょう回数・無料チケット → コインの順に使う。足りなければ false
 function pay(k) {
   const R = G.run;
   if (k === 'undo' && R && R.freeU > 0) { R.freeU--; refreshPrices(); return true; }
-  if (k === 'hint' && R && R.freeH > 0) { R.freeH--; refreshPrices(); return true; }
+  if (k === 'hint') {
+    if (R && R.freeH > 0) { R.freeH--; refreshPrices(); return true; }
+    if (save.hintT > 0) { save.hintT--; persist(); refreshPrices(); return true; }
+  }
+  if (k === 'scan' && save.scanT > 0) { save.scanT--; persist(); refreshPrices(); return true; }
   const p = priceOf(k);
   if (save.coins < p) {
     Sound.deny();
@@ -360,7 +370,7 @@ function dailyCheck() {
 }
 function showDaily() {
   const P = G.dailyP, cur = (P.st - 1) % 7;
-  $('#dayMsg').textContent = P.st + '日れんぞくログイン！きょうのごほうび：🪙' + P.coins + (P.ticket ? '＋🎟️おたからばこチケット' : '');
+  $('#dayMsg').textContent = P.st + '日れんぞくログイン！きょうのごほうび：🪙' + P.coins + '＋💡ヒント無料チケット×1＋🔍全部運べる無料チケット×1' + (P.ticket ? '＋🎟️おたからばこチケット' : '');
   $('#dayRow').innerHTML = LOGIN_REWARD.map((r, i) => '<div class="day' + (i < cur ? ' got' : i === cur ? ' today' : '') + '"><b>' + (i + 1) + '日</b>' + (i === 6 ? '🎟️' : '🪙') + '<br>' + r + '</div>').join('');
   showOv('daily');
 }
@@ -1864,6 +1874,8 @@ on('#bDayOk', () => {
   if (P) {
     save.daily = { day: dayKey(), streak: P.st };
     save.coins += P.coins;
+    save.hintT++;
+    save.scanT++;
     if (P.ticket) save.tickets++;
     persist(); G.dailyP = null;
     Sound.coin(); updateCoins(true);
