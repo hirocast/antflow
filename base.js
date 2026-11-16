@@ -383,7 +383,7 @@ function talkLine(kind, c, theme) {
 
 /* ================= 育成・経済のデータ ================= */
 // PRICE：便利機能とおたからばこの値段（コイン）
-const PRICE = { undo: 20, hint: 30, rewind: 40, box: 300 };
+const PRICE = { undo: 20, hint: 30, rewind: 40, box: 300, scan: 50 };
 // SKINS：きせかえ。fx はそれぞれの特別な力（perks で合計する）
 const SKINS = [
   { k: 'none', n: 'すっぴん', e: '🐜', d: 'いつものアリさん', fx: {} },

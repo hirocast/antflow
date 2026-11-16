@@ -170,7 +170,7 @@ const G = {
   auto: false, autoNext: 0, autoClearT: 0, autoPath: null, autoAt: -1, genBusy: false, viewId: 1,
   // 育成・やりこみ
   gold: new Set(), fever: { g: 0, t: 0 }, run: null, perk: perks(), par: null, spdMul: 1, fvShown: -1, timerShown: -1,
-  feeding: null, colAnts: null, colFlash: 0, gacha: null, sayT: -9, dailyP: null
+  feeding: null, colAnts: null, colFlash: 0, gacha: null, sayT: -9, dailyP: null, scanId: 0
 };
 let CW = 0, CH = 0, dpr = 1, cs = 20, ox = 0, oy = 0, antPx = 20, antU = 10, nestR = 18, nestX = 0, nestY = 0;
 let slotSize = 50, slotGap = 10, slotY = 0, trayTop = 0, trayHeadY = 0, trayGap = 30, headSize = 50, colW = 80;
@@ -762,12 +762,26 @@ function drawTray() {
       let s = lerp(TSC[k], TSC[k + 1], fr) * headSize;
       if (k === 0 && G.press && G.press.j === j && !G.press.previewed) s *= 0.92;
       if (k === 0 && G.queued && G.queued.j === j) s *= 1 + 0.05 * Math.sin(G.rt * 20);
-      if (k === 0 && save.settings.dim && !G.hc) G.hc = headCounts(G.s);
+      if (k === 0 && (save.settings.dim || save.settings.info || G.scanId === G.levelId) && !G.hc) G.hc = headCounts(G.s);
       const y = trayHeadY + k * trayGap + off, dim = k === 0 && save.settings.dim && !G.hc[j];
       drawBox(x, y, s, b.c, b.n, { alpha: lerp(TAL[k], TAL[k + 1], fr) * (dim ? 0.5 : 1), numY: k > 0 ? 0.22 : 0.1 });
       if (dim) drawZz(x + s * 0.42, y - s * 0.4, s);
+      if (k === 0 && G.scanId === G.levelId && (G.hc[j] || 0) >= b.n) {
+        const p = 0.5 + 0.5 * Math.sin(G.rt * 6);
+        ctx.strokeStyle = 'rgba(63,174,127,' + (0.75 + 0.25 * p) + ')'; ctx.lineWidth = 3.5;
+        roundRect(ctx, x - s * 0.54, y - s * 0.45, s * 1.08, s * 0.9, s * 0.26); ctx.stroke();
+        if (!save.settings.info) {
+          const txt = '✓全部';
+          ctx.font = fnt(900, Math.max(10, s * 0.19));
+          const tw = ctx.measureText(txt).width + 10, th = Math.max(14, s * 0.25);
+          ctx.fillStyle = '#3fae7f';
+          roundRect(ctx, x - tw / 2, y - s * 0.45 - th * 0.72, tw, th, th / 2); ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+          ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(txt, x, y - s * 0.45 - th * 0.22);
+        }
+      }
       if (k === 0 && save.settings.info) {
-        if (!G.hc) G.hc = headCounts(G.s);
         const rr = G.hc[j] || 0, txt = rr + '/' + b.n;
         ctx.font = fnt(800, Math.max(10, s * 0.2));
         const tw = ctx.measureText(txt).width + 10, th = Math.max(14, s * 0.26);

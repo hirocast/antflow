@@ -46,6 +46,9 @@ header{flex-basis:64px}
 .big.sec{box-shadow:0 5px 0 #e1c48e}
 .big.mint{box-shadow:0 5px 0 var(--mintd)}
 .fb em.price{position:absolute;top:-11px;right:-6px;font-style:normal;font-size:10px;font-weight:900;padding:2px 6px;border-radius:10px;background:linear-gradient(#fff6c4,#ffd23f);color:#7a4a00;border:2px solid #fff;box-shadow:0 2px 0 #d9a520;text-shadow:none;white-space:nowrap}
+#bScan{background:#a66be0;box-shadow:0 4px 0 #7f4ab8}
+#bScan.on{background:var(--mint);box-shadow:0 4px 0 var(--mintd)}
+#bScan.on em.price{background:linear-gradient(#d4ffe9,#5fcf9f);color:#145a38;box-shadow:0 2px 0 #3fae7f}
 .ov{background:rgba(50,30,80,.45);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 .card{border:none;background:linear-gradient(#fffdf6,#fff3df);box-shadow:0 0 0 4px #fff,0 0 0 8px #ffb6cd,0 18px 44px rgba(60,30,70,.4)}
 .card h2{display:inline-block;padding:6px 24px;border-radius:16px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;box-shadow:0 4px 0 #d4507c;text-shadow:0 2px 0 rgba(0,0,0,.15);margin:0 0 10px}
@@ -196,6 +199,7 @@ body.wide .fb{max-width:none}
   document.body.appendChild($('#toast'));
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
+  $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全部OK?</small><em class="price" id="pScan"></em></button>');
   $('#ttl').insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div>');
   $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
   const tf = $('#ov-title .fine');
@@ -282,9 +286,11 @@ function priceLabel(k) {
   return '🪙' + priceOf(k);
 }
 function refreshPrices() {
-  const a = $('#pUndo'), b = $('#pHint');
+  const a = $('#pUndo'), b = $('#pHint'), c = $('#pScan'), sc = $('#bScan'), on = !!(G.levelId && G.scanId === G.levelId);
   if (a) a.textContent = priceLabel('undo');
   if (b) b.textContent = priceLabel('hint');
+  if (c) c.textContent = on ? 'ON' : priceLabel('scan');
+  if (sc) sc.classList.toggle('on', on);
 }
 function updateCoins(bump) {
   $('#coinTxt').textContent = save.coins;
@@ -382,6 +388,7 @@ function pickGold(L) {
   return set;
 }
 function applyLevel(id, L) {
+  if (G.scanId !== id) G.scanId = 0;
   G.levelId = id; G.level = L; G.s = makeState(L);
   G.undo = []; G.moves = []; G.queued = null;
   // アリの歩く速さ。ANT_RATE を変えると全体の速さが変わる（1＝前の速さ、0.5＝半分）
@@ -521,7 +528,7 @@ function updateBadge() {
 function showClear() {
   const id = G.levelId, pos = posOf(id), first = !save.cleared[id], tok = ++G.clearTok, P = G.perk;
   const R = G.run || { time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0 };
-  G.clearShown = true; G.nextBusy = false;
+  G.clearShown = true; G.nextBusy = false; G.scanId = 0; refreshPrices();
   endFever();
   const t = Math.max(0.1, Math.round(R.time * 10) / 10), par = G.par || parTimes(G.level), st = timeStars(t, par);
   const prev = save.best[id], firstS3 = st === 3 && !(prev && prev.s >= 3), newBest = !!prev && t < prev.t;
@@ -1021,6 +1028,16 @@ function doHint() {
   G.hintCol = j;
   if (G.run) G.run.hints++;
   toast('💡 光っている箱がおすすめだよ');
+}
+function doScan() {
+  if (G.overlay || G.pendingWin || G.loading || !G.s) return;
+  if (G.scanId === G.levelId) { toast('🔍 このステージでは解放済みだよ！'); return; }
+  if (!pay('scan')) return;
+  G.scanId = G.levelId;
+  G.hc = null;
+  Sound.nice(); haptic(12);
+  refreshPrices();
+  toast('🔍 全部運べる箱が光るよ！（このステージ中）', 2600);
 }
 function openAlbum(fromTitle) {
   G.fromTitle = fromTitle;
@@ -1825,6 +1842,7 @@ on('#bUndo', doUndo);
 on('#bRetry', doRetry);
 on('#bSpeed', () => { G.speed = G.speed === 1 ? 2 : 1; save.settings.fast = G.speed === 2; persist(); G.hudDirty = true; });
 on('#bHint', () => { Sound.init(); doHint(); });
+on('#bScan', () => { Sound.init(); doScan(); });
 on('#bSet', () => { G.fromTitle = false; showOv('settings'); });
 on('#bSetClose', back);
 on('#bSetHome', () => { Sound.init(); showOv('title'); });
