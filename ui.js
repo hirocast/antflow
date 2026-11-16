@@ -883,12 +883,12 @@ function drawSkinPrev(cv, t) {
 /* ================= UI ================= */
 // 上に出るひとことヒント：[何手目から, 何手目まで, 文]。チュートリアル中は出さない
 const TIPS = {
-  1: [[3, 7, 'とどく色の箱から置いていこう。外側があくと内側に届くよ']],
+  1: [[3, 7, 'とどく箱から置こう！外があくと内側もとどくよ']],
   2: [[1, 5, '迷ったら長押し！運ばれるキャンディが光るよ']],
-  3: [[0, 4, '★★★の目安は上の時計。「はやさ 2x」も使ってみよう']],
-  4: [[0, 4, '奥の色が欲しいときは、届かない箱を先に置く「先読み」！']],
+  3: [[0, 4, '★★★の目安は上の時計。「はやさ 2x」も便利！']],
+  4: [[0, 4, '奥の色は、届かない箱を先に置く「先読み」がカギ！']],
   5: [[0, 4, 'おやすみ（z）の箱をためすぎると渋滞するよ']],
-  6: [[0, 3, '渋滞しても「⏪」で、まだ解ける所まで一気にもどれるよ']]
+  6: [[0, 3, '渋滞しても「⏪」で解ける所まで戻れるよ']]
 };
 function updateHUD() {
   G.hudDirty = false;
@@ -912,11 +912,33 @@ function updateTimer() {
   const st = timeStars(R.time, G.par), lim = st === 3 ? G.par[0] : st === 2 ? G.par[1] : 0;
   el.innerHTML = '⏱ ' + sec + '秒　<b class="s' + st + '">' + '★'.repeat(st) + '</b>' + (lim ? ' あと' + Math.max(0, lim - sec) + '秒' : ' ゆっくりでOK');
 }
+const tipState = { msg: '', timer: 0, bound: false };
+function foldTip(fold) {
+  const el = $('#tip');
+  clearTimeout(tipState.timer); tipState.timer = 0;
+  if (!tipState.msg) { el.classList.remove('show', 'fold'); el.textContent = ''; return; }
+  el.classList.add('show');
+  el.classList.toggle('fold', fold);
+  el.textContent = fold ? '💡' : tipState.msg;
+  if (!fold && !G.overlay) {
+    tipState.timer = setTimeout(() => foldTip(true), 4500);
+  }
+}
 function updateTip() {
   const el = $('#tip'), list = TIPS[posOf(G.levelId)] || [], m = G.moves.length;
+  if (!tipState.bound) {
+    tipState.bound = true;
+    el.addEventListener('click', () => { if (tipState.msg) foldTip(!el.classList.contains('fold')); });
+  }
   let msg = '';
   if (!Tut.gameBusy()) for (const [a, b, s] of list) if (m >= a && m < b) { msg = s; break; }
-  el.textContent = msg; el.classList.toggle('show', !!msg);
+  const changed = msg !== tipState.msg;
+  tipState.msg = msg;
+  if (!msg) { foldTip(false); return; }
+  if (changed) foldTip(false);
+  else if (!el.classList.contains('fold') && !tipState.timer && !G.overlay) {
+    tipState.timer = setTimeout(() => foldTip(true), 4500);
+  }
 }
 let toastTimer = 0;
 function toast(msg, ms) {

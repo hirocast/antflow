@@ -31,8 +31,9 @@ footer{flex:0 0 76px;display:flex;gap:8px;justify-content:center;align-items:cen
 .flash{animation:flash .5s 3}
 @keyframes flash{50%{filter:brightness(1.25);transform:scale(1.15)}}
 @keyframes bump{100%{transform:scale(1.15)}}
-#tip{position:absolute;left:50%;top:6px;transform:translateX(-50%);width:max-content;max-width:92%;background:#fff;font-size:13px;font-weight:700;line-height:1.45;padding:7px 14px;border-radius:16px;border:2px solid #ffc2d6;pointer-events:none;opacity:0;transition:opacity .3s;text-align:center;z-index:2}
-#tip.show{opacity:1}
+#tip{position:absolute;left:50%;top:6px;transform:translateX(-50%);width:max-content;max-width:94%;background:rgba(255,255,255,.9);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:12px;font-weight:700;line-height:1.4;padding:5px 12px;border-radius:14px;border:2px solid #ffc2d6;box-shadow:0 3px 10px rgba(90,61,92,.12);pointer-events:none;opacity:0;transition:opacity .25s;text-align:center;z-index:2}
+#tip.show{opacity:1;pointer-events:auto;cursor:pointer}
+#tip.fold{left:auto;right:8px;transform:none;padding:3px 9px;font-size:12px;opacity:.85}
 #toast{position:absolute;left:50%;bottom:10px;transform:translate(-50%,16px);width:max-content;max-width:92%;background:rgba(90,61,92,.93);color:#fff;font-size:14px;font-weight:700;padding:9px 16px;border-radius:18px;pointer-events:none;opacity:0;transition:all .25s;z-index:3}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 .ov{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(110,60,100,.32);opacity:0;pointer-events:none;transition:opacity .25s;z-index:10}
