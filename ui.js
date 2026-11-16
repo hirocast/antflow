@@ -1221,27 +1221,14 @@ const tcol = () => TR.col(tutCol());
 const LESSONS = {
   // ---- ステージの最初に出るレッスン ----
   basic: { lv: 1, steps: () => [
-    { t: 'ようこそ、指揮官さん！ぼくらアリさんチームといっしょに、キャンディでできた絵をほどいていこう！' },
-    { at: TR.board, t: 'これが今回の絵。1マス1マスがキャンディになっているよ。ぜんぶ巣に運びだしたらクリア！' },
-    { at: TR.nest, t: 'ここがぼくらの巣。アリさんが運んだキャンディは、ここにしまわれるよ。' },
-    { at: TR.tray, t: '下にならんでいるのが「箱」。箱の色のアリさんが、書いてある数だけキャンディを運ぶよ。選べるのは、それぞれの列のいちばん手前の箱だけ。' },
-    { mode: 'tap', col: tutCol, at: tcol, t: '光っている箱をタップしてみて！' },
-    { at: TR.board, delay: 1.2, t: '箱と同じ色のアリさんが出てきた！アリさんが運べるのは、外側から通れるキャンディだけだよ。' },
-    { at: TR.slots, t: 'タップした箱は「スロット」に入るよ。アリさんが全員出発すると箱は消えて、スロットが空くよ。スロットは全部で5つ。' },
-    { mode: 'tap', col: tutCol, at: tcol, t: 'つぎの箱もタップしよう！' },
-    { at: TR.board, delay: 1.0, t: '外側のキャンディがなくなると、その内側にも道ができるよ。外から順番にほどいていくのがコツ！' },
-    { mode: 'tap', col: tutCol, at: tcol, t: 'もう1つタップ！' },
-    { at: () => elRect('.prog', 4), delay: 0.6, t: '上は「のこりの数」と「時計」。時計は最初のタップから動いて、はやくクリアするほど★が多くなるよ。説明しているあいだは止まっているから安心してね。' },
-    { at: () => elRect('footer', 2), t: 'こまったら下のボタン。↶もどす と 💡ヒント はコインを使うよ。⟳やりなおし は何回でもむりょう。はやさ で2倍速にもできるよ。' },
-    { t: 'あとは自由にやってみて！どの箱から置くか考えるのが、このパズルのおもしろいところ。たのんだよ、指揮官さん！' }
+    { mode: 'tap', col: tutCol, at: tcol, t: '光っている箱をタップして、アリさんにキャンディを運んでもらおう！' },
+    { mode: 'tap', col: tutCol, at: tcol, delay: 0.9, t: '外側から順番に運べるよ！つぎの箱もタップしよう。' },
+    { at: TR.slots, delay: 0.7, t: '箱は上に5つまで置けるよ。アリさんが全員出発すると空くから、ぜんぶ運んで絵を完成させよう！' }
   ] },
   hold: { lv: 1, steps: () => [
-    { t: 'こんどは「長押し」をおぼえよう！箱を置く前に、どのキャンディが運ばれるか確かめられるよ。' },
-    { mode: 'hold', col: tutCol, at: tcol, t: '光っている箱を、指をはなさずに長押ししてみて。' },
-    { mode: 'until', until: () => !G.press && !G.preview, at: TR.board, t: '光ったキャンディが、この箱で運ばれるぶん！番号は運ぶ順番だよ。指をはなすと元にもどるよ。' },
-    { at: tcol, t: '長押ししているあいだ、上に「○ / ○ 個を運ぶよ」と出るよ。ぜんぶ運べるか、のこりがスロットで待つことになるかもわかるね。似た色で迷ったら長押し！' },
-    { mode: 'tap', col: tutCol, at: tcol, t: 'じゃあ、タップして運ぼう！' },
-    { at: () => elRect('#bSet', 4), delay: 0.8, t: 'せってい⚙️で「箱に『届く数／必要数』を表示」をオンにすると、長押ししなくても数が見られるよ。' }
+    { mode: 'hold', col: tutCol, at: tcol, t: '光っている箱を「長押し」すると、運べるキャンディが事前にわかるよ！' },
+    { mode: 'until', until: () => !G.press && !G.preview, at: TR.board, t: '光ったぶんが運べるキャンディ！指をはなしたら、タップして運ぼう。' },
+    { mode: 'tap', col: tutCol, at: tcol, t: '迷ったら長押し！そのままタップしてみよう。' }
   ] },
   star: { lv: 1, steps: () => [
     { at: () => elRect('.prog', 4), t: 'ここからは★★★をねらってみよう！最初のタップから、最後の箱を置くまでのタイムで★が決まるよ。目安の秒数は時計のとなりに出ているよ。' },
@@ -2122,7 +2109,7 @@ G.speed = save.settings.fast ? 2 : 1;
 popText($('#ttl'), 'アントフロー');
 updateBadge(); updateCoins(); applyDev(); refreshPrices();
 loadLevel(save.level);
-if (dailyCheck()) showDaily(); else showOv('title');
+if (gotCount() === 0 && !save.daily.day) startPlay(); else if (dailyCheck()) showDaily(); else showOv('title');
 layout();
 requestAnimationFrame(frame);
 
