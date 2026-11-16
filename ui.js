@@ -1952,7 +1952,7 @@ function frame(now) {
       // タイム：最初のタップから全部運び終わる（論理的に）まで。メニューやチュートリアルの説明中は止まる
       if (R && R.started && !R.done && !G.overlay && !G.loading && !Tut.busy()) R.time += rdt;
       if (G.fever.t > 0 && !G.overlay && !Tut.busy()) { G.fever.t -= rdt; if (G.fever.t <= 0) endFever(); }
-      updateBoxes(dt); updateAnts(dt); updateParts(dt);
+      updateBoxes(dt); updateAnts(dt, rdt); updateParts(dt);
       Sound.walk(G.overlay ? 0 : G.ants.length);
       for (let j = 0; j < G.trayOff.length; j++) { G.trayOff[j] *= Math.exp(-rdt * 16); if (G.trayOff[j] < 0.3) G.trayOff[j] = 0; }
       G.nestBounce = Math.max(0, G.nestBounce - rdt * 5);

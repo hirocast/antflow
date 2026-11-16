@@ -492,7 +492,7 @@ function startReturn(a) {
   pts.push(nestHole());
   a.pts = pts; a.i = 0; a.d = 0; a.state = 'back'; a.t = 0;
 }
-function updateAnts(dt) {
+function updateAnts(dt, rdt) {
   const fm = G.fever.t > 0 ? 1.4 : 1, gap = gapCells();
   for (let k = G.ants.length - 1; k >= 0; k--) {
     const a = G.ants[k];
@@ -525,7 +525,8 @@ function updateAnts(dt) {
       }
     }
   }
-  for (let i = G.bubbles.length - 1; i >= 0; i--) { G.bubbles[i].t += dt; if (G.bubbles[i].t > G.bubbles[i].life) G.bubbles.splice(i, 1); }
+  const bdt = rdt == null ? dt : rdt;
+  for (let i = G.bubbles.length - 1; i >= 0; i--) { G.bubbles[i].t += bdt; if (G.bubbles[i].t > G.bubbles[i].life) G.bubbles.splice(i, 1); }
 }
 function updateBoxes(dt) {
   for (let k = G.vboxes.length - 1; k >= 0; k--) {
