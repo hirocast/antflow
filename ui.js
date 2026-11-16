@@ -109,6 +109,10 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .day b{display:block;font-size:11px}
 .day.got{opacity:.45}
 .day.today{background:#fff4c9;outline:3px solid #ffcf3a}
+.cfdesc{background:#fff;border-radius:14px;padding:10px 12px;border:2px solid #ffd3e2;font-size:13px;font-weight:800;line-height:1.5;text-align:left;margin:8px 0}
+.cfcost{background:#fffbe6;border-radius:12px;padding:8px 12px;border:2px solid #ffe39a;font-size:13px;font-weight:900;color:#8a5a00;margin:8px 0}
+.cfrow{display:flex;gap:8px;margin-top:12px}
+.cfrow .big{flex:1;margin:0}
 #ov-help .help{max-height:none;overflow:visible;text-align:center}
 .hpic{position:relative;margin:2px auto 6px;max-width:300px;cursor:pointer}
 #hCv{display:block;width:100%;aspect-ratio:300/140;border-radius:18px;background:linear-gradient(#e6f6ff,#fff6e6);border:3px solid #fff;box-shadow:0 4px 0 #ecd3a8}
@@ -233,7 +237,10 @@ body.wide .fb{max-width:none}
       '<button class="big" id="bGacha"></button><button class="big sec" id="bSkClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-daily"><div class="card">' +
       '<h2>🎁 ログインボーナス</h2><p id="dayMsg"></p><div class="dayrow" id="dayRow"></div>' +
-      '<button class="big pulse" id="bDayOk">うけとる！</button></div></div>');
+      '<button class="big pulse" id="bDayOk">うけとる！</button></div></div>' +
+    '<div class="ov" id="ov-confirm"><div class="card">' +
+      '<h2 id="cfTitle"></h2><p class="cfdesc" id="cfDesc"></p><div class="cfcost" id="cfCost"></div>' +
+      '<div class="cfrow"><button class="big sec" id="bCfCancel">やめる</button><button class="big mint" id="bCfOk">つかう！</button></div></div></div>');
 })();
 
 /* ================= 効果音の追加（sound.js は変更不要） ================= */
@@ -305,6 +312,28 @@ function updateCoins(bump) {
   if (G.overlay === 'title') renderTitle();
 }
 // 支払い：むりょう回数・無料チケット → コインの順に使う。足りなければ false
+function payInfo(k) {
+  const R = G.run;
+  if (k === 'undo' && R && R.freeU > 0) return { ok: true, cost: 'このステージのむりょう回数 1かい（のこり ' + R.freeU + ' → ' + (R.freeU - 1) + '）' };
+  if (k === 'hint') {
+    if (R && R.freeH > 0) return { ok: true, cost: 'このステージのむりょう回数 1かい（のこり ' + R.freeH + ' → 0）' };
+    if (save.hintT > 0) return { ok: true, cost: '🎟️ ヒント無料チケット 1まい（のこり ' + save.hintT + ' → ' + (save.hintT - 1) + '）' };
+  }
+  if (k === 'scan' && save.scanT > 0) return { ok: true, cost: '🎟️ 全部運べる無料チケット 1まい（のこり ' + save.scanT + ' → ' + (save.scanT - 1) + '）' };
+  const p = priceOf(k);
+  if (save.coins < p) return { ok: false, p };
+  return { ok: true, cost: '🪙 ' + p + 'コイン（もちコイン ' + save.coins + ' → ' + (save.coins - p) + '）' };
+}
+function confirmSpend(opts, onOk) {
+  const prev = G.overlay;
+  $('#cfTitle').textContent = opts.title;
+  $('#cfDesc').textContent = opts.desc;
+  $('#cfCost').textContent = '消費：' + opts.cost;
+  $('#bCfOk').textContent = opts.okLabel || 'つかう！';
+  G.cf = { prev, onOk };
+  Sound.tap();
+  showOv('confirm');
+}
 function pay(k) {
   const R = G.run;
   if (k === 'undo' && R && R.freeU > 0) { R.freeU--; refreshPrices(); return true; }
@@ -916,17 +945,29 @@ function renderSkins() {
 function doGacha() {
   const useT = save.tickets > 0;
   if (!useT && save.coins < PRICE.box) { toast('🪙 コインが足りないよ（' + PRICE.box + 'こ必要）'); Sound.deny(); return; }
-  if (useT) save.tickets--; else save.coins -= PRICE.box;
-  const rest = SKINS.filter(s => save.skins.indexOf(s.k) < 0);
-  if (!rest.length) { save.coins += 150; toast('ぜんぶ持ってる！🪙150 おかえし'); }
-  else {
-    const s = pick(rest);
-    save.skins.push(s.k); G.skPrev = s.k;
-    toast('🎉 「' + s.e + s.n + '」をゲット！ ' + s.d + '（タップでつけかえ）', 3200);
-  }
-  persist(); updateCoins(true); renderSkins();
-  Sound.fanfare();
-  Fx.burst(innerWidth / 2, innerHeight * 0.35, 60, 380, ['star', 'conf', 'dot']);
+  const cost = useT
+    ? '🎟️ おたからばこチケット 1まい（のこり ' + save.tickets + ' → ' + (save.tickets - 1) + '）'
+    : '🪙 ' + PRICE.box + 'コイン（もちコイン ' + save.coins + ' → ' + (save.coins - PRICE.box) + '）';
+  confirmSpend({
+    title: '🎁 おたからばこ',
+    desc: 'アリの「きせかえ」がランダムで1つ手に入ります。きせかえごとに便利な効果がついています！（ぜんぶ所持済みの場合は🪙150かえってきます）',
+    cost,
+    okLabel: '開ける！'
+  }, () => {
+    const tNow = save.tickets > 0;
+    if (!tNow && save.coins < PRICE.box) { toast('🪙 コインが足りないよ（' + PRICE.box + 'こ必要）'); Sound.deny(); return; }
+    if (tNow) save.tickets--; else save.coins -= PRICE.box;
+    const rest = SKINS.filter(s => save.skins.indexOf(s.k) < 0);
+    if (!rest.length) { save.coins += 150; toast('ぜんぶ持ってる！🪙150 おかえし'); }
+    else {
+      const s = pick(rest);
+      save.skins.push(s.k); G.skPrev = s.k;
+      toast('🎉 「' + s.e + s.n + '」をゲット！ ' + s.d + '（タップでつけかえ）', 3200);
+    }
+    persist(); updateCoins(true); renderSkins();
+    Sound.fanfare();
+    Fx.burst(innerWidth / 2, innerHeight * 0.35, 60, 380, ['star', 'conf', 'dot']);
+  });
 }
 function drawSkinPrev(cv, t) {
   const S = 120;
@@ -1009,11 +1050,21 @@ function toast(msg, ms) {
 function startPlay() { if (G.loading) showOv('load'); else { hideOv(); updateTip(); } }
 function doUndo() {
   if (G.loading || (G.overlay && G.overlay !== 'jam') || !G.undo.length) return;
-  if (!pay('undo')) return;
-  G.rewindTok++;
-  G.s = G.undo.pop(); G.moves.pop(); G.queued = null;
-  if (G.run) G.run.undos++;
-  resetVisual(); hideOv(); Sound.undo(); updateTip();
+  const info = payInfo('undo');
+  if (!info.ok) { pay('undo'); return; }
+  confirmSpend({
+    title: '↶ 1てもどす',
+    desc: '直前にえらんだ箱を1手まえの状態にもどします。',
+    cost: info.cost,
+    okLabel: 'もどす！'
+  }, () => {
+    if (G.loading || (G.overlay && G.overlay !== 'jam') || !G.undo.length) return;
+    if (!pay('undo')) return;
+    G.rewindTok++;
+    G.s = G.undo.pop(); G.moves.pop(); G.queued = null;
+    if (G.run) G.run.undos++;
+    resetVisual(); hideOv(); Sound.undo(); updateTip();
+  });
 }
 function doRetry() {
   if (G.loading || (G.overlay && G.overlay !== 'jam')) return;
@@ -1034,20 +1085,40 @@ function doHint() {
       return;
     } else { toast('読み切れなかったよ。少し戻して別の順番を試そう（コインは使ってないよ）', 2600); return; }
   }
-  if (!pay('hint')) return;
-  G.hintCol = j;
-  if (G.run) G.run.hints++;
-  toast('💡 光っている箱がおすすめだよ');
+  const info = payInfo('hint');
+  if (!info.ok) { pay('hint'); return; }
+  confirmSpend({
+    title: '💡 ヒント',
+    desc: 'いまの盤面からクリアにつながるおすすめの箱を1つ光らせて教えます。',
+    cost: info.cost,
+    okLabel: 'つかう！'
+  }, () => {
+    if (G.overlay || G.pendingWin || G.loading || !G.s) return;
+    if (!pay('hint')) return;
+    G.hintCol = j;
+    if (G.run) G.run.hints++;
+    toast('💡 光っている箱がおすすめだよ');
+  });
 }
 function doScan() {
   if (G.overlay || G.pendingWin || G.loading || !G.s) return;
   if (G.scanId === G.levelId) { toast('🔍 このステージでは解放済みだよ！'); return; }
-  if (!pay('scan')) return;
-  G.scanId = G.levelId;
-  G.hc = null;
-  Sound.nice(); haptic(12);
-  refreshPrices();
-  toast('🔍 全部運べる箱が光るよ！（このステージ中）', 2600);
+  const info = payInfo('scan');
+  if (!info.ok) { pay('scan'); return; }
+  confirmSpend({
+    title: '🔍 全部運べる',
+    desc: 'いま1列まるごと全部のアリを運べる箱が光ってわかるようになります。（このステージ中ずっと有効）',
+    cost: info.cost,
+    okLabel: '解放する！'
+  }, () => {
+    if (G.overlay || G.pendingWin || G.loading || !G.s) return;
+    if (!pay('scan')) return;
+    G.scanId = G.levelId;
+    G.hc = null;
+    Sound.nice(); haptic(12);
+    refreshPrices();
+    toast('🔍 全部運べる箱が光るよ！（このステージ中）', 2600);
+  });
 }
 function openAlbum(fromTitle) {
   G.fromTitle = fromTitle;
@@ -1893,19 +1964,41 @@ on('#bNext', () => {
   if (!nx) openAlbum(false); else loadLevel(nx);
 });
 on('#bReplay', () => { G.reveal = null; G.clearTok++; updateBadge(); hideOv(); loadLevel(G.levelId); });
+on('#bCfCancel', () => {
+  Sound.tap();
+  const cf = G.cf; G.cf = null;
+  if (cf && cf.prev) showOv(cf.prev); else hideOv();
+});
+on('#bCfOk', () => {
+  Sound.init();
+  const cf = G.cf; G.cf = null;
+  if (!cf) { hideOv(); return; }
+  if (cf.prev) showOv(cf.prev); else hideOv();
+  cf.onOk();
+});
 on('#bJamUndo', doUndo);
 on('#bJamRetry', doRetry);
 on('#bJamClose', () => { G.jamDismissed = true; G.rewindTok++; hideOv(); });
 on('#bJamRewind', () => {
   const t = G.rewindTo;
   if (t < 0 || t >= G.undo.length) return;
-  if (!pay('rewind')) return;
+  const info = payInfo('rewind');
+  if (!info.ok) { pay('rewind'); return; }
   const n = G.undo.length - t;
-  G.rewindTok++;
-  G.s = G.undo[t]; G.undo.length = t; G.moves.length = t; G.queued = null;
-  if (G.run) G.run.undos++;
-  resetVisual(); hideOv(); Sound.undo(); updateTip();
-  toast('⏪ ' + n + '手もどしたよ。ここからなら解ける！', 2600);
+  confirmSpend({
+    title: '⏪ すこしもどす',
+    desc: 'まだクリアできる手前（' + n + '手まえ）まで一気にもどしてやり直せます。',
+    cost: info.cost,
+    okLabel: 'もどす！'
+  }, () => {
+    if (t < 0 || t >= G.undo.length) return;
+    if (!pay('rewind')) return;
+    G.rewindTok++;
+    G.s = G.undo[t]; G.undo.length = t; G.moves.length = t; G.queued = null;
+    if (G.run) G.run.undos++;
+    resetVisual(); hideOv(); Sound.undo(); updateTip();
+    toast('⏪ ' + n + '手もどしたよ。ここからなら解ける！', 2600);
+  });
 });
 on('#bReset', () => {
   if (!confirm('クリア状況・アルバム・コイン・女王さま・きせかえをすべてリセットしますか？')) return;
