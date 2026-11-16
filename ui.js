@@ -216,7 +216,7 @@ body.wide .fb{max-width:none}
     '<div class="ov" id="ov-colony"><div class="card">' +
       '<h2>👑 女王さまのへや</h2><canvas id="qCv"></canvas><p class="qsay" id="qSay"></p>' +
       '<div class="qlv"><b id="qLv"></b><span id="qTitle"></span><div class="abar"><i id="qBar"></i></div><small id="qExp"></small></div>' +
-      '<p class="fine" id="qFood"></p><button class="big" id="bFeed">🍬 ごはんをあげる</button>' +
+      '<p class="fine" id="qFood"></p><div class="feedrow"><button class="big" id="bFeed">🍬 ごはんをあげる</button><button class="big sec" id="bFeedAll">ぜんぶ</button></div>' +
       '<h3>コロニーのおへや</h3><div class="rooms" id="qRooms"></div>' +
       '<h3>女王さまの力</h3><div class="perks" id="qPerks"></div>' +
       '<button class="big sec" id="bQClose">とじる</button></div></div>' +
@@ -753,21 +753,24 @@ function openColony(from) {
   showOv('colony');
 }
 function renderColony() {
-  const lv = save.qlv, max = lv >= Q_MAX, need = qNeed(lv);
+  const lv = save.qlv, max = lv >= Q_MAX, need = qNeed(lv), chunk = Math.min(save.food, 100);
   $('#qLv').textContent = 'Lv.' + lv;
   $('#qTitle').textContent = qTitle(lv);
   $('#qBar').style.width = (max ? 100 : clamp(100 * save.qexp / need, 0, 100)) + '%';
   $('#qExp').textContent = max ? 'さいだいレベル！' : 'つぎのレベルまで ' + save.qexp + ' / ' + need;
   $('#qFood').textContent = '🍬 しょくりょうこのエサ：' + save.food + ' こ（ステージで運んだキャンディがたまるよ）';
   $('#bFeed').disabled = !save.food || max;
+  $('#bFeed').textContent = save.food && !max ? '🍬 ごはん（+' + chunk + '）' : '🍬 ごはんをあげる';
+  $('#bFeedAll').disabled = !save.food || max;
+  $('#bFeedAll').style.display = save.food > 100 && !max ? '' : 'none';
   $('#qRooms').innerHTML = ROOMS.map(r => '<div class="room' + (lv >= r[0] ? '' : ' lock') + '"><i>' + (lv >= r[0] ? r[1] : '🔒') + '</i>' + (lv >= r[0] ? r[2] : 'Lv.' + r[0]) + '</div>').join('');
   $('#qPerks').innerHTML = '<div class="pk on"><b>いつも</b>クリアのコイン +' + (lv - 1) * 2 + '%（レベルごとに+2%）</div>' +
     Q_PERKS.map(p => '<div class="pk' + (lv >= p[0] ? ' on' : '') + '"><b>Lv.' + p[0] + '</b>' + (lv >= p[0] ? '✅ ' : '') + p[1] + '</div>').join('');
 }
-function doFeed() {
+function doFeed(all) {
   if (!save.food || save.qlv >= Q_MAX) return;
-  const before = save.qlv;
-  save.qexp += save.food; save.food = 0;
+  const before = save.qlv, amt = all ? save.food : Math.min(save.food, 100);
+  save.qexp += amt; save.food -= amt;
   while (save.qlv < Q_MAX && save.qexp >= qNeed(save.qlv)) { save.qexp -= qNeed(save.qlv); save.qlv++; }
   if (save.qlv >= Q_MAX) save.qexp = 0;
   persist();
@@ -1791,7 +1794,8 @@ on('#bMQueen', () => { Sound.init(); openColony('title'); });
 on('#bMMis', () => { Sound.init(); openMissions('title'); });
 on('#bMSkin', () => { Sound.init(); openSkins('title'); });
 on('#bClearQueen', () => openColony('clear'));
-on('#bFeed', doFeed);
+on('#bFeed', () => doFeed(false));
+on('#bFeedAll', () => doFeed(true));
 on('#qCv', () => { G.qBounce = 1; Sound.squeak(); $('#qSay').textContent = '👑「' + talkLine('queen') + '」'; });
 on('#bQClose', closeMeta);
 on('#bMisClose', closeMeta);

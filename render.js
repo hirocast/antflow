@@ -182,8 +182,8 @@ const antCache = new Map(), boardCv = document.createElement('canvas'), boardG =
    両方を計算して、横長のほうが絵が SIDE_MIN 倍以上大きくなるときだけ横長にする */
 const SIDE_MIN = 1.08;
 const q4 = v => Math.floor(v * 4) / 4;
-// 箱の大きさ h のトレイに必要な高さ（手前の箱＋うしろに2つ重ねてのぞかせる）
-const trayNeed = h => Math.round(h * 1.66 + 26);
+// 箱の大きさ h のトレイに必要な高さ（手前の箱＋うしろに3つ重ねてのぞかせる）
+const trayNeed = h => Math.round(h * 2.08 + 22);
 // スロットの大きさ s の列に必要な高さ（箱からのぞくアリの頭もふくむ）
 const rowNeed = s => Math.round(s * 1.4 + 8);
 // たて長：スロット列の右はしに巣穴（巣穴の幅＝スロット約2.2こ分）
@@ -198,7 +198,7 @@ function planTall(W, H, n) {
   // 絵が横幅いっぱいで止まったら、余った高さでトレイの箱 → スロットの順に大きくする
   let spare = avail - frameH - 8;
   if (spare > 0) {
-    const h2 = clamp(h + spare * 0.6 / 1.66, h, Math.max(h, Math.min(66, cw * 0.62)));
+    const h2 = clamp(h + spare * 0.6 / 2.08, h, Math.max(h, Math.min(66, cw * 0.62)));
     spare -= trayNeed(h2) - trayH; h = h2; trayH = trayNeed(h);
   }
   if (spare > 0) {
@@ -248,7 +248,7 @@ function layout() {
   boardSide = P.side; cs = P.c; ox = P.ox; oy = P.oy;
   slotSize = P.s; slotGap = P.g; slotCX = P.slotCX; slotY = P.slotY;
   trayTop = P.trayTop; trayCX = P.trayCX; panelL = P.panelL; panelR = P.panelR;
-  colW = P.cw; headSize = P.h; trayHeadY = trayTop + headSize * 0.5 + 10; trayGap = headSize * 0.42;
+  colW = P.cw; headSize = P.h; trayHeadY = trayTop + headSize * 0.5 + 10; trayGap = headSize * 0.44;
   antPx = clamp(cs * 1.4, 13, 30); antU = antPx / 2;
   nestR = clamp(Math.min(P.nestRoom, antPx * 0.95 * NEST_SCALE), 10, 50);
   nestX = P.nestX; nestY = P.nestY;
@@ -720,10 +720,10 @@ function drawBox(x, y, sz, ci, num, o) {
   ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = Math.max(1.5, sz * 0.04);
   roundRect(ctx, -w / 2 + 1, -h / 2 + 1, w - 2, h - 2, r); ctx.stroke();
   if (num != null) {
-    const fs = sz * (String(num).length > 2 ? 0.3 : 0.38);
+    const fs = sz * (String(num).length > 2 ? 0.3 : 0.38), ny = h * (o.numY == null ? 0.1 : o.numY);
     ctx.font = fnt(900, fs); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = Math.max(2.5, fs * 0.2); ctx.strokeStyle = sh.ol; ctx.strokeText(String(num), 0, h * 0.1);
-    ctx.fillStyle = '#fff'; ctx.fillText(String(num), 0, h * 0.1);
+    ctx.lineWidth = Math.max(2.5, fs * 0.2); ctx.strokeStyle = sh.ol; ctx.strokeText(String(num), 0, ny);
+    ctx.fillStyle = '#fff'; ctx.fillText(String(num), 0, ny);
   }
   if (save.settings.cb) {
     ctx.font = '700 ' + Math.round(sz * 0.22) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -752,14 +752,14 @@ function drawTray() {
       continue;
     }
     const off = G.trayOff[j], fr = trayGap > 0 ? off / trayGap : 0;
-    for (let k = Math.min(3, rest) - 1; k >= 0; k--) {
+    for (let k = Math.min(4, rest) - 1; k >= 0; k--) {
       const b = col[h + k];
       let s = lerp(TSC[k], TSC[k + 1], fr) * headSize;
       if (k === 0 && G.press && G.press.j === j && !G.press.previewed) s *= 0.92;
       if (k === 0 && G.queued && G.queued.j === j) s *= 1 + 0.05 * Math.sin(G.rt * 20);
       if (k === 0 && save.settings.dim && !G.hc) G.hc = headCounts(G.s);
       const y = trayHeadY + k * trayGap + off, dim = k === 0 && save.settings.dim && !G.hc[j];
-      drawBox(x, y, s, b.c, b.n, { alpha: lerp(TAL[k], TAL[k + 1], fr) * (dim ? 0.5 : 1) });
+      drawBox(x, y, s, b.c, b.n, { alpha: lerp(TAL[k], TAL[k + 1], fr) * (dim ? 0.5 : 1), numY: k > 0 ? 0.22 : 0.1 });
       if (dim) drawZz(x + s * 0.42, y - s * 0.4, s);
       if (k === 0 && save.settings.info) {
         if (!G.hc) G.hc = headCounts(G.s);
@@ -771,10 +771,10 @@ function drawTray() {
         ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y + s * 0.38 + th / 2);
       }
     }
-    // のこりの箱の数：3つ目の箱の右に出す（トレイを低くしたので下には置かない）
-    if (rest > 3) {
+    // のこりの箱の数：4つ目の箱の右に出す（トレイを低くしたので下には置かない）
+    if (rest > 4) {
       ctx.fillStyle = 'rgba(120,70,30,.75)'; ctx.font = fnt(800, Math.max(10, headSize * 0.24)); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText('+' + (rest - 3), x + headSize * 0.36, trayHeadY + 2 * trayGap);
+      ctx.fillText('+' + (rest - 4), x + headSize * 0.34, trayHeadY + 3 * trayGap);
     }
   }
 }

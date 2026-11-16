@@ -104,3 +104,6 @@ body.dev .ib{width:34px;font-size:15px}
 .vrow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--pink);box-shadow:0 2px 0 var(--pinkd)}
 .vrow input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--pink)}
 .vrow input[type=range]::-moz-range-track{background:transparent}
+.feedrow{display:flex;gap:8px;margin-top:10px}
+.feedrow .big{margin-top:0;flex:2}
+.feedrow #bFeedAll{flex:1;font-size:15px}
