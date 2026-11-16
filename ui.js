@@ -64,18 +64,25 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .mrow button i{display:block;font-style:normal;font-size:24px}
 .dot{position:absolute;top:-5px;right:-5px;width:14px;height:14px;border-radius:50%;background:#ff4d6d;border:2px solid #fff;display:none}
 .dot.on{display:block;animation:bump .7s ease infinite alternate}
-#ov-clear .ctitle{font-size:36px}
-.csay{font-size:13px!important;font-weight:800;color:#a0507a}
-#clearStars span{font-size:44px;margin:0 2px;-webkit-text-stroke:2px #fff;text-shadow:0 3px 0 #d08a00}
-#clearStars span.off{color:#e2d6dc;text-shadow:0 3px 0 #c9b8c0}
-.ctime{font-size:12px!important;font-weight:800}
-.res{background:#fff;border-radius:16px;padding:6px 12px;margin:6px 0;border:2px solid #ffe3a0;text-align:left}
-.res div{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;padding:3px 0;border-bottom:1px dashed #f3e2b8;animation:rin .3s both}
+#ov-clear .card{padding:12px 14px}
+#ov-clear .ctitle{font-size:28px;margin:0}
+#ov-clear .fine{font-size:11px;margin:0}
+#ov-clear p{margin:2px 0}
+#clearName{font-size:14px!important}
+.csay{font-size:12px!important;font-weight:800;color:#a0507a}
+#clearStars span{font-size:32px;margin:0 2px;-webkit-text-stroke:1.5px #fff;text-shadow:0 2px 0 #d08a00}
+#clearStars span.off{color:#e2d6dc;text-shadow:0 2px 0 #c9b8c0}
+.ctime{font-size:11px!important;font-weight:800}
+.res{background:#fff;border-radius:14px;padding:4px 10px;margin:4px 0;border:2px solid #ffe3a0;text-align:left;max-height:74px;overflow:auto}
+.res div{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:800;padding:2px 0;border-bottom:1px dashed #f3e2b8;animation:rin .3s both}
 .res div:last-child{border:none}
 .res div b{color:#d08a00;white-space:nowrap}
 @keyframes rin{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
-.restot{font-size:28px;font-weight:900;color:#d08a00}
-.restot small{display:block;font-size:12px;color:var(--ink)}
+.restot{font-size:22px;font-weight:900;color:#d08a00;line-height:1.2}
+.restot small{display:block;font-size:11px;color:var(--ink)}
+#ov-clear .chip,#ov-clear .teaser{margin:4px 0;padding:5px 10px}
+#ov-clear .cfrow{margin-top:6px}
+#ov-clear .big{padding:9px 10px;font-size:14px;margin-top:6px}
 .al small.bs{color:#ffa000;font-size:11px;font-weight:900}
 .qsay{background:#fff;border-radius:14px;padding:8px 12px;border:2px solid #ffd3e2;font-weight:800;font-size:13px!important}
 #qCv{display:block;width:100%;max-width:300px;aspect-ratio:300/170;margin:0 auto;border-radius:18px;border:3px solid #fff;box-shadow:0 4px 0 #d9b07a;cursor:pointer}
@@ -210,7 +217,10 @@ body.wide .fb{max-width:none}
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
   $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div>');
-  $('#bReplay').insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button>');
+  const cr = document.createElement('div'); cr.className = 'cfrow';
+  $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
+  cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
+  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button>');
   $('#bSetClose').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetHome">🏠 ホーム（女王さま・ミッション・きせかえ）</button>');
   $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button>');
   // あそびかた：ページめくり式に作りかえる
@@ -536,6 +546,8 @@ function showPreview(j) {
 function showOv(name) {
   G.overlay = name;
   document.querySelectorAll('.ov').forEach(o => o.classList.toggle('show', o.id === 'ov-' + name));
+  const card = document.querySelector('#ov-' + name + ' .card');
+  if (card) card.scrollTop = 0;
   if (name === 'title') renderTitle();
 }
 function hideOv() { G.overlay = null; document.querySelectorAll('.ov').forEach(o => o.classList.remove('show')); }
@@ -618,7 +630,7 @@ function showClear() {
   $('#clearLv').textContent = 'レベル ' + pos;
   $('#clearName').textContent = '「' + G.level.name + '」がかんせい！';
   $('#clearSay').textContent = '🐜「' + talkLine(st === 3 ? 'star3' : 'clear') + '」';
-  const cv = $('#revealCv'), S = Math.round(Math.min(innerWidth * 0.5, 180));
+  const cv = $('#revealCv'), S = Math.round(Math.min(innerWidth * 0.36, innerHeight * 0.21, 144));
   cv.style.width = cv.style.height = S + 'px'; cv.width = cv.height = Math.round(S * dpr);
   G.reveal = { t: 0, art: getArt(id), g: cv.getContext('2d'), S };
   const se = $('#clearStars');
