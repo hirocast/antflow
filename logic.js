@@ -151,14 +151,21 @@ function layerDepth(grid, W, H) {
   return D;
 }
 function params(id, total) {
-  const T = id <= 1 ? 0 : id <= 2 ? 1 : id <= 5 ? 2 : id <= 12 ? 3 : 4;
-  // 合格条件：「外側」「適当」の勝率の上限（Lv.1〜2は判定しない）
-  const rule = id <= 2 ? { outer: 1, random: 1 } : id <= 6 ? { outer: 0.5, random: 0.3 } : { outer: 0.2, random: 0.2 };
+  const pos = posOf(id) || id;
+  const T = pos <= 1 ? 0 : pos <= 2 ? 1 : pos <= 5 ? 2 : pos <= 15 ? 3 : 4;
+  // 合格条件：「外側」「適当」の勝率の上限（Lv.1〜2は判定しない。4の倍数面は少し軽めの息抜き）
+  const wave = pos >= 8 && pos % 4 === 0 ? 0.1 : 0;
+  const rule = pos <= 2 ? { outer: 1, random: 1 }
+    : pos <= 5 ? { outer: 0.65, random: 0.45 }
+    : pos <= 15 ? { outer: 0.35 + wave, random: 0.25 + wave * 0.5 }
+    : pos <= 30 ? { outer: 0.25 + wave, random: 0.2 + wave * 0.5 }
+    : { outer: 0.2 + wave * 0.5, random: 0.2 };
+  const K = T < 4 ? [2, 3, 3, 3][T] : (pos <= 20 || pos % 4 === 0 ? 3 : 4);
   return {
     tier: T,
-    B: [9, 13, 18, 23, 28][T] + (T === 4 ? Math.min(12, (id - 13) >> 1) : 0),
-    K: [2, 3, 3, 3, 4][T], maxBusy: [1, 3, 3, 4, 4][T],
-    pWait: [0, 0.25, 0.28, 0.32, 0.36][T], pPartial: [0, 0.08, 0.22, 0.28, 0.32][T], pChain: [0, 0.3, 0.75, 0.8, 0.85][T],
+    B: [9, 12, 15, 19, 24][T] + (T === 4 ? Math.min(14, (pos - 16) >> 1) : 0),
+    K, maxBusy: [1, 3, 3, 3, 4][T],
+    pWait: [0, 0.25, 0.26, 0.3, 0.35][T], pPartial: [0, 0.08, 0.18, 0.26, 0.32][T], pChain: [0, 0.3, 0.72, 0.8, 0.85][T],
     outerMax: rule.outer, randMax: rule.random,
     R: total > 2500 ? 6 : total > 1200 ? 8 : 12
   };
@@ -290,8 +297,9 @@ function evaluate(L, P, seed) {
 }
 // ★：面番号で決まる目安。合格条件を満たせなかった面は1つ減らす
 function starsOf(id, m) {
-  if (id <= 2) return 1;
-  const base = id <= 6 ? 2 : id <= 12 ? 3 : id <= 20 ? 4 : 5;
+  const pos = posOf(id) || id;
+  if (pos <= 2) return 1;
+  const base = pos <= 5 ? 2 : pos <= 15 ? 3 : pos <= 30 ? 4 : 5;
   return clamp(base - (m.ok ? 0 : 1), 1, 5);
 }
 function buildLevelAsync(id, cb) {
