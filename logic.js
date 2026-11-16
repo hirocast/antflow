@@ -163,7 +163,7 @@ function params(id, total) {
   const K = T < 4 ? [2, 3, 3, 3][T] : (pos <= 20 || pos % 4 === 0 ? 3 : 4);
   return {
     tier: T,
-    B: [9, 12, 15, 19, 24][T] + (T === 4 ? Math.min(14, (pos - 16) >> 1) : 0),
+    B: [9, 12, 15, 19, 22][T] + (T === 4 ? Math.min(8, (pos - 16) >> 2) : 0),
     K, maxBusy: [1, 3, 3, 3, 4][T],
     pWait: [0, 0.25, 0.26, 0.3, 0.35][T], pPartial: [0, 0.08, 0.18, 0.26, 0.32][T], pChain: [0, 0.3, 0.72, 0.8, 0.85][T],
     outerMax: rule.outer, randMax: rule.random,
