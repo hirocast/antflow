@@ -199,7 +199,7 @@ body.wide .fb{max-width:none}
   document.body.appendChild($('#toast'));
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
-  $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全部OK?</small><em class="price" id="pScan"></em></button>');
+  $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全部運べる</small><em class="price" id="pScan"></em></button>');
   $('#ttl').insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div>');
   $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
   const tf = $('#ov-title .fine');
