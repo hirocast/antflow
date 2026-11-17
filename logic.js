@@ -156,8 +156,8 @@ function params(id, total) {
   // 合格条件：「外側」「適当」の勝率の上限（Lv.1〜2は判定しない。4の倍数面は少し軽めの息抜き）
   const wave = pos >= 8 && pos % 4 === 0 ? 0.1 : 0;
   const rule = pos <= 2 ? { outer: 1, random: 1 }
-    : pos <= 5 ? { outer: 0.65, random: 0.45 }
-    : pos <= 15 ? { outer: 0.35 + wave, random: 0.25 + wave * 0.5 }
+    : pos <= 5 ? { outer: 0.5, random: 0.35 }
+    : pos <= 15 ? { outer: 0.28 + wave, random: 0.2 + wave * 0.5 }
     : pos <= 30 ? { outer: 0.25 + wave, random: 0.2 + wave * 0.5 }
     : { outer: 0.2 + wave * 0.5, random: 0.2 };
   const K = T < 4 ? [2, 3, 3, 3][T] : (pos <= 20 || pos % 4 === 0 ? 3 : 4);
@@ -165,7 +165,7 @@ function params(id, total) {
     tier: T,
     B: [9, 12, 15, 19, 22][T] + (T === 4 ? Math.min(8, (pos - 16) >> 2) : 0),
     K, maxBusy: [1, 3, 3, 3, 4][T],
-    pWait: [0, 0.25, 0.26, 0.3, 0.35][T], pPartial: [0, 0.08, 0.18, 0.26, 0.32][T], pChain: [0, 0.3, 0.72, 0.8, 0.85][T],
+    pWait: [0, 0.25, 0.3, 0.34, 0.36][T], pPartial: [0, 0.08, 0.24, 0.3, 0.34][T], pChain: [0, 0.3, 0.72, 0.8, 0.85][T],
     outerMax: rule.outer, randMax: rule.random,
     R: total > 2500 ? 6 : total > 1200 ? 8 : 12
   };

@@ -450,7 +450,7 @@ function applyLevel(id, L) {
   save.level = id; persist();
   layout(); resetVisual();
   G.clearShown = false; G.loading = false;
-  G.oneColNotified = false; G.oneColT = 0;
+  G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false;
   Sound.setBgm(L.name, L.theme);
   G.bgmBanner = save.settings.music !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   Tut.levelStart(id);
@@ -531,6 +531,10 @@ function onTapCol(j) {
   if (newId >= 0 && !G.pendingWin) {
     if (got === 0) Tut.add('sleep', free);
     else if (got < newN) Tut.add('partial', free);
+    if (!save.flags.lp && !G.lpNotified && !Tut.gameBusy() && posOf(G.levelId) >= 3 && (got === 0 || got < newN)) {
+      G.lpNotified = true;
+      toast('💡 迷ったら箱を「長押し」！置く前に届く数がわかるよ', 3200);
+    }
   }
   if (!G.pendingWin && !G.pendingJam && s.boxes.length === SLOT_COUNT - 1) Tut.add('slot4');
   G.hudDirty = true;
@@ -541,7 +545,7 @@ function showPreview(j) {
   const t = cloneState(G.s), ev = [], b = place(t, j, ev), cells = [];
   for (const e of ev) if (e.type === 'assign' && e.id === b.id) cells.push(...e.cells);
   G.preview = { cells, c: b.c, n: b.n };
-  if (!save.flags.lp) { save.flags.lp = 1; persist(); }
+  if (!save.flags.lp) { save.flags.lp = 1; persist(); updateTip(); }
   haptic(10);
 }
 
@@ -1005,17 +1009,23 @@ const TIPS = {
   5: [[0, 4, 'おやすみ（z）の箱をためすぎると渋滞するよ']],
   6: [[0, 3, '渋滞しても「⏪」で解ける所まで戻れるよ']]
 };
+const hudCache = { lv: '', st: '', name: '', left: '', w: '', dis: null, spd: '' };
 function updateHUD() {
   G.hudDirty = false;
   if (!G.level) return;
   const pos = posOf(G.levelId), st = starsAt(pos);
-  $('#lvNum').textContent = 'Lv.' + pos;
-  $('#lvStars').textContent = '★'.repeat(st) + '☆'.repeat(5 - st);
-  $('#lvName').textContent = save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
-  $('#leftTxt').textContent = 'のこり ' + G.vleft + ' / ' + G.level.total;
-  $('#progBar').style.width = (100 * (1 - G.vleft / G.level.total)) + '%';
-  $('#bUndo').disabled = !G.undo.length;
-  $('#spdIco').textContent = G.speed + 'x';
+  const lv = 'Lv.' + pos, stars = '★'.repeat(st) + '☆'.repeat(5 - st);
+  const name = save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
+  const left = 'のこり ' + G.vleft + ' / ' + G.level.total;
+  const w = (100 * (1 - G.vleft / G.level.total)).toFixed(2) + '%';
+  const dis = !G.undo.length, spd = G.speed + 'x';
+  if (hudCache.lv !== lv) { hudCache.lv = lv; $('#lvNum').textContent = lv; }
+  if (hudCache.st !== stars) { hudCache.st = stars; $('#lvStars').textContent = stars; }
+  if (hudCache.name !== name) { hudCache.name = name; $('#lvName').textContent = name; }
+  if (hudCache.left !== left) { hudCache.left = left; $('#leftTxt').textContent = left; }
+  if (hudCache.w !== w) { hudCache.w = w; $('#progBar').style.width = w; }
+  if (hudCache.dis !== dis) { hudCache.dis = dis; $('#bUndo').disabled = dis; }
+  if (hudCache.spd !== spd) { hudCache.spd = spd; $('#spdIco').textContent = spd; }
 }
 function updateTimer() {
   const R = G.run, el = $('#timeTxt');
@@ -1040,13 +1050,18 @@ function foldTip(fold) {
   }
 }
 function updateTip() {
-  const el = $('#tip'), list = TIPS[posOf(G.levelId)] || [], m = G.moves.length;
+  const el = $('#tip'), pos = posOf(G.levelId), list = TIPS[pos] || [], m = G.moves.length;
   if (!tipState.bound) {
     tipState.bound = true;
     el.addEventListener('click', () => { if (tipState.msg) foldTip(!el.classList.contains('fold')); });
   }
   let msg = '';
-  if (!Tut.gameBusy()) for (const [a, b, s] of list) if (m >= a && m < b) { msg = s; break; }
+  if (!Tut.gameBusy()) {
+    for (const [a, b, s] of list) if (m >= a && m < b) { msg = s; break; }
+    if (!msg && !save.flags.lp && pos >= 3 && m >= 1 && m < 5) {
+      msg = '💡 箱を「長押し」すると、届くキャンディが光って数がわかるよ！';
+    }
+  }
   const changed = msg !== tipState.msg;
   tipState.msg = msg;
   if (!msg) { foldTip(false); return; }
