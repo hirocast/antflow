@@ -924,6 +924,100 @@ function followsSolution() {
   for (let i = 0; i < G.moves.length; i++) if (G.moves[i] !== sol[i]) return false;
   return true;
 }
+function drawSingerCostume(g, u, key, t, singing) {
+  const lw = Math.max(1, u * 0.09);
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  if (key === 'katatsumuri') {
+    // エルヴィス・プレスリー風：白＆金のスタッズ付きジャンプスーツ＋赤いスカーフ＋リーゼント＋サングラス
+    // 白いマント（後ろ）
+    g.fillStyle = '#fff8fc'; g.strokeStyle = '#d4a030'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.1 * u, -0.1 * u); g.lineTo(-1.18 * u, 0.45 * u); g.lineTo(-0.85 * u, 0.68 * u); g.lineTo(0.1 * u, 0.25 * u);
+    g.closePath(); g.fill(); g.stroke();
+    // 白いボディスーツ＆高い襟（ハイカラー）
+    g.fillStyle = '#ffffff'; g.strokeStyle = '#5a3d5c'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.78 * u, 0.02 * u); g.quadraticCurveTo(-0.2 * u, -0.12 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.18 * u, 0.56 * u); g.lineTo(-0.82 * u, 0.48 * u); g.closePath();
+    g.fill(); g.stroke();
+    // 立てた襟
+    g.beginPath(); g.moveTo(0.02 * u, -0.02 * u); g.lineTo(0.24 * u, -0.34 * u); g.lineTo(0.36 * u, -0.06 * u); g.closePath();
+    g.fill(); g.stroke();
+    // 赤いスカーフ＆金のベルト・スタッズ
+    g.fillStyle = '#ff3b5c';
+    g.beginPath(); g.moveTo(0.16 * u, -0.04 * u); g.lineTo(0.32 * u, 0.22 * u); g.lineTo(0.06 * u, 0.16 * u); g.closePath(); g.fill();
+    g.fillStyle = '#ffd23f';
+    g.fillRect(-0.62 * u, 0.24 * u, 0.72 * u, 0.12 * u);
+    for (const sx of [-0.55, -0.32, -0.1, 0.08]) { ell(g, sx * u, 0.12 * u, 0.055 * u, 0.055 * u); g.fill(); }
+    // 黒いリーゼント（ポンパドール）
+    g.fillStyle = '#241c2c'; g.strokeStyle = '#140e1a'; g.lineWidth = lw * 0.9;
+    g.beginPath();
+    g.moveTo(0.02 * u, -0.58 * u);
+    g.quadraticCurveTo(0.42 * u, -1.18 * u, 0.96 * u, -0.78 * u);
+    g.quadraticCurveTo(0.88 * u, -0.54 * u, 0.52 * u, -0.62 * u);
+    g.closePath(); g.fill(); g.stroke();
+    // ロックスター風サングラス
+    g.fillStyle = '#2b2040'; g.strokeStyle = '#ffd23f'; g.lineWidth = lw * 0.95;
+    roundRect(g, 0.42 * u, -0.48 * u, 0.48 * u, 0.28 * u, 0.09 * u); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(0.42 * u, -0.36 * u); g.lineTo(0.1 * u, -0.44 * u); g.stroke();
+  } else if (key === 'sakura') {
+    // 演歌歌手風：豪華な振袖（着物）＋金襴の帯＋かんざし
+    // 振袖の袖・裾（赤紫〜桜グラデ）
+    const kg = g.createLinearGradient(-0.9 * u, -0.1 * u, 0.3 * u, 0.65 * u);
+    kg.addColorStop(0, '#c81e5a'); kg.addColorStop(0.55, '#e8437a'); kg.addColorStop(1, '#ff9cc8');
+    g.fillStyle = kg; g.strokeStyle = '#6b1235'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.02 * u); g.quadraticCurveTo(-0.2 * u, -0.14 * u, 0.28 * u, -0.02 * u);
+    g.lineTo(0.24 * u, 0.68 * u); g.lineTo(-0.96 * u, 0.62 * u); g.closePath();
+    g.fill(); g.stroke();
+    // 白い半衿
+    g.fillStyle = '#fff'; g.strokeStyle = '#c81e5a'; g.lineWidth = lw * 0.7;
+    g.beginPath(); g.moveTo(0.06 * u, -0.06 * u); g.lineTo(0.26 * u, -0.04 * u); g.lineTo(0.18 * u, 0.16 * u); g.closePath();
+    g.fill(); g.stroke();
+    // 金の豪華な帯（おび）
+    g.fillStyle = '#ffd23f'; g.strokeStyle = '#b87b00'; g.lineWidth = lw * 0.85;
+    roundRect(g, -0.58 * u, 0.12 * u, 0.66 * u, 0.28 * u, 0.06 * u); g.fill(); g.stroke();
+    // 後ろの帯結び
+    roundRect(g, -0.92 * u, -0.02 * u, 0.32 * u, 0.32 * u, 0.08 * u); g.fill(); g.stroke();
+    // 花かんざし（垂れ飾り付き）
+    g.strokeStyle = '#ffd23f'; g.lineWidth = lw * 0.8;
+    g.beginPath(); g.moveTo(0.12 * u, -0.66 * u); g.lineTo(-0.18 * u, -0.92 * u); g.stroke();
+    g.beginPath(); g.moveTo(0.12 * u, -0.62 * u); g.lineTo(0.02 * u, -0.36 * u); g.stroke();
+    for (let k = 0; k < 5; k++) {
+      const a = k * Math.PI * 2 / 5;
+      g.fillStyle = k % 2 ? '#ff6b9a' : '#ffdce8';
+      ell(g, (0.14 + Math.cos(a) * 0.13) * u, (-0.68 + Math.sin(a) * 0.13) * u, 0.08 * u, 0.08 * u); g.fill();
+    }
+    g.fillStyle = '#ffd23f'; ell(g, 0.14 * u, -0.68 * u, 0.06 * u, 0.06 * u); g.fill();
+  } else {
+    // チューリップなど：きらきらポップアイドル衣装（フリルドレス＋マント＋スターティアラ）
+    g.fillStyle = '#ff4fa3'; g.strokeStyle = '#8c1d5a'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.05 * u); g.quadraticCurveTo(-0.25 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.32 * u, 0.62 * u); g.lineTo(-0.98 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    // 金の星ベルト＆フリル裾
+    g.fillStyle = '#fff59d';
+    for (let k = 0; k < 4; k++) { ell(g, (-0.78 + k * 0.34) * u, 0.56 * u, 0.16 * u, 0.09 * u); g.fill(); }
+    g.fillStyle = '#ffd23f';
+    starPath(g, -0.16 * u, 0.28 * u, 0.17 * u, 0.08 * u, 5); g.fill();
+    // スターティアラ
+    g.fillStyle = '#ffd23f'; g.strokeStyle = '#b87b00'; g.lineWidth = lw * 0.8;
+    g.beginPath();
+    g.moveTo(0.2 * u, -0.66 * u); g.lineTo(0.28 * u, -0.94 * u); g.lineTo(0.42 * u, -0.76 * u);
+    g.lineTo(0.5 * u, -1.0 * u); g.lineTo(0.58 * u, -0.76 * u); g.lineTo(0.7 * u, -0.92 * u); g.lineTo(0.74 * u, -0.66 * u);
+    g.closePath(); g.fill(); g.stroke();
+  }
+  // 歌っているときのキラキラ演出
+  if (singing) {
+    for (let i = 0; i < 3; i++) {
+      const a = t * 3 + i * 2.1, r = (0.95 + 0.25 * Math.sin(t * 6 + i)) * u;
+      g.fillStyle = i === 1 ? '#fff' : '#ffd23f';
+      starPath(g, 0.2 * u + Math.cos(a) * r, -0.15 * u + Math.sin(a) * r * 0.7, 0.12 * u, 0.04 * u, 4);
+      g.fill();
+    }
+  }
+}
 function drawSinger() {
   if (typeof Sound === 'undefined' || !Sound.singerState) return;
   const sg = Sound.singerState();
@@ -933,22 +1027,23 @@ function drawSinger() {
   const sx = panelL + clamp(CW * 0.08, 22, 34);
   const u = clamp(gap * 0.3, 8.5, 12.5);
   const bob = sg.singing ? -sg.pulse * u * 0.32 - Math.abs(Math.sin(G.rt * 5)) * u * 0.1 : Math.sin(G.rt * 2.5) * u * 0.08;
-  const skin = sg.key === 'katatsumuri' ? 'ribbon' : 'flower';
   ctx.save();
   // 足元の影
   ctx.fillStyle = 'rgba(120,60,90,.15)'; ell(ctx, sx, sy + u * 0.78, u * 0.85, u * 0.18); ctx.fill();
-  // アリシンガー本体
+  // アリシンガー本体＋ステージ衣装
   ctx.save();
   ctx.translate(sx, sy + bob);
-  drawAntShape(ctx, u, 1, 0, sg.singing ? (Math.floor(G.rt * 7) & 3) : 0, skin);
+  drawAntShape(ctx, u, 1, 0, sg.singing ? (Math.floor(G.rt * 7) & 3) : 0, 'none');
   if (sg.singing && sg.pulse > 0.28) {
     ctx.fillStyle = '#ff5a7a'; ctx.strokeStyle = '#3a2a3a'; ctx.lineWidth = Math.max(0.8, u * 0.08);
     ell(ctx, 0.8 * u, -0.09 * u, 0.09 * u, 0.12 * u); ctx.fill(); ctx.stroke();
   }
-  // ミニマイク
+  drawSingerCostume(ctx, u, sg.key, G.rt, sg.singing);
+  // ステージマイク（衣装に合わせて金/銀/ピンク）
   ctx.strokeStyle = '#4a3850'; ctx.lineWidth = Math.max(1.4, u * 0.14); ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(0.85 * u, 0.25 * u); ctx.lineTo(1.12 * u, -0.1 * u); ctx.stroke();
-  ctx.fillStyle = '#ff8fb3'; ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
+  ctx.fillStyle = sg.key === 'sakura' ? '#ffd23f' : sg.key === 'katatsumuri' ? '#e2e8f0' : '#ff8fb3';
+  ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
   ell(ctx, 1.15 * u, -0.16 * u, u * 0.2, u * 0.2); ctx.fill(); ctx.stroke();
   ctx.restore();
   // 音符エフェクト
