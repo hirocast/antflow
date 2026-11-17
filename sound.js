@@ -229,7 +229,7 @@ const Sound = {
     else if (name === 'さくら') k = 'sakura';
     else if (theme === 'おまつり') k = 'matsuri';
     else if (theme === 'はな' || theme === 'しぜん') k = 'breeze';
-    if (this.bgmKey !== k) { this.bgmKey = k; this.step = 0; }
+    if (this.bgmKey !== k) { this.bgmKey = k; this.step = 0; this.lyricQ = []; }
   },
   startBgm() {
     if (!this.ctx || this.bgmTimer) return;
@@ -395,6 +395,55 @@ const Sound = {
     o1.connect(fl); o2.connect(m2); m2.connect(fl); fl.connect(g); g.connect(this.mus);
     const end = t + dur + 0.18;
     o1.start(t); o2.start(t); lfo.start(t); o1.stop(end); o2.stop(end); lfo.stop(end);
+  },
+  lyricQ: [],
+  LYRICS: {
+    tulip: [
+      '♪ さいた〜 さいた〜',
+      '♪ チューリップの はなが〜',
+      '♪ ならんだ〜 ならんだ〜',
+      '♪ あか しろ きいろ〜',
+      '♪ どのはな みても〜',
+      '♪ きれいだな〜'
+    ],
+    katatsumuri: [
+      '♪ でんでん むしむし',
+      '♪ かたつむり〜',
+      '♪ おまえの あたまは',
+      '♪ どこにある〜',
+      '♪ つのだせ やりだせ',
+      '♪ あたまだせ〜'
+    ],
+    sakura: [
+      '♪ さくら〜',
+      '♪ さくら〜',
+      '♪ やよいの そらは〜',
+      '♪ みわたす かぎり〜',
+      '♪ かすみか くもか〜',
+      '♪ においぞ いずる〜',
+      '♪ いざや〜 いざや〜',
+      '♪ みにゆかん〜',
+      '♪ さくら〜',
+      '♪ さくら〜',
+      '♪ いざや〜',
+      '♪ みにゆかん〜'
+    ]
+  },
+  singerState() {
+    const lyr = this.LYRICS[this.bgmKey];
+    if (!lyr) return null;
+    const c = this.ctx, playing = !!(c && c.state === 'running' && save.settings.bgm && this.bgmTimer);
+    if (!playing) {
+      return { key: this.bgmKey, text: save.settings.bgm ? '♪ タップで うたうよ！' : '♪ 〜', singing: false, pulse: 0 };
+    }
+    const now = c.currentTime;
+    let cur = null, lastNote = -9;
+    while (this.lyricQ.length > 1 && this.lyricQ[1].t <= now) this.lyricQ.shift();
+    for (const q of this.lyricQ) {
+      if (q.t <= now) { cur = q; if (q.note) lastNote = q.t; }
+    }
+    const pulse = lastNote > 0 ? Math.max(0, 1 - (now - lastNote) * 4.5) : 0;
+    return { key: this.bgmKey, text: cur ? cur.text : lyr[0], singing: true, pulse };
   },
   EXTRA_SONGS: {
     tulip: {
@@ -577,10 +626,13 @@ const Sound = {
         // ホイッスル：サビに入る直前と、曲の最初に戻る直前
         if (bar === 7 && (sec === 1 || sec === 3) && (st === 4 || st === 8)) this.whistle(w, st === 4 ? 0.28 : 0.1);
       }
+      const lyr = ex && this.LYRICS[this.bgmKey];
+      if (lyr && st === 0) this.lyricQ.push({ t: c.currentTime + w, text: lyr[bar], note: false });
       for (const m of B.m) {
         if (m[0] !== st) continue;
         const f = this.hz(m[1]);
         this.lead(f, w, m[2] * s16 * 0.92, 0.07);
+        if (lyr) this.lyricQ.push({ t: c.currentTime + w, text: lyr[bar], note: true });
         if (!ex && (sec === 1 || sec === 3)) this.mallet(f, w, 0.025, this.mus);
       }
       this.nextT += s16; this.step++;

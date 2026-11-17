@@ -924,12 +924,70 @@ function followsSolution() {
   for (let i = 0; i < G.moves.length; i++) if (G.moves[i] !== sol[i]) return false;
   return true;
 }
+function drawSinger() {
+  if (typeof Sound === 'undefined' || !Sound.singerState) return;
+  const sg = Sound.singerState();
+  if (!sg) return;
+  const slotBot = slotY + slotSize * 0.64, gap = trayTop - slotBot;
+  const sy = gap >= 22 ? slotBot + gap * 0.52 : trayTop - 11;
+  const sx = panelL + clamp(CW * 0.08, 22, 34);
+  const u = clamp(gap * 0.3, 8.5, 12.5);
+  const bob = sg.singing ? -sg.pulse * u * 0.32 - Math.abs(Math.sin(G.rt * 5)) * u * 0.1 : Math.sin(G.rt * 2.5) * u * 0.08;
+  const skin = sg.key === 'katatsumuri' ? 'ribbon' : 'flower';
+  ctx.save();
+  // 足元の影
+  ctx.fillStyle = 'rgba(120,60,90,.15)'; ell(ctx, sx, sy + u * 0.78, u * 0.85, u * 0.18); ctx.fill();
+  // アリシンガー本体
+  ctx.save();
+  ctx.translate(sx, sy + bob);
+  drawAntShape(ctx, u, 1, 0, sg.singing ? (Math.floor(G.rt * 7) & 3) : 0, skin);
+  if (sg.singing && sg.pulse > 0.28) {
+    ctx.fillStyle = '#ff5a7a'; ctx.strokeStyle = '#3a2a3a'; ctx.lineWidth = Math.max(0.8, u * 0.08);
+    ell(ctx, 0.8 * u, -0.09 * u, 0.09 * u, 0.12 * u); ctx.fill(); ctx.stroke();
+  }
+  // ミニマイク
+  ctx.strokeStyle = '#4a3850'; ctx.lineWidth = Math.max(1.4, u * 0.14); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0.85 * u, 0.25 * u); ctx.lineTo(1.12 * u, -0.1 * u); ctx.stroke();
+  ctx.fillStyle = '#ff8fb3'; ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
+  ell(ctx, 1.15 * u, -0.16 * u, u * 0.2, u * 0.2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // 音符エフェクト
+  if (sg.singing) {
+    for (let i = 0; i < 2; i++) {
+      const p = ((G.rt * 0.75 + i * 0.5) % 1);
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * 0.85;
+      ctx.fillStyle = i ? '#ff6b9a' : '#ff9f43';
+      ctx.font = fnt(900, u * 0.95); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(i ? '♫' : '♪', sx + (i ? -0.4 : 0.9) * u + Math.sin(p * 5 + i) * 3, sy - u * 0.9 - p * u * 1.4);
+      ctx.restore();
+    }
+  }
+  // シンガーのセリフ（右向きの横長吹き出し）
+  const fs = clamp(u * 1.15, 10.5, 13.5);
+  ctx.font = fnt(800, fs);
+  const bx = sx + u * 1.65, maxW = Math.max(80, panelR - bx - 6);
+  const bw = Math.min(maxW, ctx.measureText(sg.text).width + fs * 1.4), bh = fs * 1.65;
+  const by = clamp(sy, slotBot + bh * 0.45, trayTop - bh * 0.45);
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.strokeStyle = sg.singing ? '#ff7aa8' : '#b89eb8';
+  ctx.lineWidth = 1.8;
+  roundRect(ctx, bx, by - bh / 2, bw, bh, bh / 2); ctx.fill(); ctx.stroke();
+  // 吹き出しのしっぽ（左向き）
+  ctx.beginPath(); ctx.moveTo(bx + 1, by - 4); ctx.lineTo(bx - 6, by); ctx.lineTo(bx + 1, by + 4); ctx.closePath();
+  ctx.fill();
+  ctx.beginPath(); ctx.moveTo(bx, by - 4); ctx.lineTo(bx - 6, by); ctx.lineTo(bx, by + 4); ctx.stroke();
+  ctx.fillStyle = sg.singing ? '#5a3d5c' : '#8a748a';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(sg.text, bx + fs * 0.65, by + 0.5, bw - fs * 1.1);
+  ctx.restore();
+}
 function draw() {
   if (G.boardDirty || (G.boardSoft && G.rt - (G.boardT || 0) > 0.35)) renderBoard();
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(boardCv, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawGold(); drawFever(); drawNest(); drawSlots(); drawTray(); drawSlotBoxes(); drawAnts(); drawFxLocal(); drawPopups(); drawPreview(); drawGuides();
+  drawGold(); drawFever(); drawNest(); drawSlots(); drawTray(); drawSinger(); drawSlotBoxes(); drawAnts(); drawFxLocal(); drawPopups(); drawPreview(); drawGuides();
 }
 
 /* ================= 全画面エフェクト（紙吹雪・花火） ================= */
