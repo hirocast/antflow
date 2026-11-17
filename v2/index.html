@@ -1,0 +1,172 @@
+<!-- File: index.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#ffe3ee">
+<title>アントフロー v2｜詰めアリ思考パズル</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="lv"><b id="lvNum">Lv.1</b><span id="lvStars" class="st"></span><span id="lvName">-</span></div>
+    <div class="prog"><div class="bar"><i id="progBar"></i></div><span id="leftTxt">のこり 0</span></div>
+    <button class="ib dev-only" id="bDevPrev">◀</button>
+    <button class="ib dev-only" id="bDevNext">▶</button>
+    <button class="ib dev-only" id="bDev">🛠️</button>
+    <button class="ib" id="bAlbum" aria-label="アルバム">📒<em class="badge" id="albumBadge">0</em></button>
+    <button class="ib" id="bSet" aria-label="設定">⚙️</button>
+  </header>
+  <div id="stage"><canvas id="game"></canvas><div id="tip"></div><div id="toast"></div></div>
+  <footer>
+    <button class="fb" id="bUndo"><span>↶</span><small>もどす</small></button>
+    <button class="fb" id="bRetry"><span>⟳</span><small>やりなおし</small></button>
+    <button class="fb" id="bSpeed"><span id="spdIco">1x</span><small>はやさ</small></button>
+    <button class="fb" id="bHint"><span>💡</span><small>ヒント</small></button>
+  </footer>
+</div>
+
+<div class="ov show" id="ov-title"><div class="card">
+  <canvas id="mascot"></canvas>
+  <div class="ttl" id="ttl"></div>
+  <p>限られたスロットと下の入り口から<br>手順を読み切る、詰めアリ思考パズル</p>
+  <button class="big" id="bPlay">あそぶ</button>
+  <button class="big sec" id="bTitleHelp">あそびかた</button>
+  <button class="big sec" id="bTitleAlbum">アルバム</button>
+  <button class="big sec dev-only" id="bTitleDev">🛠️ 全ステージ一覧（開発）</button>
+  <p class="fine">完全情報・運なし・何手でも戻せる</p>
+</div></div>
+
+<div class="ov" id="ov-help"><div class="card">
+  <h2>あそびかた</h2>
+  <div class="help">
+    <div class="hs"><div class="e">👆</div><div><b>箱をタップ</b>箱がスロットへ移動して、同じ色のアリさんたちがキャンディを運ぶよ。列の後ろの箱も全部見えるから先読みしよう！</div></div>
+    <div class="hs"><div class="e">🚪</div><div><b>下の入り口から掘り進めよう</b>Lv.3からは外枠が壁になり、下の緑のゲートからしか入れないよ。岩（灰色）は通れない壁！</div></div>
+    <div class="hs"><div class="e">✋</div><div><b>長押しで確認</b>箱を長押しすると、運ばれるキャンディが光って番号が出るよ。迷ったら長押しで手順を確かめよう！</div></div>
+    <div class="hs"><div class="e">💤</div><div><b>スロットは3〜4つ</b>届かない箱や余った箱はスロットに残るよ。全部埋まると渋滞！あえて1枠予約して連鎖させるのがコツ。</div></div>
+    <div class="hs"><div class="e">⏪</div><div><b>何手でも戻せる</b>渋滞したら、まだ解ける地点まで一気に戻れるよ。</div></div>
+    <div class="hs"><div class="e">📒</div><div><b>絵をあつめよう</b>クリアするたび、完成した絵がアルバムにたまるよ。</div></div>
+  </div>
+  <button class="big" id="bHelpClose">はじめる！</button>
+</div></div>
+
+<div class="ov" id="ov-load"><div class="card">
+  <canvas id="loadCv"></canvas>
+  <h2>ありんこ隊が準備中…</h2>
+  <p class="fine">はじめての面は、パズルを作るのに数秒かかります</p>
+</div></div>
+
+<div class="ov" id="ov-clear"><div class="card">
+  <div class="ctitle" id="clearTitle"></div>
+  <div class="fine" id="clearLv"></div>
+  <canvas id="revealCv"></canvas>
+  <p id="clearName" style="font-weight:900"></p>
+  <p class="cstars" id="clearStars"></p>
+  <div class="chip"><span style="font-size:26px">📒</span><div class="ci">アルバム<div class="cbar"><i id="albumBar"></i></div></div><b><span id="albumCount">0</span> / <span id="albumTotal">0</span></b><em id="albumNew">NEW!</em></div>
+  <div class="teaser"><canvas id="nextCv"></canvas><div><small id="nextLabel">つぎの絵（クリアで公開）</small><b id="nextName"></b></div></div>
+  <button class="big pulse" id="bNext">つぎへ ▶</button>
+  <button class="big sec" id="bReplay">もう一度</button>
+</div></div>
+
+<div class="ov" id="ov-jam"><div class="card">
+  <div style="font-size:46px">🐜💦</div>
+  <h2>コロニーが渋滞！</h2>
+  <p id="jamMsg"></p>
+  <button class="big" id="bJamRewind" disabled>⏪ 戻り先を調べています…</button>
+  <button class="big sec" id="bJamUndo">↶ 1手もどす</button>
+  <button class="big sec" id="bJamRetry">⟳ 最初から</button>
+  <button class="link" id="bJamClose">盤面を見る（閉じる）</button>
+</div></div>
+
+<div class="ov" id="ov-settings"><div class="card">
+  <h2>せってい</h2>
+  <label class="row"><span>効果音</span><input type="checkbox" data-k="sfx"><i></i></label>
+  <div class="vrow"><span>効果音の音量</span><input type="range" min="0" max="100" step="5" data-v="sfxVol" data-l="vSfx"><b id="vSfx">90</b></div>
+  <label class="row"><span>BGM</span><input type="checkbox" data-k="bgm"><i></i></label>
+  <div class="vrow"><span>BGMの音量</span><input type="range" min="0" max="100" step="5" data-v="bgmVol" data-l="vBgm"><b id="vBgm">70</b></div>
+  <label class="row"><span>振動（対応端末のみ）</span><input type="checkbox" data-k="vib"><i></i></label>
+  <label class="row"><span>アリさんのセリフ</span><input type="checkbox" data-k="talk"><i></i></label>
+  <label class="row"><span>アリさんの足音（サラサラ音）</span><input type="checkbox" data-k="steps"><i></i></label>
+  <label class="row"><span>色覚サポート（色ごとの記号を表示）</span><input type="checkbox" data-k="cb"><i></i></label>
+  <label class="row"><span>箱を選んだら、運ばれるキャンディを半透明にする</span><input type="checkbox" data-k="wash"><i></i></label>
+  <label class="row"><span>今届かない色の箱を薄く表示</span><input type="checkbox" data-k="dim"><i></i></label>
+  <label class="row"><span>箱に「届く数／必要数」を表示</span><input type="checkbox" data-k="info"><i></i></label>
+  <label class="row"><span>🛠️ 開発モード</span><input type="checkbox" data-k="dev"><i></i></label>
+  <button class="big mint" id="bSetHelp">あそびかたを見る</button>
+  <button class="big sec" id="bAppUpdate">🔄 アプリを最新に更新</button>
+  <button class="big" id="bSetClose">とじる</button>
+  <button class="link" id="bReset">進行状況をリセット</button>
+</div></div>
+
+<div class="ov" id="ov-album"><div class="card">
+  <h2>📒 アルバム</h2>
+  <p id="albumSum" class="fine"></p>
+  <div class="abar"><i id="albumSumBar"></i></div>
+  <div id="albumGrid" class="grid"></div>
+  <button class="big" id="bAlbumClose">とじる</button>
+</div></div>
+
+<div class="ov" id="ov-view"><div class="card">
+  <h2 id="viewName"></h2>
+  <canvas id="viewCv"></canvas>
+  <p id="viewInfo" class="fine"></p>
+  <button class="big" id="bViewPlay">このステージをあそぶ</button>
+  <button class="big sec" id="bViewBack">アルバムにもどる</button>
+</div></div>
+
+<div class="ov" id="ov-dev"><div class="card">
+  <h2>🛠️ 全ステージ一覧</h2>
+  <p id="devSum" class="fine"></p>
+  <div class="devbar"><button id="bDevGen">全ステージ事前生成</button><button id="bDevAuto">▶ 自動解答</button></div>
+  <div id="devGrid" class="dgrid"></div>
+  <p class="fine">外＝外側の色だけで解ける割合／工夫＝届かない箱も混ぜて解ける割合</p>
+  <div class="devbar"><button id="bDevClear">生成キャッシュ削除</button></div>
+  <button class="big" id="bDevClose">とじる</button>
+</div></div>
+
+<canvas id="fx"></canvas>
+
+<script>
+// 読み込みチェック：各 .js の最後の行で、自分のファイル名を AF_LOADED に登録する
+window.AF_LOADED = [];
+window.AF_FILES = ['base.js', 'arts.js', 'raster.js', 'logic.js', 'sound.js', 'render.js', 'ui.js', 'measure.js'];
+window.AF_bootErr = function (msg) {
+  var c = document.querySelector('#ov-title .card');
+  if (!c || c.querySelectorAll('.bootErr').length >= 4) return;
+  var p = document.createElement('p');
+  p.className = 'bootErr';
+  p.textContent = msg;
+  c.appendChild(p);
+};
+window.addEventListener('error', function (e) {
+  var msg = e.message || '不明';
+  if (/^Script error\.?$/i.test(msg)) {
+    window.AF_bootErr('エラー：詳しい内容はブラウザに隠されました（F12キーの開発者ツール →「Console」で確認できます）');
+    return;
+  }
+  var file = e.filename ? e.filename.split('/').pop().split('?')[0] : '';
+  var where = file ? '（' + file + ' の ' + e.lineno + '行目）' : '';
+  window.AF_bootErr('エラー：' + msg + where);
+});
+</script>
+<script src="base.js"></script>
+<script src="arts.js"></script>
+<script src="raster.js"></script>
+<script src="logic.js"></script>
+<script src="sound.js"></script>
+<script src="render.js"></script>
+<script src="ui.js"></script>
+<!-- 開発用：難しさの測定（不要になったら、この行と AF_FILES の 'measure.js' を消す） -->
+<script src="measure.js"></script>
+<script>
+(function () {
+  var miss = window.AF_FILES.filter(function (f) { return window.AF_LOADED.indexOf(f) < 0; });
+  if (miss.length) {
+    window.AF_bootErr('最初に読み込めなかったファイル：' + miss[0] + '（同じフォルダにあるか、最後まで保存できているかを確認してください）');
+  }
+})();
+</script>
+</body>
+</html>
