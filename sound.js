@@ -461,13 +461,17 @@ const Sound = {
     katatsumuri: {
       bpm: 96,
       style: 'tulip',
+      intro: [
+        { r: 0, ch: [-5, 0, 4, 7], m: [[0, 19, 2], [2, 24, 2], [4, 24, 2], [6, 19, 2], [8, 16, 2], [10, 19, 2], [12, 19, 2], [14, 16, 2]] },
+        { r: 0, ch: [-5, 0, 4, 7], m: [[0, 12, 2], [2, 16, 2], [4, 16, 2], [6, 14, 2], [8, 12, 6]] }
+      ],
       bars: [
         { r: 0, ch: [-5, 0, 4, 7], m: [[0, 19, 3], [3, 19, 1], [4, 19, 2], [6, 16, 2], [8, 12, 3], [11, 12, 1], [12, 12, 2], [14, 14, 2]] },
         { r: 0, ch: [-5, 0, 4, 7], r2: 7, ch2: [-5, -1, 2, 5], m: [[0, 16, 3], [3, 16, 1], [4, 14, 2], [6, 12, 2], [8, 14, 8]] },
-        { r: 0, ch: [-5, 0, 4, 7], r2: 5, ch2: [-3, 0, 5, 9], m: [[0, 16, 3], [3, 17, 1], [4, 19, 2], [6, 21, 2], [8, 19, 3], [11, 19, 1], [12, 19, 2], [14, 16, 2]] },
+        { r: 0, ch: [-5, 0, 4, 7], m: [[0, 16, 3], [3, 17, 1], [4, 19, 2], [6, 21, 2], [8, 19, 3], [11, 19, 1], [12, 19, 2], [14, 16, 2]] },
         { r: 7, ch: [-5, -1, 2, 5], r2: 0, ch2: [-5, 0, 4, 7], m: [[0, 14, 3], [3, 14, 1], [4, 12, 2], [6, 14, 2], [8, 16, 8]] },
         { r: 0, ch: [-5, 0, 4, 7], m: [[0, 19, 2], [2, 24, 2], [4, 24, 2], [6, 19, 2], [8, 16, 2], [10, 19, 2], [12, 19, 2], [14, 16, 2]] },
-        { r: 0, ch: [-5, 0, 4, 7], r2: 7, ch2: [-5, -1, 2, 5], m: [[0, 12, 3], [3, 16, 1], [4, 16, 2], [6, 14, 2], [8, 12, 8]] }
+        { r: 0, ch: [-5, 0, 4, 7], m: [[0, 12, 2], [2, 16, 2], [4, 16, 2], [6, 14, 2], [8, 12, 8]] }
       ]
     },
     sakura: {
@@ -604,10 +608,15 @@ const Sound = {
     // バックグラウンドから戻ったときに、たまった音符を一度に鳴らさない
     if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05;
     while (this.nextT < c.currentTime + this.ahead) {
-      let B, sec, bar;
+      let B, sec, bar, inIntro = false;
       if (ex) {
-        const len = ex.bars.length, abs = Math.floor(this.step / 16) % (len * 4);
-        sec = Math.floor(abs / len); bar = abs % len; B = ex.bars[bar];
+        const iLen = ex.intro ? ex.intro.length : 0, iSteps = iLen * 16;
+        if (this.step < iSteps) {
+          inIntro = true; sec = 0; bar = Math.floor(this.step / 16); B = ex.intro[bar];
+        } else {
+          const len = ex.bars.length, abs = Math.floor((this.step - iSteps) / 16) % (len * 4);
+          sec = Math.floor(abs / len); bar = abs % len; B = ex.bars[bar];
+        }
       } else {
         const abs = Math.floor(this.step / 16) % 32;
         sec = abs >> 3; bar = abs & 7; B = this.SONG[FORM[sec] * 8 + bar];
@@ -627,12 +636,13 @@ const Sound = {
         if (bar === 7 && (sec === 1 || sec === 3) && (st === 4 || st === 8)) this.whistle(w, st === 4 ? 0.28 : 0.1);
       }
       const lyr = ex && this.LYRICS[this.bgmKey];
-      if (lyr && st === 0) this.lyricQ.push({ t: c.currentTime + w, text: lyr[bar], note: false });
+      const lyrTxt = lyr ? (inIntro ? '♪ 〜（前奏）' : lyr[bar]) : '';
+      if (lyr && st === 0) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: false });
       for (const m of B.m) {
         if (m[0] !== st) continue;
         const f = this.hz(m[1]);
         this.lead(f, w, m[2] * s16 * 0.92, 0.07);
-        if (lyr) this.lyricQ.push({ t: c.currentTime + w, text: lyr[bar], note: true });
+        if (lyr) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: true });
         if (!ex && (sec === 1 || sec === 3)) this.mallet(f, w, 0.025, this.mus);
       }
       this.nextT += s16; this.step++;
