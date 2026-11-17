@@ -3,7 +3,7 @@
 
 /* ================= 定数・ユーティリティ（他のすべてのファイルから使う） ================= */
 // LV_KEY：生成したステージの保存名。生成の仕組みや絵の数を変えたら番号を上げる（古いステージは自動で消える）
-const LV_KEY = 'antflow-lv15-', SAVE_KEY = 'antflow-save-v2', SLOT_COUNT = 5, MAX_ANTS = 320, PICK = 0.5, ENTER = 0.24, SHADE_MIN = 30;
+const LV_KEY = 'antflow-lv16-', SAVE_KEY = 'antflow-save-v2', SLOT_COUNT = 5, MAX_ANTS = 320, PICK = 0.5, ENTER = 0.24, SHADE_MIN = 30;
 const KEYS = ['R','O','Y','L','G','F','C','B','I','P','K','W','S','T','N','A','M','D','V','E','Q'];
 const HEX = ['#ff5a6a','#ff9a3c','#ffd23f','#b4e05a','#4cc265','#2e8f55','#7fd6f5','#4a8ff0','#3346a0','#a66be0','#ff9cc8','#fbf8f1','#ffd3b0','#e3b27a','#9a6342','#b6bcc8','#c23b55','#3d3550','#cdb4f5','#8fe6c8','#fde7a6'];
 const SYM = ['●','▲','■','◆','★','✚','○','▼','◎','✦','♥','□','△','◇','☾','✕','♣','♠','✿','❖','☀'];
