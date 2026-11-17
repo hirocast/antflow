@@ -479,6 +479,20 @@ const Sound = {
       '♪ ハッピー バースデイ', '♪ トゥ ユー〜',
       '♪ ハッピー バースデイ', '♪ ディア アリさん',
       '♪ ハッピー バースデイ', '♪ トゥ ユー〜'
+    ],
+    samba: [
+      '♪ てくてく あるこう', '♪ みんなで はこぼう',
+      '♪ カラフル ブロック', '♪ ならべて つなごう',
+      '♪ おひさま キラキラ', '♪ えがおが ゆれるよ',
+      '♪ せーので よいしょっ', '♪ リズムに のって〜',
+      '♪ ちいさな あしおと', '♪ そろえて すすめば',
+      '♪ どんなに おおきな', '♪ おしろも できるよ',
+      '♪ たいこが ドンドン', '♪ こころも はずむね',
+      '♪ もうすぐ サビだよ', '♪ せーので ジャンプだ',
+      '♪ オレ！ ありんこ', '♪ サンバで おどろう',
+      '♪ カラフル パレード', '♪ みんなの ステージ',
+      '♪ キラキラ かがやく', '♪ なかまと いっしょに',
+      '♪ さいこうの えがおで', '♪ チャチャチャで フィナーレ'
     ]
   },
   singerState() {
@@ -802,12 +816,13 @@ const Sound = {
         // ホイッスル：サビに入る直前と、曲の最初に戻る直前
         if (bar === 7 && (sec === 1 || sec === 3) && (st === 4 || st === 8)) this.whistle(w, st === 4 ? 0.28 : 0.1);
       }
-      const lyr = ex && this.LYRICS[this.bgmKey];
+      const lyr = this.LYRICS[this.bgmKey];
+      const lyrIdx = ex ? bar : (FORM[sec] * 8 + bar);
       let lyrTxt = '';
       if (lyr) {
         if (inIntro) lyrTxt = '♪ 〜（前奏）';
         else {
-          const entry = lyr[bar];
+          const entry = lyr[lyrIdx];
           if (typeof entry === 'string') lyrTxt = entry;
           else if (Array.isArray(entry)) {
             for (const [ls, lt] of entry) if (st >= ls) lyrTxt = lt;
