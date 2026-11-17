@@ -1441,9 +1441,11 @@ function drawSinger() {
   const sg = Sound.singerState();
   if (!sg) return;
   const slotBot = slotY + slotSize * 0.64, gap = trayTop - slotBot;
-  const sy = gap >= 22 ? slotBot + gap * 0.52 : trayTop - 11;
-  const sx = panelL + clamp(CW * 0.08, 22, 34);
   const u = clamp(gap * 0.3, 8.5, 12.5);
+  const fs = clamp(u * 1.15, 10.5, 13.5), bh = fs * 1.65;
+  const by = clamp(slotBot + gap * 0.52, slotBot + bh * 0.45, trayTop - bh * 0.45);
+  const sy = by + u * 0.08;
+  const sx = panelL + clamp(CW * 0.07, 20, 30);
   const bob = sg.singing ? -sg.pulse * u * 0.32 - Math.abs(Math.sin(G.rt * 5)) * u * 0.1 : Math.sin(G.rt * 2.5) * u * 0.08;
   ctx.save();
   // 足元の影
@@ -1483,11 +1485,9 @@ function drawSinger() {
     }
   }
   // シンガーのセリフ（右向きの横長吹き出し）
-  const fs = clamp(u * 1.15, 10.5, 13.5);
   ctx.font = fnt(800, fs);
-  const bx = sx + u * 1.65, maxW = Math.max(80, panelR - bx - 6);
-  const bw = Math.min(maxW, ctx.measureText(sg.text).width + fs * 1.4), bh = fs * 1.65;
-  const by = clamp(sy, slotBot + bh * 0.45, trayTop - bh * 0.45);
+  const bx = sx + u * 1.45 + 7, maxW = Math.max(80, panelR - bx - 6);
+  const bw = Math.min(maxW, ctx.measureText(sg.text).width + fs * 1.4);
   ctx.fillStyle = 'rgba(255,255,255,.95)';
   ctx.strokeStyle = sg.singing ? '#ff7aa8' : '#b89eb8';
   ctx.lineWidth = 1.8;
@@ -1528,7 +1528,7 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(boardCv, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawGold(); drawFever(); drawNest(); drawSlots(); drawTray(); drawSinger(); drawSlotBoxes(); drawAnts(); drawFxLocal(); drawPopups(); drawPreview(); drawGuides(); drawBgmBanner();
+  drawGold(); drawFever(); drawNest(); drawSlots(); drawTray(); drawSlotBoxes(); drawSinger(); drawAnts(); drawFxLocal(); drawPopups(); drawPreview(); drawGuides(); drawBgmBanner();
 }
 
 /* ================= 全画面エフェクト（紙吹雪・花火） ================= */
