@@ -176,7 +176,7 @@ let CW = 0, CH = 0, dpr = 1, cs = 20, ox = 0, oy = 0, antPx = 20, antU = 10, nes
 let slotSize = 50, slotGap = 10, slotY = 0, trayTop = 0, trayHeadY = 0, trayGap = 30, headSize = 50, colW = 80;
 // framePad：木の額縁の太さ　slotCX / trayCX：スロット・トレイの並びのまんなか　panelL / panelR：トレイの左右のはし
 // boardSide：横長の画面で「絵を左・スロットとトレイを右」にしているか
-let framePad = 10, slotCX = 0, trayCX = 0, panelL = 8, panelR = 0, boardSide = false;
+let framePad = 10, slotCX = 0, holdX = 0, trayCX = 0, panelL = 8, panelR = 0, boardSide = false;
 let cubeSpr = [], cubeRes = [], candySpr = [];
 const antCache = new Map(), boardCv = document.createElement('canvas'), boardG = boardCv.getContext('2d');
 
@@ -190,10 +190,10 @@ const q4 = v => Math.floor(v * 4) / 4;
 const trayNeed = h => Math.round(h * 2.08 + 22);
 // スロットの大きさ s の列に必要な高さ（箱からのぞくアリの頭もふくむ）
 const rowNeed = s => Math.round(s * 1.4 + 8);
-// たて長：スロット列の右はしに巣穴（巣穴の幅＝スロット約2.2こ分）
+// たて長：左に「保留」＋「スロット列」、右はしに巣穴
 function planTall(W, H, n) {
   const fp = framePad, cw = Math.min((CW - 16) / n, 120), g = clamp(CW * 0.02, 4, 10), sc = slotCount(G.s);
-  const sMax = clamp((CW - 24 - g * 5) / (sc + 2.2), 24, 62);
+  const sMax = clamp((CW - 24 - g * 5) / (sc + 3.2), 24, 62);
   let h = clamp(Math.min(cw * 0.62, CH * 0.09), 34, 60), s = clamp(Math.min(sMax, CH * 0.08), 24, sMax);
   let trayH = trayNeed(h), rowH = rowNeed(s);
   const avail = CH - trayH - rowH - 10;
@@ -211,30 +211,33 @@ function planTall(W, H, n) {
   }
   spare = Math.max(0, spare);
   const top = 4 + spare * 0.35, rowTop = top + frameH + 14 + spare * 0.35;
-  const nr = s * 0.5, nestW = nr * 4.4, slotsW = s * sc + g * (sc - 1), left = (CW - slotsW - g - nestW) / 2;
+  const nr = s * 0.5, nestW = nr * 4.4, slotsW = s * sc + g * (sc - 1), totalSlotsW = s + g * 1.4 + slotsW, left = (CW - totalSlotsW - g - nestW) / 2;
   return {
     side: false, raw, c, h, s, g, cw, pw: 0,
     ox: (CW - frameW) / 2 + fp + c, oy: top + fp + c,
-    slotCX: left + slotsW / 2, slotY: rowTop + s * 0.74 + 4,
-    nestRoom: nr, nestX: left + slotsW + g + nestW / 2, nestY: rowTop + rowH / 2 + nr * 0.1,
+    holdX: left + s / 2,
+    slotCX: left + s + g * 1.4 + slotsW / 2, slotY: rowTop + s * 0.74 + 4,
+    nestRoom: nr, nestX: left + totalSlotsW + g + nestW / 2, nestY: rowTop + rowH / 2 + nr * 0.1,
     trayTop: CH - trayH, trayCX: CW / 2, panelL: 8, panelR: CW - 8
   };
 }
-// 横長：左に絵、右の操作エリアに 巣穴 → スロット → トレイ（トレイは指の届く下）
+// 横長：左に絵、右の操作エリアに 巣穴 → 保留＋スロット → トレイ
 function planWide(W, H, n) {
   if (CW < CH * 1.1 || CW < 460) return null;
   const fp = framePad, pw = clamp(CW * 0.34, 240, 440), pl = CW - pw, sc = slotCount(G.s);
   const cw = Math.min((pw - 16) / n, 120), g = clamp(pw * 0.025, 4, 12);
   const h = clamp(Math.min(cw * 0.62, CH * 0.13), 30, 66);
-  const s = clamp(Math.min((pw - 24 - g * (sc - 1)) / sc, CH * 0.11), 24, 62);
+  const s = clamp(Math.min((pw - 24 - g * sc) / (sc + 1), CH * 0.11), 24, 62);
   const trayH = trayNeed(h), rowH = rowNeed(s), nr = clamp(Math.min(pw / 5, (CH - trayH - rowH - 16) / 2.6), 10, 40);
   const raw = Math.min((pl - 12 - fp * 2) / (W + 2), (CH - 12 - fp * 2) / (H + 2));
   const c = clamp(q4(raw), 3, 46), frameW = (W + 2) * c + fp * 2, frameH = (H + 2) * c + fp * 2;
   const spare = Math.max(0, CH - trayH - rowH - nr * 2.5 - 12), rowTop = CH - trayH - rowH - spare * 0.25;
+  const slotsW = s * sc + g * (sc - 1), totalSlotsW = s + g * 1.4 + slotsW, left = pl + (pw - totalSlotsW) / 2;
   return {
     side: true, raw, c, h, s, g, cw, pw,
     ox: (pl - frameW) / 2 + fp + c, oy: (CH - frameH - 8) / 2 + fp + c,
-    slotCX: pl + pw / 2, slotY: rowTop + s * 0.74 + 4,
+    holdX: left + s / 2,
+    slotCX: left + s + g * 1.4 + slotsW / 2, slotY: rowTop + s * 0.74 + 4,
     nestRoom: nr, nestX: pl + pw / 2, nestY: rowTop - spare * 0.25 - 4 - nr * 1.15,
     trayTop: CH - trayH, trayCX: pl + pw / 2, panelL: pl + 2, panelR: CW - 8
   };
@@ -250,7 +253,7 @@ function layout() {
   framePad = clamp(Math.round(Math.min(CW, CH) * 0.018), 6, 10);
   const A = planTall(W, H, n), B = planWide(W, H, n), P = B && B.raw >= A.raw * SIDE_MIN ? B : A;
   boardSide = P.side; cs = P.c; ox = P.ox; oy = P.oy;
-  slotSize = P.s; slotGap = P.g; slotCX = P.slotCX; slotY = P.slotY;
+  slotSize = P.s; slotGap = P.g; holdX = P.holdX; slotCX = P.slotCX; slotY = P.slotY;
   trayTop = P.trayTop; trayCX = P.trayCX; panelL = P.panelL; panelR = P.panelR;
   colW = P.cw; headSize = P.h; trayHeadY = trayTop + headSize * 0.5 + 10; trayGap = headSize * 0.44;
   antPx = clamp(cs * 1.4, 13, 30); antU = antPx / 2;
@@ -707,6 +710,23 @@ function drawNest() {
   g.restore();
 }
 function drawSlots() {
+  // 保留枠（1枠のみ）
+  const hw = slotSize * 1.08, hh = slotSize * 0.98, p = 0.5 + 0.5 * Math.sin(G.rt * 7);
+  ctx.fillStyle = G.holdMode ? '#f3e4ff' : '#faf5ff';
+  roundRect(ctx, holdX - hw / 2, slotY - hh / 2, hw, hh, slotSize * 0.3); ctx.fill();
+  ctx.strokeStyle = G.holdMode ? 'rgba(166,107,224,' + (0.65 + 0.35 * p) + ')' : 'rgba(166,107,224,.65)';
+  ctx.lineWidth = G.holdMode ? 3 : 2.2;
+  if (!G.holdMode) ctx.setLineDash([5, 4]);
+  ctx.stroke(); ctx.setLineDash([]);
+  if (G.s.hold) {
+    drawBox(holdX, slotY, slotSize * 0.92, G.s.hold.c, G.s.hold.n, {});
+    ctx.fillStyle = '#7f4ab8'; ctx.font = fnt(900, Math.max(9, slotSize * 0.21)); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('出す', holdX, slotY - hh * 0.62);
+  } else {
+    ctx.fillStyle = G.holdMode ? '#7f4ab8' : 'rgba(140,95,190,.65)';
+    ctx.font = fnt(900, Math.max(10, slotSize * 0.24)); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(G.holdMode ? '列タップ' : '保留', holdX, slotY);
+  }
   const sc = slotCount(G.s), occ = G.vslots.filter(Boolean).length, danger = occ === sc - 1;
   const bx = slotX(0) - slotSize * 0.72, bw = slotX(sc - 1) - slotX(0) + slotSize * 1.44;
   ctx.fillStyle = 'rgba(255,255,255,.55)'; roundRect(ctx, bx, slotY - slotSize * 0.64, bw, slotSize * 1.28, slotSize * 0.4); ctx.fill();

@@ -32,10 +32,10 @@ function cubeDist(dist, W, x, y) {
 function makeState(L) {
   let left = 0;
   for (const v of L.grid) if (v >= 0) left++;
-  return { W: L.W, H: L.H, grid: Int8Array.from(L.grid), cols: L.cols, heads: new Array(L.cols.length).fill(0), boxes: [], nextId: 1, left, cap: L.cap || SLOT_COUNT, seal: !!L.seal };
+  return { W: L.W, H: L.H, grid: Int8Array.from(L.grid), cols: L.cols, heads: new Array(L.cols.length).fill(0), boxes: [], hold: null, nextId: 1, left, cap: L.cap || SLOT_COUNT, seal: !!L.seal };
 }
 function cloneState(s) {
-  return { W: s.W, H: s.H, grid: s.grid.slice(), cols: s.cols, heads: s.heads.slice(), boxes: s.boxes.map(b => ({ id: b.id, c: b.c, rem: b.rem, n: b.n })), nextId: s.nextId, left: s.left, cap: s.cap, seal: s.seal };
+  return { W: s.W, H: s.H, grid: s.grid.slice(), cols: s.cols, heads: s.heads.slice(), boxes: s.boxes.map(b => ({ id: b.id, c: b.c, rem: b.rem, n: b.n })), hold: s.hold ? { c: s.hold.c, n: s.hold.n } : null, nextId: s.nextId, left: s.left, cap: s.cap, seal: s.seal };
 }
 function resolve(s, ev) {
   const W = s.W, H = s.H, grid = s.grid, ne = nestEntry(W, H);
@@ -79,10 +79,27 @@ function place(s, j, ev) {
   resolve(s, ev);
   return b;
 }
+function stashHold(s, j) {
+  if (s.hold || s.heads[j] >= s.cols[j].length) return null;
+  const src = s.cols[j][s.heads[j]++];
+  s.hold = { c: src.c, n: src.n };
+  return s.hold;
+}
+function deployHold(s, ev) {
+  if (!s.hold || s.boxes.length >= (s.cap || SLOT_COUNT)) return null;
+  const src = s.hold;
+  s.hold = null;
+  const b = { id: s.nextId++, c: src.c, rem: src.n, n: src.n };
+  s.boxes.push(b);
+  if (ev) ev.push({ type: 'place', id: b.id, c: b.c, n: b.n });
+  resolve(s, ev);
+  return b;
+}
 // s.cap：スロットの数（測定で使う。省略時は SLOT_COUNT）
 function isJam(s) {
   if (s.left === 0) return false;
   if (s.boxes.length >= (s.cap || SLOT_COUNT)) return true;
+  if (s.hold) return false;
   for (let j = 0; j < s.cols.length; j++) if (s.heads[j] < s.cols[j].length) return false;
   return true;
 }
@@ -99,7 +116,8 @@ function headBox(s, j) { return s.cols[j][s.heads[j]]; }
 function stateKey(s) {
   let h = 2166136261;
   for (let i = 0; i < s.grid.length; i++) { h ^= (s.grid[i] + 2); h = Math.imul(h, 16777619); }
-  return s.heads.join(',') + '|' + s.boxes.map(b => b.c + ':' + b.rem).join(',') + '|' + (h >>> 0);
+  const hk = s.hold ? s.hold.c + ':' + s.hold.n : '-';
+  return s.heads.join(',') + '|' + hk + '|' + s.boxes.map(b => b.c + ':' + b.rem).join(',') + '|' + (h >>> 0);
 }
 function solve(s0, budgetMs, maxNodes) {
   const t0 = Date.now(), seen = new Set();
@@ -117,12 +135,25 @@ function solve(s0, budgetMs, maxNodes) {
       const t = cloneState(s);
       place(t, j, null);
       if (t.left === 0) return [j];
-      if (!isJam(t)) kids.push({ j, t, pr: t.boxes.length <= nb ? 0 : t.boxes.length });
+      if (!isJam(t)) kids.push({ mv: j, t, pr: t.boxes.length <= nb ? 0 : t.boxes.length });
+    }
+    if (s.hold) {
+      const t = cloneState(s);
+      deployHold(t, null);
+      if (t.left === 0) return [-1];
+      if (!isJam(t)) kids.push({ mv: -1, t, pr: t.boxes.length <= nb ? 0 : t.boxes.length + 0.5 });
+    } else {
+      for (let j = 0; j < s.cols.length; j++) {
+        if (s.cols[j].length - s.heads[j] < 2) continue;
+        const t = cloneState(s);
+        stashHold(t, j);
+        if (!isJam(t)) kids.push({ mv: 100 + j, t, pr: nb + 0.8 });
+      }
     }
     kids.sort((a, b) => a.pr - b.pr);
     for (const k of kids) {
       const r = dfs(k.t);
-      if (r) { r.unshift(k.j); return r; }
+      if (r) { r.unshift(k.mv); return r; }
       if (aborted) return null;
     }
     return null;
@@ -196,9 +227,9 @@ function carveWalls(art, seal) {
 function params(id, total) {
   const pos = posOf(id) || id;
   const T = pos <= 1 ? 0 : pos <= 2 ? 1 : pos <= 5 ? 2 : pos <= 15 ? 3 : 4;
-  // 詰めパズル仕様：基本スロットは3枠（4の倍数面のみ4枠で息抜き）、下口進入(seal)で構造読みを必須化
-  const cap = pos <= 2 ? 4 : (pos >= 8 && pos % 4 === 0 ? 4 : 3);
-  const seal = pos >= 3;
+  // 詰めパズル仕様：基本スロットは3枠（Lv.1と5の倍数面のみ4枠）、Lv.2から下口進入(seal)
+  const cap = pos <= 1 ? 4 : (pos >= 10 && pos % 5 === 0 ? 4 : 3);
+  const seal = pos >= 2;
   const wave = pos >= 8 && pos % 4 === 0 ? 0.08 : 0;
   const rule = pos <= 2 ? { outer: 1, random: 1 }
     : pos <= 5 ? { outer: 0.45, random: 0.3 }
@@ -365,7 +396,7 @@ function starsOf(id, m) {
   return clamp(base - (m.ok ? 0 : 1), 1, 5);
 }
 function buildLevelAsync(id, cb) {
-  const art = getArt(id);
+  const art = getPuzzleArt(id);
   let total = 0;
   for (const v of art.grid) if (v >= 0) total++;
   // limit：作り直しを続ける時間の上限（大きい面ほど長く。最大8秒）
@@ -403,7 +434,7 @@ function loadStored(id) {
   try {
     const d = JSON.parse(localStorage.getItem(LV_KEY + id));
     if (!d) return null;
-    const art = getArt(id), need = new Map(), have = new Map();
+    const art = getPuzzleArt(id), need = new Map(), have = new Map();
     let total = 0, nb = 0;
     for (const v of art.grid) if (v >= 0) { total++; need.set(v, (need.get(v) || 0) + 1); }
     const cols = d.cols.map(c => c.map(x => ({ c: x[0], n: x[1] })));

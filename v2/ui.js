@@ -479,7 +479,7 @@ function resetVisual() {
   G.waitIds = new Set([...G.waitIds].filter(id => G.s.boxes.some(b => b.id === id)));
   G.trayOff = new Array(G.s.cols.length).fill(0);
   G.vleft = G.s.left; G.pendingWin = false; G.pendingJam = isJam(G.s); G.jamDismissed = false; G.endT = 0;
-  G.hintCol = -1; G.preview = null; G.combo = 0; G.slowmo = 0; G.saidOnce = false;
+  G.hintCol = -1; G.holdMode = false; G.preview = null; G.combo = 0; G.slowmo = 0; G.saidOnce = false;
   G.rc = reachableCounts(G.s);
   G.hc = null;
   Sound.muffle(false);
@@ -492,10 +492,58 @@ function niceRead() {
   Sound.nice();
   Tut.add('nice');
 }
+function onTapHold() {
+  if (G.overlay || !G.s || G.pendingWin || G.loading) return;
+  const s = G.s;
+  if (!s.hold) {
+    G.holdMode = !G.holdMode;
+    Sound.tap(); haptic(6);
+    if (G.holdMode) toast('保留する列をタップしてね（もう一度「保留」でキャンセル）', 1800);
+    return;
+  }
+  if (s.boxes.length >= slotCount(s)) { G.slotFlash = 0.4; Sound.deny(); haptic(20); return; }
+  const free = G.vslots.indexOf(null);
+  if (free < 0) return;
+  if (G.run && !G.run.started) { G.run.started = true; G.timerShown = -9; }
+  G.undo.push(cloneState(s)); G.moves.push(-1);
+  const ev = [];
+  deployHold(s, ev);
+  let newId = -1;
+  for (const e of ev) {
+    if (e.type === 'place') {
+      const vb = { id: e.id, c: e.c, total: e.n, dispatched: 0, picked: 0, queue: [], slot: free, state: 'fly', t: 0, logicalDone: false, nextT: 0, fx: holdX, fy: slotY, fs: slotSize * 0.92 };
+      G.vboxes.push(vb); G.vslots[free] = vb;
+      newId = e.id; G.waitIds.delete(e.id);
+    } else {
+      const vb = G.vboxes.find(v => v.id === e.id);
+      if (!vb) continue;
+      if (e.type === 'assign') vb.queue.push(...e.cells);
+      else { vb.logicalDone = true; if (e.id !== newId && G.waitIds.has(e.id)) { G.waitIds.delete(e.id); niceRead(); } }
+    }
+  }
+  G.holdMode = false;
+  G.rc = reachableCounts(s); G.hc = null; G.hintCol = -1; G.boardDirty = true;
+  Sound.tap(); haptic(8);
+  if (s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
+  else if (isJam(s)) G.pendingJam = true;
+  G.hudDirty = true; updateTip();
+}
 function onTapCol(j) {
   if (G.overlay || !G.s || G.pendingWin || G.loading) return;
   const s = G.s;
   if (s.heads[j] >= s.cols[j].length) return;
+  if (G.holdMode) {
+    G.holdMode = false;
+    if (s.hold) return;
+    if (G.run && !G.run.started) { G.run.started = true; G.timerShown = -9; }
+    G.undo.push(cloneState(s)); G.moves.push(100 + j);
+    stashHold(s, j);
+    G.trayOff[j] = trayGap; G.hc = null; G.hintCol = -1;
+    Sound.tap(); haptic(8);
+    if (isJam(s)) G.pendingJam = true;
+    G.hudDirty = true; updateTip();
+    return;
+  }
   if (s.boxes.length >= slotCount(s)) { G.shake = { j, t: 0.24 }; G.slotFlash = 0.4; Sound.deny(); haptic(20); return; }
   const free = G.vslots.indexOf(null);
   if (free < 0) { G.queued = { j, until: G.rt + 2.5 }; return; }
@@ -1143,9 +1191,10 @@ function doHint() {
   }, () => {
     if (G.overlay || G.pendingWin || G.loading || !G.s) return;
     if (!pay('hint')) return;
-    G.hintCol = j;
     if (G.run) G.run.hints++;
-    toast('💡 光っている箱がおすすめだよ');
+    if (j === -1) { toast('💡 「保留」の箱をスロットに出そう！', 2400); }
+    else if (j >= 100) { G.hintCol = j - 100; toast('💡 光っている箱を「保留」に入れよう！', 2400); }
+    else { G.hintCol = j; toast('💡 光っている箱がおすすめだよ'); }
   });
 }
 function doScan() {
@@ -1856,15 +1905,17 @@ function devTick() {
   G.autoClearT = 0;
   if (G.overlay === 'jam') { setAuto(false); return; }
   if (G.overlay || G.pendingWin || G.rt < G.autoNext || G.vslots.indexOf(null) < 0 || G.s.boxes.length >= slotCount(G.s)) return;
-  let j = -1;
+  let j = -99;
   const sol = G.level.solution;
   if (followsSolution() && G.moves.length < sol.length) j = sol[G.moves.length];
   else {
     if (!G.autoPath || G.autoAt !== G.moves.length) { const r = solve(G.s, 800, 80000); G.autoPath = r.path ? r.path.slice() : null; G.autoAt = G.moves.length; }
     if (G.autoPath && G.autoPath.length) j = G.autoPath.shift();
   }
-  if (j < 0) { setAuto(false); toast('自動解答：この局面からは解けません'); return; }
-  onTapCol(j);
+  if (j === -99) { setAuto(false); toast('自動解答：この局面からは解けません'); return; }
+  if (j === -1) onTapHold();
+  else if (j >= 100) { G.holdMode = true; onTapCol(j - 100); }
+  else onTapCol(j);
   G.autoAt = G.moves.length; G.autoNext = G.rt + 0.2 / G.speed;
 }
 
@@ -1874,6 +1925,10 @@ canvas.addEventListener('pointerdown', e => {
   if (G.overlay || G.loading || !G.s) return;
   Sound.init();
   const p = evPos(e);
+  if (!Tut.blocking() && Math.abs(p.x - holdX) <= slotSize * 0.62 && Math.abs(p.y - slotY) <= slotSize * 0.58) {
+    onTapHold();
+    return;
+  }
   if (p.y < trayTop) return;
   let j = -1;
   for (let k = 0; k < G.s.cols.length; k++) if (Math.abs(p.x - trayX(k)) <= colW / 2) j = k;

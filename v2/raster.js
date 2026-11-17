@@ -184,5 +184,46 @@ function getArt(id) {
   if (!artCache.has(id)) { const def = ARTS[id - 1]; artCache.set(id, raster(def, boardSize(def, id))); }
   return artCache.get(id);
 }
+// パズル用のくっきり盤面（10x10〜14x14）：1手ごとの構造読みができるサイズに凝縮
+const puzzleArtCache = new Map();
+function getPuzzleArt(id) {
+  id = clamp(id, 1, TOTAL);
+  if (puzzleArtCache.has(id)) return puzzleArtCache.get(id);
+  const src = getArt(id), pos = posOf(id) || id;
+  const PW = pos <= 4 ? 10 : pos <= 18 ? 12 : 14;
+  const g = new Int8Array(PW * PW).fill(-1);
+  const SW = src.W, SH = src.H;
+  for (let py = 0; py < PW; py++) for (let px = 0; px < PW; px++) {
+    const x0 = Math.floor(px * SW / PW), x1 = Math.max(x0 + 1, Math.floor((px + 1) * SW / PW));
+    const y0 = Math.floor(py * SH / PW), y1 = Math.max(y0 + 1, Math.floor((py + 1) * SH / PW));
+    const cnt = new Map();
+    let filled = 0, total = 0;
+    for (let sy = y0; sy < y1; sy++) for (let sx = x0; sx < x1; sx++) {
+      total++;
+      const v = src.grid[sy * SW + sx];
+      if (v >= 0) { filled++; cnt.set(v, (cnt.get(v) || 0) + 1); }
+    }
+    if (filled * 3 >= total) {
+      let bestC = -1, bestN = -1;
+      for (const [c, n] of cnt) if (n > bestN) { bestN = n; bestC = c; }
+      g[py * PW + px] = bestC;
+    }
+  }
+  // 1マスだけの孤立色は隣の色に寄せてノイズを消す
+  const tot = new Map();
+  for (const v of g) if (v >= 0) tot.set(v, (tot.get(v) || 0) + 1);
+  for (let y = 0; y < PW; y++) for (let x = 0; x < PW; x++) {
+    const i = y * PW + x, v = g[i];
+    if (v >= 0 && tot.get(v) === 1) {
+      for (let k = 0; k < 4; k++) {
+        const nx = x + DX[k], ny = y + DY[k];
+        if (nx >= 0 && ny >= 0 && nx < PW && ny < PW && g[ny * PW + nx] >= 0) { g[i] = g[ny * PW + nx]; break; }
+      }
+    }
+  }
+  const res = { W: PW, H: PW, grid: g, name: src.name, theme: src.theme };
+  puzzleArtCache.set(id, res);
+  return res;
+}
 
 AF_LOADED.push('raster.js');
