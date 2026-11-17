@@ -250,7 +250,7 @@ const Sound = {
     else if (name === 'ゆきのむら') k = 'skaters';
     else if (name === 'やたい') k = 'muramatsuri';
     else if (name === 'あじさい') k = 'amefuri';
-    else if (name === 'ゆうえんち') k = 'kakkou';
+    else if (name === 'ゆうえんち') k = 'toysoldiers'; // かっこうワルツ(ヨナーソン没1956)は日本で2027年からPDのため未使用
     else if (name === 'サンゴしょう') k = 'warewauminoko';
     else if (name === 'じんじゃ') k = 'momiji';
     else if (name === 'アリのす') k = 'humoresque';
