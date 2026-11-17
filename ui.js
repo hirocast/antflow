@@ -2103,7 +2103,7 @@ function frame(now) {
   if (G.slowmo > 0) { G.slowmo -= rdt; dt *= 0.3; }
   if (h && h.length === 1 && !G.overlay && !G.loading && !G.pendingWin && !G.pendingJam && !G.auto && !G.press && !Tut.blocking()) {
     if (!G.oneColNotified) { G.oneColNotified = true; G.oneColT = G.rt + 0.25; toast('⚡ のこり1列！自動でおかたづけするよ', 2000); }
-    else if (G.rt >= G.oneColT && !G.queued && G.s.boxes.length < SLOT_COUNT) { chooseCol(h[0]); G.oneColT = G.rt + 0.14; }
+    else if (G.rt >= G.oneColT && !G.queued && G.s.boxes.length < SLOT_COUNT) { onTapCol(h[0]); G.oneColT = G.rt + 0.14; }
   }
   try {
     if (G.s && CW > 0) {
