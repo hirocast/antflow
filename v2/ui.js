@@ -1005,17 +1005,23 @@ const TIPS = {
   5: [[0, 4, 'おやすみ（z）の箱をためすぎると渋滞するよ']],
   6: [[0, 3, '渋滞しても「⏪」で解ける所まで戻れるよ']]
 };
+const hudCache = { lv: '', st: '', name: '', left: '', w: '', dis: null, spd: '' };
 function updateHUD() {
   G.hudDirty = false;
   if (!G.level) return;
   const pos = posOf(G.levelId), st = starsAt(pos);
-  $('#lvNum').textContent = 'Lv.' + pos;
-  $('#lvStars').textContent = '★'.repeat(st) + '☆'.repeat(5 - st);
-  $('#lvName').textContent = save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
-  $('#leftTxt').textContent = 'のこり ' + G.vleft + ' / ' + G.level.total;
-  $('#progBar').style.width = (100 * (1 - G.vleft / G.level.total)) + '%';
-  $('#bUndo').disabled = !G.undo.length;
-  $('#spdIco').textContent = G.speed + 'x';
+  const lv = 'Lv.' + pos, stars = '★'.repeat(st) + '☆'.repeat(5 - st);
+  const name = save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
+  const left = 'のこり ' + G.vleft + ' / ' + G.level.total;
+  const w = (100 * (1 - G.vleft / G.level.total)).toFixed(2) + '%';
+  const dis = !G.undo.length, spd = G.speed + 'x';
+  if (hudCache.lv !== lv) { hudCache.lv = lv; $('#lvNum').textContent = lv; }
+  if (hudCache.st !== stars) { hudCache.st = stars; $('#lvStars').textContent = stars; }
+  if (hudCache.name !== name) { hudCache.name = name; $('#lvName').textContent = name; }
+  if (hudCache.left !== left) { hudCache.left = left; $('#leftTxt').textContent = left; }
+  if (hudCache.w !== w) { hudCache.w = w; $('#progBar').style.width = w; }
+  if (hudCache.dis !== dis) { hudCache.dis = dis; $('#bUndo').disabled = dis; }
+  if (hudCache.spd !== spd) { hudCache.spd = spd; $('#spdIco').textContent = spd; }
 }
 function updateTimer() {
   const R = G.run, el = $('#timeTxt');
