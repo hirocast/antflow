@@ -1344,6 +1344,69 @@ function drawSingerCostume(g, u, key, t, singing) {
     g.fillStyle = '#fff';
     roundRect(g, 0.2 * u, -0.7 * u, 0.52 * u, 0.1 * u, 0.04 * u); g.fill();
     ell(g, 0.46 * u, -0.96 * u, 0.11 * u, 0.11 * u); g.fill();
+  } else if (key === 'amefuri') {
+    // あじさい（あめふり）：ピンクのレインコート＋黄色いレインハット＋紫陽花コサージュ
+    g.fillStyle = '#f472b6'; g.strokeStyle = '#9d174d'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.32 * u, 0.6 * u); g.lineTo(-0.96 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#facc15'; g.strokeStyle = '#a16207'; g.lineWidth = lw * 0.85;
+    ell(g, 0.46 * u, -0.66 * u, 0.34 * u, 0.09 * u); g.fill(); g.stroke();
+    g.beginPath(); g.arc(0.46 * u, -0.68 * u, 0.22 * u, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#a855f7'; ell(g, 0.28 * u, -0.74 * u, 0.08 * u, 0.08 * u); g.fill();
+  } else if (key === 'kakkou') {
+    // ゆうえんち（かっこうワルツ）：サーカス団長の赤×金ジャケット＋黒シルクハット
+    g.fillStyle = '#ef4444'; g.strokeStyle = '#7f1d1d'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.3 * u, 0.6 * u); g.lineTo(-0.96 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#facc15';
+    roundRect(g, -0.15 * u, 0.06 * u, 0.14 * u, 0.48 * u, 0.04 * u); g.fill();
+    g.fillStyle = '#1e293b'; g.strokeStyle = '#0f172a'; g.lineWidth = lw * 0.85;
+    roundRect(g, 0.18 * u, -0.72 * u, 0.56 * u, 0.09 * u, 0.03 * u); g.fill(); g.stroke();
+    roundRect(g, 0.28 * u, -1.04 * u, 0.36 * u, 0.34 * u, 0.04 * u); g.fill(); g.stroke();
+    g.fillStyle = '#facc15'; g.fillRect(0.29 * u, -0.78 * u, 0.34 * u, 0.06 * u);
+  } else if (key === 'warewauminoko') {
+    // サンゴしょう（われは海の子）：青×白マリンセーラー＋赤スカーフ＋白セーラー帽
+    g.fillStyle = '#f8fafc'; g.strokeStyle = '#1d4ed8'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.86 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.28 * u, 0.58 * u); g.lineTo(-0.92 * u, 0.54 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#2563eb';
+    roundRect(g, -0.78 * u, 0.06 * u, 0.96 * u, 0.14 * u, 0.04 * u); g.fill();
+    g.fillStyle = '#ef4444';
+    g.beginPath(); g.moveTo(0.18 * u, 0.08 * u); g.lineTo(0.34 * u, 0.26 * u); g.lineTo(0.08 * u, 0.28 * u); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.strokeStyle = '#1d4ed8'; g.lineWidth = lw * 0.85;
+    ell(g, 0.46 * u, -0.78 * u, 0.26 * u, 0.14 * u); g.fill(); g.stroke();
+    g.fillStyle = '#2563eb'; roundRect(g, 0.24 * u, -0.72 * u, 0.44 * u, 0.08 * u, 0.03 * u); g.fill();
+  } else if (key === 'momiji') {
+    // じんじゃ（もみじ）：朱色×山吹色の秋色和装羽織＋紅葉のかんざし
+    g.fillStyle = '#ea580c'; g.strokeStyle = '#7c2d12'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.3 * u, 0.6 * u); g.lineTo(-0.96 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#facc15';
+    roundRect(g, -0.86 * u, 0.24 * u, 1.12 * u, 0.14 * u, 0.04 * u); g.fill();
+    g.fillStyle = '#ef4444'; g.strokeStyle = '#991b1b'; g.lineWidth = lw * 0.75;
+    starPath(g, 0.46 * u, -0.82 * u, 0.22 * u, 0.09 * u, 5); g.fill(); g.stroke();
+  } else if (key === 'humoresque') {
+    // アリのす（ユーモレスク）：女王さま風のロイヤルパープルマント＋金の王冠
+    g.fillStyle = '#9333ea'; g.strokeStyle = '#581c87'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.9 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.32 * u, 0.62 * u); g.lineTo(-0.98 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#fff';
+    roundRect(g, -0.86 * u, 0.02 * u, 1.1 * u, 0.12 * u, 0.05 * u); g.fill();
+    g.fillStyle = '#facc15'; g.strokeStyle = '#a16207'; g.lineWidth = lw * 0.85;
+    g.beginPath();
+    g.moveTo(0.22 * u, -0.66 * u); g.lineTo(0.26 * u, -0.96 * u); g.lineTo(0.38 * u, -0.78 * u);
+    g.lineTo(0.46 * u, -1.02 * u); g.lineTo(0.54 * u, -0.78 * u); g.lineTo(0.66 * u, -0.96 * u); g.lineTo(0.7 * u, -0.66 * u);
+    g.closePath(); g.fill(); g.stroke();
   } else {
     // チューリップなど：きらきらポップアイドル衣装（フリルドレス＋マント＋スターティアラ）
     g.fillStyle = '#ff4fa3'; g.strokeStyle = '#8c1d5a'; g.lineWidth = lw;
@@ -1400,7 +1463,8 @@ function drawSinger() {
   const micCols = {
     sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', alps: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e',
     fujinoyama: '#60a5fa', kamome: '#38bdf8', nekofunjatta: '#c084fc', minuet: '#93c5fd', konpeitou: '#f472b6', muramatsuri: '#fb7185', harugakita: '#facc15', toysoldiers: '#ef4444', jupiter: '#38bdf8',
-    kaeru: '#4ade80', kisha: '#facc15', yama: '#94a3b8', kuri: '#f97316', shabondama: '#7dd3fc', gavotte: '#f9a8d4', skaters: '#bae6fd'
+    kaeru: '#4ade80', kisha: '#facc15', yama: '#94a3b8', kuri: '#f97316', shabondama: '#7dd3fc', gavotte: '#f9a8d4', skaters: '#bae6fd',
+    amefuri: '#facc15', kakkou: '#ef4444', warewauminoko: '#38bdf8', momiji: '#fb923c', humoresque: '#c084fc'
   };
   ctx.fillStyle = micCols[sg.key] || '#ff8fb3';
   ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
