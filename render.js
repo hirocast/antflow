@@ -1296,6 +1296,54 @@ function drawSingerCostume(g, u, key, t, singing) {
     // 頭上のトサカ
     g.fillStyle = '#f97316'; g.strokeStyle = '#9a3412'; g.lineWidth = lw * 0.75;
     g.beginPath(); g.moveTo(0.32 * u, -0.66 * u); g.lineTo(0.46 * u, -0.96 * u); g.lineTo(0.6 * u, -0.66 * u); g.closePath(); g.fill(); g.stroke();
+  } else if (key === 'shabondama') {
+    // ひこうき（しゃぼんだま）：空色パイロットジャケット＋白いスカーフ＋飛行ゴーグル付きキャップ
+    g.fillStyle = '#0284c7'; g.strokeStyle = '#075985'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.84 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.26 * u, 0.58 * u); g.lineTo(-0.9 * u, 0.52 * u); g.closePath();
+    g.fill(); g.stroke();
+    // 白いスカーフ＆金の翼バッジ
+    g.fillStyle = '#fff';
+    g.beginPath(); g.moveTo(0.06 * u, 0.02 * u); g.lineTo(0.32 * u, 0.16 * u); g.lineTo(0.02 * u, 0.24 * u); g.closePath(); g.fill();
+    g.fillStyle = '#ffd23f'; ell(g, -0.26 * u, 0.24 * u, 0.14 * u, 0.06 * u); g.fill();
+    // パイロット帽＋ゴーグル
+    g.fillStyle = '#78350f'; g.strokeStyle = '#451a03'; g.lineWidth = lw * 0.85;
+    g.beginPath(); g.arc(0.46 * u, -0.64 * u, 0.24 * u, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#bae6fd'; g.strokeStyle = '#ca8a04'; g.lineWidth = lw * 0.75;
+    ell(g, 0.36 * u, -0.7 * u, 0.09 * u, 0.07 * u); g.fill(); g.stroke();
+    ell(g, 0.56 * u, -0.7 * u, 0.09 * u, 0.07 * u); g.fill(); g.stroke();
+  } else if (key === 'gavotte') {
+    // おかしのいえ（ガヴォット）：いちごチョコ＆ミントのエプロンドレス＋コック帽
+    g.fillStyle = '#f472b6'; g.strokeStyle = '#9d174d'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.32 * u, 0.62 * u); g.lineTo(-0.98 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#fff';
+    for (let k = 0; k < 4; k++) { ell(g, (-0.78 + k * 0.34) * u, 0.56 * u, 0.15 * u, 0.08 * u); g.fill(); }
+    // パティシエ帽＋いちご飾り
+    g.fillStyle = '#fff'; g.strokeStyle = '#94a3b8'; g.lineWidth = lw * 0.85;
+    ell(g, 0.46 * u, -0.84 * u, 0.26 * u, 0.18 * u); g.fill(); g.stroke();
+    roundRect(g, 0.26 * u, -0.74 * u, 0.4 * u, 0.12 * u, 0.04 * u); g.fill(); g.stroke();
+    g.fillStyle = '#ef4444'; ell(g, 0.46 * u, -1.0 * u, 0.08 * u, 0.09 * u); g.fill();
+  } else if (key === 'skaters') {
+    // ゆきのむら（スケーターズ・ワルツ）：水色ウィンターコート＋赤いマフラー＋白ポンポンニット帽
+    g.fillStyle = '#38bdf8'; g.strokeStyle = '#0369a1'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.86 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.28 * u, 0.58 * u); g.lineTo(-0.92 * u, 0.54 * u); g.closePath();
+    g.fill(); g.stroke();
+    // 赤いマフラー
+    g.fillStyle = '#ef4444'; g.strokeStyle = '#991b1b'; g.lineWidth = lw * 0.75;
+    roundRect(g, -0.04 * u, -0.02 * u, 0.38 * u, 0.16 * u, 0.06 * u); g.fill(); g.stroke();
+    roundRect(g, 0.12 * u, 0.08 * u, 0.14 * u, 0.32 * u, 0.05 * u); g.fill(); g.stroke();
+    // ニット帽＋白ポンポン
+    g.fillStyle = '#ef4444'; g.strokeStyle = '#991b1b'; g.lineWidth = lw * 0.85;
+    g.beginPath(); g.arc(0.46 * u, -0.66 * u, 0.24 * u, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#fff';
+    roundRect(g, 0.2 * u, -0.7 * u, 0.52 * u, 0.1 * u, 0.04 * u); g.fill();
+    ell(g, 0.46 * u, -0.96 * u, 0.11 * u, 0.11 * u); g.fill();
   } else {
     // チューリップなど：きらきらポップアイドル衣装（フリルドレス＋マント＋スターティアラ）
     g.fillStyle = '#ff4fa3'; g.strokeStyle = '#8c1d5a'; g.lineWidth = lw;
@@ -1352,7 +1400,7 @@ function drawSinger() {
   const micCols = {
     sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', alps: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e',
     fujinoyama: '#60a5fa', kamome: '#38bdf8', nekofunjatta: '#c084fc', minuet: '#93c5fd', konpeitou: '#f472b6', muramatsuri: '#fb7185', harugakita: '#facc15', toysoldiers: '#ef4444', jupiter: '#38bdf8',
-    kaeru: '#4ade80', kisha: '#facc15', yama: '#94a3b8', kuri: '#f97316'
+    kaeru: '#4ade80', kisha: '#facc15', yama: '#94a3b8', kuri: '#f97316', shabondama: '#7dd3fc', gavotte: '#f9a8d4', skaters: '#bae6fd'
   };
   ctx.fillStyle = micCols[sg.key] || '#ff8fb3';
   ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
