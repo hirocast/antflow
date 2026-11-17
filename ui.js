@@ -451,6 +451,7 @@ function applyLevel(id, L) {
   layout(); resetVisual();
   G.clearShown = false; G.loading = false;
   G.oneColNotified = false; G.oneColT = 0;
+  Sound.setBgm(L.name, L.theme);
   Tut.levelStart(id);
   updateTip(); refreshPrices();
   $('#bPlay').textContent = 'あそぶ（Lv.' + posOf(id) + '）';
