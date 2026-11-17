@@ -2028,6 +2028,21 @@ on('#bJamRewind', () => {
     toast('⏪ ' + n + '手もどしたよ。ここからなら解ける！', 2600);
   });
 });
+on('#bAppUpdate', () => {
+  confirmSpend({
+    title: '🔄 アプリを最新に更新',
+    desc: 'サーバーから最新のプログラムやステージデータを取得しなおして、アプリを再読み込みします。プレイ中の盤面はリセットされますが、クリア状況・コイン・アルバム・女王さまなどのセーブデータは消えません。',
+    costText: 'セーブデータはそのまま保持されます（通信が発生します）',
+    okLabel: '更新する！'
+  }, async () => {
+    const b = $('#bAppUpdate');
+    if (b) { b.disabled = true; b.textContent = '🔄 更新中…'; }
+    toast('🔄 最新版を取得しています…', 5000);
+    const files = [location.pathname, 'index.html', 'style.css', ...(window.AF_FILES || [])];
+    await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
+    location.reload();
+  });
+});
 on('#bReset', () => {
   if (!confirm('クリア状況・アルバム・コイン・女王さま・きせかえをすべてリセットしますか？')) return;
   save.level = idAt(1); save.maxLevel = 1; save.cleared = {}; save.newArts = [];
