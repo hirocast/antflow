@@ -1238,6 +1238,64 @@ function drawSingerCostume(g, u, key, t, singing) {
     g.strokeStyle = '#64748b'; g.lineWidth = lw * 0.85;
     g.beginPath(); g.moveTo(0.46 * u, -0.76 * u); g.lineTo(0.46 * u, -1.04 * u); g.stroke();
     g.fillStyle = '#fbbf24'; ell(g, 0.46 * u, -1.06 * u, 0.07 * u, 0.07 * u); g.fill();
+  } else if (key === 'kaeru') {
+    // かえる（かえるのがっしょう）：カエルパーカー＋大きな目玉フード
+    g.fillStyle = '#22c55e'; g.strokeStyle = '#15803d'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.86 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.28 * u, 0.58 * u); g.lineTo(-0.92 * u, 0.54 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#bef264'; ell(g, -0.28 * u, 0.3 * u, 0.26 * u, 0.18 * u); g.fill();
+    for (const ex of [0.28, 0.6]) {
+      g.fillStyle = '#22c55e'; g.strokeStyle = '#15803d'; g.lineWidth = lw * 0.85;
+      ell(g, ex * u, -0.78 * u, 0.15 * u, 0.15 * u); g.fill(); g.stroke();
+      g.fillStyle = '#fff'; ell(g, ex * u, -0.78 * u, 0.09 * u, 0.09 * u); g.fill();
+      g.fillStyle = '#1e293b'; ell(g, (ex + 0.02) * u, -0.78 * u, 0.045 * u, 0.045 * u); g.fill();
+    }
+  } else if (key === 'kisha') {
+    // でんしゃ（汽車）：紺の車掌さん制服＋金ボタン＋車掌帽
+    g.fillStyle = '#1e3a8a'; g.strokeStyle = '#0f172a'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.84 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.26 * u, 0.58 * u); g.lineTo(-0.9 * u, 0.52 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#ffd23f';
+    ell(g, -0.16 * u, 0.2 * u, 0.06 * u, 0.06 * u); g.fill();
+    ell(g, -0.44 * u, 0.26 * u, 0.06 * u, 0.06 * u); g.fill();
+    // 車掌帽
+    g.fillStyle = '#1e3a8a'; g.strokeStyle = '#0f172a'; g.lineWidth = lw * 0.85;
+    roundRect(g, 0.2 * u, -0.84 * u, 0.52 * u, 0.2 * u, 0.05 * u); g.fill(); g.stroke();
+    g.fillStyle = '#0f172a'; roundRect(g, 0.44 * u, -0.68 * u, 0.34 * u, 0.07 * u, 0.03 * u); g.fill();
+    g.fillStyle = '#ffd23f'; ell(g, 0.46 * u, -0.75 * u, 0.06 * u, 0.06 * u); g.fill();
+  } else if (key === 'yama') {
+    // コアラ（やまのおんがくか）：クリームベスト＋ユーカリの葉＋コアラ耳カチューシャ
+    g.fillStyle = '#94a3b8'; g.strokeStyle = '#475569'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.84 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.26 * u, 0.58 * u); g.lineTo(-0.9 * u, 0.52 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#22c55e'; ell(g, 0.08 * u, 0.14 * u, 0.14 * u, 0.07 * u, -0.4); g.fill();
+    for (const ex of [0.22, 0.66]) {
+      g.fillStyle = '#94a3b8'; g.strokeStyle = '#475569'; g.lineWidth = lw * 0.85;
+      ell(g, ex * u, -0.72 * u, 0.16 * u, 0.16 * u); g.fill(); g.stroke();
+      g.fillStyle = '#fff'; ell(g, ex * u, -0.72 * u, 0.08 * u, 0.08 * u); g.fill();
+    }
+  } else if (key === 'kuri') {
+    // きょうりゅう（おおきなきょうりゅう）：緑の恐竜フード＋オレンジ背びれ
+    for (let k = 0; k < 3; k++) {
+      const bx = (-0.64 + k * 0.26) * u, by = (0.04 - k * 0.02) * u;
+      g.fillStyle = '#f97316'; g.strokeStyle = '#9a3412'; g.lineWidth = lw * 0.7;
+      g.beginPath(); g.moveTo(bx - 0.09 * u, by); g.lineTo(bx, by - 0.18 * u); g.lineTo(bx + 0.09 * u, by); g.closePath(); g.fill(); g.stroke();
+    }
+    g.fillStyle = '#22c55e'; g.strokeStyle = '#15803d'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.86 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.28 * u, 0.58 * u); g.lineTo(-0.92 * u, 0.54 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#fde047'; ell(g, -0.26 * u, 0.3 * u, 0.24 * u, 0.16 * u); g.fill();
+    // 頭上のトサカ
+    g.fillStyle = '#f97316'; g.strokeStyle = '#9a3412'; g.lineWidth = lw * 0.75;
+    g.beginPath(); g.moveTo(0.32 * u, -0.66 * u); g.lineTo(0.46 * u, -0.96 * u); g.lineTo(0.6 * u, -0.66 * u); g.closePath(); g.fill(); g.stroke();
   } else {
     // チューリップなど：きらきらポップアイドル衣装（フリルドレス＋マント＋スターティアラ）
     g.fillStyle = '#ff4fa3'; g.strokeStyle = '#8c1d5a'; g.lineWidth = lw;
@@ -1293,7 +1351,8 @@ function drawSinger() {
   ctx.beginPath(); ctx.moveTo(0.85 * u, 0.25 * u); ctx.lineTo(1.12 * u, -0.1 * u); ctx.stroke();
   const micCols = {
     sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', alps: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e',
-    fujinoyama: '#60a5fa', kamome: '#38bdf8', nekofunjatta: '#c084fc', minuet: '#93c5fd', konpeitou: '#f472b6', muramatsuri: '#fb7185', harugakita: '#facc15', toysoldiers: '#ef4444', jupiter: '#38bdf8'
+    fujinoyama: '#60a5fa', kamome: '#38bdf8', nekofunjatta: '#c084fc', minuet: '#93c5fd', konpeitou: '#f472b6', muramatsuri: '#fb7185', harugakita: '#facc15', toysoldiers: '#ef4444', jupiter: '#38bdf8',
+    kaeru: '#4ade80', kisha: '#facc15', yama: '#94a3b8', kuri: '#f97316'
   };
   ctx.fillStyle = micCols[sg.key] || '#ff8fb3';
   ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
