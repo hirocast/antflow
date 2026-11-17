@@ -45,9 +45,16 @@ function durName(d) {
 }
 
 // 日本語歌詞のモーラ（音節）数を概算（♪・空白・〜・ー・っ・ゃゅょを除く）
+function lyricText(entry) {
+  if (!entry) return '';
+  if (typeof entry === 'string') return entry;
+  if (Array.isArray(entry)) return entry.map(([st, txt]) => `[${st}]${txt}`).join(' / ');
+  return String(entry);
+}
 function countMora(lyric) {
-  if (!lyric) return 0;
-  const s = lyric
+  const raw = Array.isArray(lyric) ? (lyric[0]?.[1] || '') : lyric;
+  if (!raw) return 0;
+  const s = raw
     .replace(/♪/g, '')
     .replace(/[〜ー\s　・]/g, '')
     .replace(/[っッぁぃぅぇぉゃゅょゎァィゥェォャュョヮ]/g, '');

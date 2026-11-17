@@ -462,7 +462,7 @@ const Sound = {
       '♪ あるひ〜', '♪ もりの なか〜',
       '♪ くまさんに〜', '♪ であ〜った〜',
       '♪ はなさく もり', '♪ の み〜ち〜',
-      '♪ くまさんに', '♪ で あ〜った〜'
+      [[0, '♪ くまさんに'], [12, '♪ で あ〜った〜']], '♪ で あ〜った〜'
     ],
     doremi: [
       '♪ ドは ドーナツ', '♪ ナツの ド〜',
@@ -803,7 +803,20 @@ const Sound = {
         if (bar === 7 && (sec === 1 || sec === 3) && (st === 4 || st === 8)) this.whistle(w, st === 4 ? 0.28 : 0.1);
       }
       const lyr = ex && this.LYRICS[this.bgmKey];
-      const lyrTxt = lyr ? (inIntro ? '♪ 〜（前奏）' : lyr[bar]) : '';
+      let lyrTxt = '';
+      if (lyr) {
+        if (inIntro) lyrTxt = '♪ 〜（前奏）';
+        else {
+          const entry = lyr[bar];
+          if (typeof entry === 'string') lyrTxt = entry;
+          else if (Array.isArray(entry)) {
+            for (const [ls, lt] of entry) if (st >= ls) lyrTxt = lt;
+            if (entry.some(([ls]) => ls === st) && st !== 0) {
+              this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: false });
+            }
+          }
+        }
+      }
       if (lyr && st === 0) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: false });
       for (const m of B.m) {
         if (m[0] !== st) continue;
