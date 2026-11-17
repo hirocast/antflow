@@ -989,6 +989,104 @@ function drawSingerCostume(g, u, key, t, singing) {
       ell(g, (0.14 + Math.cos(a) * 0.13) * u, (-0.68 + Math.sin(a) * 0.13) * u, 0.08 * u, 0.08 * u); g.fill();
     }
     g.fillStyle = '#ffd23f'; ell(g, 0.14 * u, -0.68 * u, 0.06 * u, 0.06 * u); g.fill();
+  } else if (key === 'kirakiraboshi') {
+    // つきよのねこ（きらきらぼし）：夜空のスタープリンセスドレス＋星のステッキ＋星ティアラ
+    const ng = g.createLinearGradient(-0.9 * u, -0.1 * u, 0.3 * u, 0.65 * u);
+    ng.addColorStop(0, '#1e2761'); ng.addColorStop(0.6, '#3949ab'); ng.addColorStop(1, '#7986cb');
+    g.fillStyle = ng; g.strokeStyle = '#121842'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.9 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.32 * u, 0.64 * u); g.lineTo(-0.98 * u, 0.58 * u); g.closePath();
+    g.fill(); g.stroke();
+    // 金の星マント＆散りばめられた星
+    g.fillStyle = '#ffd23f';
+    for (const [sx, sy, sr] of [[-0.62, 0.25, 0.1], [-0.32, 0.42, 0.08], [0.02, 0.28, 0.09]]) {
+      starPath(g, sx * u, sy * u, sr * u, sr * 0.45 * u, 5); g.fill();
+    }
+    // 星のステッキ（後ろ手にキラリ）
+    g.strokeStyle = '#ffd23f'; g.lineWidth = lw * 0.85;
+    g.beginPath(); g.moveTo(-0.65 * u, 0.1 * u); g.lineTo(-1.1 * u, -0.52 * u); g.stroke();
+    g.fillStyle = '#fff59d'; starPath(g, -1.12 * u, -0.56 * u, 0.18 * u, 0.08 * u, 5); g.fill(); g.stroke();
+    // 星ティアラ
+    g.fillStyle = '#ffd23f'; g.strokeStyle = '#b87b00'; g.lineWidth = lw * 0.75;
+    starPath(g, 0.46 * u, -0.84 * u, 0.22 * u, 0.1 * u, 5); g.fill(); g.stroke();
+  } else if (key === 'doremi') {
+    // ドーナツ（ドレミのうた）：カラフルポップな水玉＆スプリンクル衣装＋音符カチューシャ
+    g.fillStyle = '#ff6b8b'; g.strokeStyle = '#8c1d40'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.05 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.32 * u, 0.62 * u); g.lineTo(-0.96 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    // カラフルスプリンクル水玉
+    const dots = [[-0.64, 0.24, '#ffd23f'], [-0.34, 0.36, '#4ecdc4'], [-0.04, 0.2, '#fff'], [-0.52, 0.46, '#a5f3fc'], [0.12, 0.44, '#fde047']];
+    for (const [dx, dy, dc] of dots) { g.fillStyle = dc; ell(g, dx * u, dy * u, 0.085 * u, 0.085 * u); g.fill(); }
+    // ドーナツ風クリーム襟
+    g.fillStyle = '#fff5e4';
+    for (let k = 0; k < 4; k++) { ell(g, (-0.52 + k * 0.24) * u, 0.04 * u, 0.11 * u, 0.07 * u); g.fill(); }
+    // 音符カチューシャ
+    g.strokeStyle = '#4ecdc4'; g.lineWidth = lw * 1.1;
+    g.beginPath(); g.arc(0.46 * u, -0.45 * u, 0.28 * u, -Math.PI * 0.85, -Math.PI * 0.15); g.stroke();
+    g.fillStyle = '#ffd23f'; ell(g, 0.48 * u, -0.86 * u, 0.12 * u, 0.09 * u); g.fill();
+    g.strokeStyle = '#b87b00'; g.lineWidth = lw * 0.85;
+    g.beginPath(); g.moveTo(0.57 * u, -0.86 * u); g.lineTo(0.57 * u, -1.16 * u); g.lineTo(0.74 * u, -1.08 * u); g.stroke();
+  } else if (key === 'usagi') {
+    // うさぎ（うさぎとかめ）：うさ耳カチューシャ＋ふわふわしっぽ＋パステルベスト
+    // ふわふわ白いしっぽ
+    g.fillStyle = '#fff'; g.strokeStyle = '#c4a6b8'; g.lineWidth = lw * 0.85;
+    ell(g, -0.92 * u, 0.26 * u, 0.19 * u, 0.19 * u); g.fill(); g.stroke();
+    // パステルミントのアイドルベスト
+    g.fillStyle = '#6ee7b7'; g.strokeStyle = '#047857'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.84 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.28 * u, 0.58 * u); g.lineTo(-0.9 * u, 0.52 * u); g.closePath();
+    g.fill(); g.stroke();
+    // ピンクのリボンタイ
+    g.fillStyle = '#ff6b9a';
+    g.beginPath(); g.moveTo(0.08 * u, 0.06 * u); g.lineTo(0.28 * u, -0.04 * u); g.lineTo(0.28 * u, 0.16 * u); g.closePath(); g.fill();
+    // ぴょんと長いウサ耳カチューシャ
+    for (const [ex, rot] of [[0.32, -0.22], [0.56, 0.16]]) {
+      g.save(); g.translate(ex * u, -0.64 * u); g.rotate(rot);
+      g.fillStyle = '#fff'; g.strokeStyle = '#5a3d5c'; g.lineWidth = lw * 0.9;
+      ell(g, 0, -0.34 * u, 0.11 * u, 0.36 * u); g.fill(); g.stroke();
+      g.fillStyle = '#ffb3d1';
+      ell(g, 0, -0.34 * u, 0.055 * u, 0.24 * u); g.fill();
+      g.restore();
+    }
+  } else if (key === 'kumasan') {
+    // テディベア（もりのくまさん）：森の探検家ベスト＋赤いスカーフ＋羽根付き帽子
+    g.fillStyle = '#2e7d32'; g.strokeStyle = '#1b5e20'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.84 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.24 * u, 0.58 * u); g.lineTo(-0.88 * u, 0.52 * u); g.closePath();
+    g.fill(); g.stroke();
+    // オレンジの探検スカーフ＆金のボタン
+    g.fillStyle = '#ff7043';
+    g.beginPath(); g.moveTo(0.04 * u, -0.04 * u); g.lineTo(0.3 * u, 0.18 * u); g.lineTo(-0.08 * u, 0.16 * u); g.closePath(); g.fill();
+    g.fillStyle = '#ffd23f';
+    ell(g, -0.24 * u, 0.24 * u, 0.06 * u, 0.06 * u); g.fill();
+    ell(g, -0.52 * u, 0.28 * u, 0.06 * u, 0.06 * u); g.fill();
+    // 羽根付き探検帽
+    g.fillStyle = '#8d6e63'; g.strokeStyle = '#4e342e'; g.lineWidth = lw * 0.9;
+    ell(g, 0.46 * u, -0.66 * u, 0.38 * u, 0.1 * u); g.fill(); g.stroke();
+    g.beginPath(); g.arc(0.46 * u, -0.68 * u, 0.23 * u, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#ff5252';
+    g.beginPath(); g.moveTo(0.24 * u, -0.78 * u); g.quadraticCurveTo(0.04 * u, -1.04 * u, 0.28 * u, -1.06 * u); g.closePath(); g.fill();
+  } else if (key === 'birthday') {
+    // ショートケーキ（ハッピーバースデイ）：生クリームフリルドレス＋いちご＋キャンドルティアラ
+    g.fillStyle = '#fff8f6'; g.strokeStyle = '#d81b60'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.32 * u, 0.62 * u); g.lineTo(-0.98 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    // いちごピンクのリボン＆フリル裾
+    g.fillStyle = '#ff6b9a';
+    for (let k = 0; k < 4; k++) { ell(g, (-0.78 + k * 0.34) * u, 0.56 * u, 0.16 * u, 0.09 * u); g.fill(); }
+    g.fillStyle = '#e53935'; ell(g, -0.22 * u, 0.24 * u, 0.11 * u, 0.13 * u); g.fill();
+    // バースデイキャンドルティアラ
+    g.fillStyle = '#ff80ab'; g.strokeStyle = '#ad1457'; g.lineWidth = lw * 0.8;
+    roundRect(g, 0.4 * u, -1.02 * u, 0.14 * u, 0.36 * u, 0.04 * u); g.fill(); g.stroke();
+    g.fillStyle = '#ffd54f'; ell(g, 0.47 * u, -1.12 * u, 0.08 * u, 0.13 * u); g.fill();
+    g.fillStyle = '#ff7043'; ell(g, 0.47 * u, -1.1 * u, 0.04 * u, 0.07 * u); g.fill();
   } else {
     // チューリップなど：きらきらポップアイドル衣装（フリルドレス＋マント＋スターティアラ）
     g.fillStyle = '#ff4fa3'; g.strokeStyle = '#8c1d5a'; g.lineWidth = lw;
@@ -1039,10 +1137,11 @@ function drawSinger() {
     ell(ctx, 0.8 * u, -0.09 * u, 0.09 * u, 0.12 * u); ctx.fill(); ctx.stroke();
   }
   drawSingerCostume(ctx, u, sg.key, G.rt, sg.singing);
-  // ステージマイク（衣装に合わせて金/銀/ピンク）
+  // ステージマイク（衣装に合わせて配色）
   ctx.strokeStyle = '#4a3850'; ctx.lineWidth = Math.max(1.4, u * 0.14); ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(0.85 * u, 0.25 * u); ctx.lineTo(1.12 * u, -0.1 * u); ctx.stroke();
-  ctx.fillStyle = sg.key === 'sakura' ? '#ffd23f' : sg.key === 'katatsumuri' ? '#e2e8f0' : '#ff8fb3';
+  const micCols = { sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', doremi: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e' };
+  ctx.fillStyle = micCols[sg.key] || '#ff8fb3';
   ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
   ell(ctx, 1.15 * u, -0.16 * u, u * 0.2, u * 0.2); ctx.fill(); ctx.stroke();
   ctx.restore();
