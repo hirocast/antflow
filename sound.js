@@ -398,36 +398,37 @@ const Sound = {
   EXTRA_SONGS: {
     tulip: {
       bpm: 104,
+      style: 'tulip',
       bars: [
         { r: 0, ch: [-5, -3, 2, 4], m: [[0, 12, 2], [2, 14, 2], [4, 16, 4], [8, 12, 2], [10, 14, 2], [12, 16, 4]] },
         { r: 7, ch: [-7, -1, 2, 4], m: [[0, 19, 2], [2, 16, 2], [4, 14, 2], [6, 12, 2], [8, 14, 2], [10, 16, 2], [12, 14, 4]] },
         { r: 0, ch: [-5, -3, 2, 4], m: [[0, 12, 2], [2, 14, 2], [4, 16, 4], [8, 12, 2], [10, 14, 2], [12, 16, 4]] },
         { r: 7, ch: [-7, -1, 2, 4], r2: 0, ch2: [-5, -3, 2, 4], m: [[0, 19, 2], [2, 16, 2], [4, 14, 2], [6, 12, 2], [8, 14, 2], [10, 16, 2], [12, 12, 4]] },
         { r: 0, ch: [-5, -3, 2, 4], r2: 5, ch2: [-3, 0, 4, 7], m: [[0, 19, 2], [2, 19, 2], [4, 16, 2], [6, 19, 2], [8, 21, 2], [10, 21, 2], [12, 19, 4]] },
-        { r: 7, ch: [-7, -1, 2, 4], r2: 0, ch2: [-5, -3, 2, 4], m: [[0, 16, 2], [2, 16, 2], [4, 14, 2], [6, 14, 2], [8, 12, 6]] },
-        { r: 0, ch: [-5, -3, 2, 4], r2: 5, ch2: [-3, 0, 4, 7], m: [[0, 19, 2], [2, 19, 2], [4, 16, 2], [6, 19, 2], [8, 21, 2], [10, 21, 2], [12, 19, 4]] },
-        { r: 7, ch: [-7, -1, 2, 4], r2: 0, ch2: [-5, -3, 2, 4], m: [[0, 16, 2], [2, 14, 2], [4, 12, 8]] }
+        { r: 7, ch: [-7, -1, 2, 4], r2: 0, ch2: [-5, -3, 2, 4], m: [[0, 16, 2], [2, 16, 2], [4, 14, 2], [6, 14, 2], [8, 12, 8]] }
       ]
     },
     sakura: {
       bpm: 88,
+      style: 'sakura',
       bars: [
-        { r: 9, ch: [-3, 0, 4], m: [[0, 9, 4], [4, 9, 4], [8, 11, 7]] },
-        { r: 9, ch: [-3, 0, 4], m: [[0, 9, 4], [4, 9, 4], [8, 11, 7]] },
+        { r: 9, ch: [-3, 0, 4], m: [[0, 9, 4], [4, 9, 4], [8, 11, 8]] },
+        { r: 9, ch: [-3, 0, 4], m: [[0, 9, 4], [4, 9, 4], [8, 11, 8]] },
         { r: 9, ch: [-3, 0, 4], r2: 4, ch2: [-8, -3, 0], m: [[0, 9, 4], [4, 11, 4], [8, 12, 4], [12, 11, 4]] },
-        { r: 9, ch: [-3, 0, 4], r2: 5, ch2: [-7, -3, 0], m: [[0, 9, 4], [4, 11, 2], [6, 9, 2], [8, 5, 7]] },
-        { r: 4, ch: [-8, -3, 0], m: [[0, 4, 4], [4, 12, 4], [8, 4, 4], [12, 5, 4]] },
-        { r: 4, ch: [-8, -3, 0], m: [[0, 4, 4], [4, 4, 2], [6, 12, 2], [8, 11, 7]] },
+        { r: 9, ch: [-3, 0, 4], r2: 5, ch2: [-7, -3, 0], m: [[0, 9, 4], [4, 11, 2], [6, 9, 2], [8, 5, 8]] },
+        { r: 4, ch: [-8, -3, 0], m: [[0, 4, 4], [4, 0, 4], [8, 4, 4], [12, 5, 4]] },
+        { r: 4, ch: [-8, -3, 0], m: [[0, 4, 4], [4, 4, 2], [6, 0, 2], [8, -1, 8]] },
         { r: 9, ch: [-3, 0, 4], r2: 4, ch2: [-8, -3, 0], m: [[0, 9, 4], [4, 11, 4], [8, 12, 4], [12, 11, 4]] },
-        { r: 9, ch: [-3, 0, 4], r2: 5, ch2: [-7, -3, 0], m: [[0, 9, 4], [4, 11, 2], [6, 9, 2], [8, 5, 7]] },
-        { r: 9, ch: [-3, 0, 4], m: [[0, 9, 4], [4, 9, 4], [8, 11, 7]] },
-        { r: 9, ch: [-3, 0, 4], m: [[0, 9, 4], [4, 9, 4], [8, 11, 7]] },
+        { r: 9, ch: [-3, 0, 4], r2: 5, ch2: [-7, -3, 0], m: [[0, 9, 4], [4, 11, 2], [6, 9, 2], [8, 5, 8]] },
+        { r: 9, ch: [-3, 0, 4], m: [[0, 9, 4], [4, 9, 4], [8, 11, 8]] },
+        { r: 9, ch: [-3, 0, 4], m: [[0, 9, 4], [4, 9, 4], [8, 11, 8]] },
         { r: 4, ch: [-8, -3, 0], r2: 9, ch2: [-3, 0, 4], m: [[0, 4, 4], [4, 5, 4], [8, 11, 4], [12, 9, 4]] },
-        { r: 5, ch: [-7, -3, 0], r2: 4, ch2: [-8, -3, 0], m: [[0, 5, 4], [4, 4, 10]] }
+        { r: 5, ch: [-7, -3, 0], r2: 4, ch2: [-8, -3, 0], m: [[0, 5, 4], [4, 4, 12]] }
       ]
     },
     matsuri: {
       bpm: 114,
+      style: 'matsuri',
       bars: [
         { r: 2, ch: [-5, -3, 2, 7], m: [[0, 14, 2], [2, 16, 2], [4, 19, 3], [8, 21, 2], [10, 19, 2], [12, 16, 3]] },
         { r: 7, ch: [-5, -1, 2, 7], m: [[0, 14, 3], [4, 16, 2], [6, 19, 2], [8, 23, 3], [12, 21, 3]] },
@@ -441,6 +442,7 @@ const Sound = {
     },
     breeze: {
       bpm: 94,
+      style: 'breeze',
       bars: [
         { r: 5, ch: [-3, 0, 4, 7], m: [[0, 17, 3], [4, 19, 3], [8, 21, 3], [12, 24, 3]] },
         { r: 7, ch: [-5, -1, 2, 7], m: [[0, 23, 3], [4, 21, 3], [8, 19, 6]] },
@@ -451,6 +453,83 @@ const Sound = {
         { r: 0, ch: [-5, -3, 2, 4], m: [[0, 16, 3], [4, 19, 3], [8, 24, 3], [12, 21, 3]] },
         { r: 5, ch: [-3, 0, 4, 7], r2: 7, ch2: [-5, -1, 2, 7], m: [[0, 19, 3], [4, 17, 3], [8, 16, 6]] }
       ]
+    }
+  },
+  // 伴奏専用アレンジ（周回 sec=0..3 で変化させ、メインメロディは原曲通り固定）
+  accompEx(style, C, st, w, s16, sec, bar, len) {
+    const r = C.r - 24, fifth = r + (C.r >= 5 ? -5 : 7), ch = C.ch;
+    if (style === 'tulip') {
+      // ベース：1・3周目はシンプル、2・4周目は弾むベース
+      if (st === 0 || st === 8) this.pluckBass(this.hz(r), w, 3.5 * s16, 0.85);
+      else if ((sec === 1 || sec === 3) && (st === 4 || st === 12)) this.pluckBass(this.hz(fifth), w, 2.5 * s16, 0.65);
+      // コード／アルペジオ：周回ごとに伴奏の表情を変える
+      if (sec === 0) {
+        if (st % 4 === 0) ch.forEach((n, i) => this.tone(this.hz(n), s16 * 1.8, { type: 'triangle', vol: 0.022, when: w + i * 0.006, attack: 0.004, dest: this.mus }));
+      } else if (sec === 1) {
+        if (st % 2 === 0) this.mallet(this.hz(ch[(st >> 1) % ch.length] + 12), w, 0.022, this.mus);
+      } else if (sec === 2) {
+        if (st === 2 || st === 6 || st === 10 || st === 14) ch.forEach((n, i) => this.tone(this.hz(n), s16 * 0.9, { type: 'triangle', vol: 0.026, when: w + i * 0.005, attack: 0.002, dest: this.mus }));
+      } else {
+        if (st % 2 === 0) this.mallet(this.hz(ch[(st >> 1) % ch.length] + 12), w, 0.025, this.mus);
+        if (st === 0 || st === 8) ch.forEach((n, i) => this.tone(this.hz(n), s16 * 3, { type: 'triangle', vol: 0.018, when: w + i * 0.008, attack: 0.005, dest: this.mus }));
+      }
+      // 軽快な打楽器（3・4周目でマーチ感を強める）
+      if (st % 4 === 2) this.shaker(w, sec >= 2 ? 0.45 : 0.25);
+      if (sec >= 2 && (st === 4 || st === 12)) this.mnoise(w, 0.045, 0.028, 2200, 'bandpass', 1.2);
+      if (sec === 3 && bar === len - 1 && st >= 12) this.tamb(w, 0.35 + (st - 12) * 0.1);
+      return;
+    }
+    if (style === 'sakura') {
+      // 和風ベース：ゆったりとした根音と5度
+      if (st === 0) this.pluckBass(this.hz(r), w, 7 * s16, 0.8);
+      else if (sec >= 1 && st === 8) this.pluckBass(this.hz(fifth), w, 6 * s16, 0.6);
+      // 箏（こと）風の分散和音
+      if (sec === 0) {
+        if (st === 0 || st === 8) ch.forEach((n, i) => this.tone(this.hz(n), s16 * 4, { type: 'triangle', vol: 0.022, when: w + i * 0.035, attack: 0.003, dest: this.mus }));
+      } else if (sec === 1 || sec === 2) {
+        if (st % 2 === 0) {
+          const n = ch[(st >> 1) % ch.length] + (sec === 2 && st >= 8 ? 12 : 0);
+          this.tone(this.hz(n), s16 * 2.2, { type: 'triangle', vol: 0.024, when: w, attack: 0.003, dest: this.mus });
+        }
+      } else {
+        if (st % 2 === 0) this.mallet(this.hz(ch[(st >> 1) % ch.length] + 12), w, 0.024, this.mus);
+        if (st === 0 || st === 8) ch.forEach((n, i) => this.tone(this.hz(n), s16 * 4, { type: 'triangle', vol: 0.018, when: w + i * 0.03, attack: 0.004, dest: this.mus }));
+      }
+      // 和太鼓・拍子木風の控えめな打音
+      if (sec >= 1 && st === 0) this.surdo(w, 0.45, false);
+      if (sec >= 2 && (st === 4 || st === 12)) this.agogo(w, st === 12);
+      return;
+    }
+    if (style === 'matsuri') {
+      // お祭り：太鼓とベースが周回ごとに盛り上がる
+      if (st === 0 || st === 8) this.pluckBass(this.hz(r), w, 3 * s16, 0.9);
+      else if (sec >= 1 && (st === 4 || st === 12)) this.pluckBass(this.hz(fifth), w, 2 * s16, 0.75);
+      // 太鼓パターン
+      if (st === 0 || st === 8) this.surdo(w, 0.75, false);
+      else if (st === 4 || st === 12) this.surdo(w, 0.5, true);
+      else if (sec >= 2 && (st === 6 || st === 14)) this.surdo(w, 0.35, true);
+      // お囃子コード・鐘・手拍子
+      if (st % 4 === 2) ch.forEach((n, i) => this.tone(this.hz(n), s16 * 0.9, { type: 'triangle', vol: 0.025, when: w + i * 0.005, attack: 0.002, dest: this.mus }));
+      if (sec >= 1 && this.AGO[st]) this.agogo(w, this.AGO[st] === 2);
+      if (sec >= 2 && (st === 4 || st === 12)) this.clap(w);
+      if (sec === 3 && st % 2 === 0) this.mallet(this.hz(ch[(st >> 1) % ch.length] + 12), w, 0.02, this.mus);
+      if (sec >= 2 && bar === len - 1 && st >= 12) this.tamb(w, 0.5 + (st - 12) * 0.12);
+      return;
+    }
+    // breeze：爽やかなボサノバ／アコースティック伴奏
+    if (st === 0 || st === 6 || st === 8) this.pluckBass(this.hz(st === 6 ? fifth : r), w, 2.5 * s16, st === 6 ? 0.6 : 0.85);
+    else if (sec >= 1 && st === 14) this.pluckBass(this.hz(fifth), w, 1.5 * s16, 0.55);
+    this.shaker(w, [0.45, 0.2, 0.35, 0.6][st & 3]);
+    if (sec === 0) {
+      if (st === 0 || st === 6 || st === 12) ch.forEach((n, i) => this.tone(this.hz(n), s16 * 1.6, { type: 'triangle', vol: 0.022, when: w + i * 0.007, attack: 0.003, dest: this.mus }));
+    } else if (sec === 1) {
+      if (st % 2 === 0) this.tone(this.hz(ch[(st >> 1) % ch.length]), s16 * 1.5, { type: 'triangle', vol: 0.022, when: w, attack: 0.003, dest: this.mus });
+    } else if (sec === 2) {
+      if (this.CAV[st]) ch.forEach((n, i) => this.tone(this.hz(n), s16 * 0.9, { type: 'triangle', vol: 0.024 * this.CAV[st], when: w + i * 0.006, attack: 0.002, dest: this.mus }));
+      if (st === 4 || st === 12) this.clap(w);
+    } else {
+      if (st % 2 === 0) this.mallet(this.hz(ch[(st >> 1) % ch.length] + 12), w, 0.022, this.mus);
+      if (this.AGO[st]) this.agogo(w, this.AGO[st] === 2);
     }
   },
   sched() {
@@ -465,8 +544,8 @@ const Sound = {
     while (this.nextT < c.currentTime + this.ahead) {
       let B, sec, bar;
       if (ex) {
-        const len = ex.bars.length, abs = Math.floor(this.step / 16) % (len * 2);
-        sec = abs >= len ? 1 : 0; bar = abs % len; B = ex.bars[bar];
+        const len = ex.bars.length, abs = Math.floor(this.step / 16) % (len * 4);
+        sec = Math.floor(abs / len); bar = abs % len; B = ex.bars[bar];
       } else {
         const abs = Math.floor(this.step / 16) % 32;
         sec = abs >> 3; bar = abs & 7; B = this.SONG[FORM[sec] * 8 + bar];
@@ -474,18 +553,22 @@ const Sound = {
       const st = this.step % 16, C = this.half(B, st);
       // SW：16分音符を少し揺らして、サンバ特有の「はずみ」を出す
       const w = Math.max(0, this.nextT - c.currentTime + (ex ? 0 : SW[st & 3] * s16));
-      this.perc(st, w, { fill: !ex && bar === 7 && st >= 12, ago: sec > 0, clap: !ex && sec === 2 });
-      this.bassStep(C, st, w, s16);
-      this.compStep(C, st, w, s16);
-      // 金管のアクセント：サビでは食い気味の位置で、A'の最後ではサビへの合図として鳴らす
-      if (!ex && ((sec === 2 && (st === 11 || (st === 3 && (bar & 3) === 0))) || (sec === 1 && bar === 7 && (st === 12 || st === 14)))) this.stab(C.ch, w);
-      // ホイッスル：サビに入る直前と、曲の最初に戻る直前
-      if (!ex && bar === 7 && (sec === 1 || sec === 3) && (st === 4 || st === 8)) this.whistle(w, st === 4 ? 0.28 : 0.1);
+      if (ex) {
+        this.accompEx(ex.style, C, st, w, s16, sec, bar, ex.bars.length);
+      } else {
+        this.perc(st, w, { fill: bar === 7 && st >= 12, ago: sec > 0, clap: sec === 2 });
+        this.bassStep(C, st, w, s16);
+        this.compStep(C, st, w, s16);
+        // 金管のアクセント：サビでは食い気味の位置で、A'の最後ではサビへの合図として鳴らす
+        if ((sec === 2 && (st === 11 || (st === 3 && (bar & 3) === 0))) || (sec === 1 && bar === 7 && (st === 12 || st === 14))) this.stab(C.ch, w);
+        // ホイッスル：サビに入る直前と、曲の最初に戻る直前
+        if (bar === 7 && (sec === 1 || sec === 3) && (st === 4 || st === 8)) this.whistle(w, st === 4 ? 0.28 : 0.1);
+      }
       for (const m of B.m) {
         if (m[0] !== st) continue;
-        const f = this.hz(m[1] + (ex && sec === 1 && this.bgmKey === 'tulip' ? 12 : 0));
+        const f = this.hz(m[1]);
         this.lead(f, w, m[2] * s16 * 0.92, 0.07);
-        if (sec === 1 || sec === 3) this.mallet(f, w, 0.025, this.mus);
+        if (!ex && (sec === 1 || sec === 3)) this.mallet(f, w, 0.025, this.mus);
       }
       this.nextT += s16; this.step++;
     }
