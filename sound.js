@@ -236,6 +236,20 @@ const Sound = {
     else if (theme === 'はな' || theme === 'しぜん') k = 'breeze';
     if (this.bgmKey !== k) { this.bgmKey = k; this.step = 0; this.lyricQ = []; }
   },
+  BGM_TITLES: {
+    samba: 'ありんこサンバ',
+    tulip: 'チューリップ',
+    katatsumuri: 'かたつむり',
+    sakura: 'さくらさくら',
+    doremi: 'ドレミのうた',
+    usagi: 'うさぎとかめ',
+    kumasan: 'もりのくまさん',
+    birthday: 'ハッピーバースデイトゥユー',
+    kirakiraboshi: 'きらきらぼし',
+    matsuri: 'おまつりおはやし',
+    breeze: 'そよかぜワルツ'
+  },
+  bgmTitle() { return this.BGM_TITLES[this.bgmKey] || this.bgmKey; },
   startBgm() {
     if (!this.ctx || this.bgmTimer) return;
     this.nextT = this.ctx.currentTime + 0.15; this.step = 0;

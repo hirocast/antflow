@@ -452,6 +452,7 @@ function applyLevel(id, L) {
   G.clearShown = false; G.loading = false;
   G.oneColNotified = false; G.oneColT = 0;
   Sound.setBgm(L.name, L.theme);
+  G.bgmBanner = save.settings.music !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   Tut.levelStart(id);
   updateTip(); refreshPrices();
   $('#bPlay').textContent = 'あそぶ（Lv.' + posOf(id) + '）';
