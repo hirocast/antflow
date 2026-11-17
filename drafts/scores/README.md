@@ -1,6 +1,6 @@
-# 童謡ステージ用 楽譜一覧
+# 童謡・定番曲ステージ用 楽譜一覧
 
-童謡テーマのステージ・BGM制作で参照する楽譜画像です。
+童謡・定番曲テーマのステージ・BGM制作で参照する楽譜画像です。
 
 | 曲名 | ファイル | 拍子・前奏 |
 |---|---|---|
@@ -16,3 +16,14 @@
 | おおきなくりのきのしたで | `ookina_kuri_no_ki_no_shita_de.jpeg` | 2/4拍子・前奏4小節 |
 | もりのくまさん | `mori_no_kumasan.jpeg` | 2/4拍子・前奏8小節 |
 | しゃぼんだま | `shabondama.jpeg` | 2/4拍子・前奏2小節 |
+| うさぎとかめ | `usagi_to_kame.jpeg` | 2/4拍子・前奏4小節 |
+| アルプスいちまんじゃく | `alps_ichimanjaku.jpeg` | 2/4拍子・前奏2小節 |
+| やまのおんがくか | `yama_no_ongakuka.jpeg` | 2/4拍子・前奏2小節 |
+| ドレミのうた | `doremi_no_uta.jpeg` | 2/4拍子・前奏2小節 |
+| さんぽ | `sanpo.jpeg` | 4/4拍子・前奏4小節 |
+| せかいじゅうのこどもたちが | `sekaijuu_no_kodomotachi_ga.jpeg` | 4/4拍子・前奏2小節 |
+| かっこうワルツ | `kakkou_waltz.jpeg` | 3/4拍子・カウント5回 |
+| ガヴォット | `gavotte.jpeg` | 4/4拍子・カウント4回 |
+| チクタクどけい | `chikutaku_dokei.jpeg` | 4/4拍子・カウント4回 |
+| ユーモレスク | `humoresque.jpeg` | 4/4拍子・カウント4回 |
+| スケーターズ・ワルツ | `skaters_waltz.jpeg` | 3/4拍子・カウント6回 |
