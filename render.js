@@ -1010,8 +1010,8 @@ function drawSingerCostume(g, u, key, t, singing) {
     // 星ティアラ
     g.fillStyle = '#ffd23f'; g.strokeStyle = '#b87b00'; g.lineWidth = lw * 0.75;
     starPath(g, 0.46 * u, -0.84 * u, 0.22 * u, 0.1 * u, 5); g.fill(); g.stroke();
-  } else if (key === 'doremi') {
-    // ドーナツ（ドレミのうた）：カラフルポップな水玉＆スプリンクル衣装＋音符カチューシャ
+  } else if (key === 'alps') {
+    // ドーナツ（アルプスいちまんじゃく）：カラフルポップな水玉＆スプリンクル衣装＋音符カチューシャ
     g.fillStyle = '#ff6b8b'; g.strokeStyle = '#8c1d40'; g.lineWidth = lw;
     g.beginPath();
     g.moveTo(-0.88 * u, 0.05 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
@@ -1140,7 +1140,7 @@ function drawSinger() {
   // ステージマイク（衣装に合わせて配色）
   ctx.strokeStyle = '#4a3850'; ctx.lineWidth = Math.max(1.4, u * 0.14); ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(0.85 * u, 0.25 * u); ctx.lineTo(1.12 * u, -0.1 * u); ctx.stroke();
-  const micCols = { sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', doremi: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e' };
+  const micCols = { sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', alps: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e' };
   ctx.fillStyle = micCols[sg.key] || '#ff8fb3';
   ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
   ell(ctx, 1.15 * u, -0.16 * u, u * 0.2, u * 0.2); ctx.fill(); ctx.stroke();
