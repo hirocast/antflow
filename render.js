@@ -413,12 +413,15 @@ function moveAlong(a, dist) {
 // kind：base.js の TALK の場面名。force=true は間隔の制限を無視して必ずしゃべる
 function maybeSay(a, kind, p, force) {
   if (!save.settings.talk) return;
+  if (G.bubbles.some(b => b.a === a)) return;
   if (!G.saidOnce) p = 1;
-  // セリフ同士がすぐ重なって消え合わないよう、発言インターバル（0.5）も少し広げると読みやすくなります
-  if (!force && (G.bubbles.length >= 3 || G.rt - G.lastSay < 0.8 || Math.random() > p)) return;
-  if (G.bubbles.length >= 4) G.bubbles.shift();
+  if (!force) {
+    if (G.bubbles.length >= 2 || G.rt - G.lastSay < 1.1 || Math.random() > p) return;
+    const wp = toW(a.x, a.y);
+    if (G.bubbles.some(b => { const bp = toW(b.a.x, b.a.y); return Math.hypot(bp.x - wp.x, bp.y - wp.y) < 100; })) return;
+  }
+  if (G.bubbles.length >= 3) G.bubbles.shift();
   G.saidOnce = true; G.lastSay = G.rt;
-  // life を 1.4 から 2.5（お好みの秒数）に変更
   G.bubbles.push({ a, text: talkLine(kind, a.c, G.level && G.level.theme), t: 0, life: 2.5 });
   Sound.squeak();
 }
@@ -852,9 +855,22 @@ function drawFxLocal() {
     if (p.star) { starPath(ctx, p.x, p.y, p.s, p.s * 0.45, 5); ctx.fill(); } else { ell(ctx, p.x, p.y, p.s / 2, p.s / 2); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
+  const fsB = clamp(antPx * 0.55, 10, 14), placed = [];
+  ctx.font = fnt(800, fsB);
   for (const b of G.bubbles) {
     const w = toW(b.a.x, b.a.y), k = b.t / b.life, sc = b.t < 0.15 ? easeOutBack(b.t / 0.15) : 1;
-    paintBubble(ctx, w.x, w.y - antU * 1.9, b.text, clamp(antPx * 0.55, 10, 14), sc, k > 0.8 ? (1 - k) / 0.2 : 1);
+    const bw = ctx.measureText(b.text).width + fsB * 0.9, bh = fsB * 1.55, by = -bh - fsB * 0.45;
+    const cx = CW > bw + 12 ? clamp(w.x, 6 + bw / 2, CW - 6 - bw / 2) : CW / 2;
+    let yy = w.y - antU * 1.9;
+    for (let tries = 0; tries < 4; tries++) {
+      const l = cx - bw / 2, r = cx + bw / 2, t = yy + by, bot = t + bh;
+      const hit = placed.find(p => l < p.r + 4 && r > p.l - 4 && t < p.b + 4 && bot > p.t - 4);
+      if (!hit) break;
+      yy = hit.t - (by + bh) - 5;
+    }
+    const topY = Math.max(yy, 6 - by) + by;
+    placed.push({ l: cx - bw / 2, r: cx + bw / 2, t: topY, b: topY + bh });
+    paintBubble(ctx, w.x, yy, b.text, fsB, sc, k > 0.8 ? (1 - k) / 0.2 : 1);
   }
 }
 function drawPopups() {
