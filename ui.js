@@ -447,15 +447,15 @@ function applyLevel(id, L) {
   G.par = parTimes(L); G.waitIds = new Set(); G.timerShown = -9;
   endFever(); G.fever.g = 0;
   G.gold = pickGold(L);
-  save.level = id; persist();
+  if (!L.custom) { save.level = id; persist(); }
   layout(); resetVisual();
   G.clearShown = false; G.loading = false;
   G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false;
   Sound.setBgm(L.name, L.theme);
   G.bgmBanner = save.settings.music !== false ? { title: Sound.bgmTitle(), t0: null } : null;
-  Tut.levelStart(id);
+  if (!L.custom) Tut.levelStart(id);
   updateTip(); refreshPrices();
-  $('#bPlay').textContent = 'あそぶ（Lv.' + posOf(id) + '）';
+  if (!L.custom) $('#bPlay').textContent = 'あそぶ（Lv.' + posOf(id) + '）';
 }
 function headCounts(s) {
   const out = new Array(s.cols.length).fill(0);
@@ -584,18 +584,21 @@ function updateBadge() {
   b.textContent = n; b.classList.toggle('on', n > 0);
 }
 function showClear() {
-  const id = G.levelId, pos = posOf(id), first = !save.cleared[id], tok = ++G.clearTok, P = G.perk;
+  const isCustom = !!(G.level && G.level.custom);
+  const id = G.levelId, pos = isCustom ? 1 : posOf(id), first = !isCustom && !save.cleared[id], tok = ++G.clearTok, P = G.perk;
   const R = G.run || { time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0 };
   G.clearShown = true; G.nextBusy = false; G.scanId = 0; refreshPrices();
   endFever();
   const t = Math.max(0.1, Math.round(R.time * 10) / 10), par = G.par || parTimes(G.level), st = timeStars(t, par);
-  const prev = save.best[id], firstS3 = st === 3 && !(prev && prev.s >= 3), newBest = !!prev && t < prev.t;
-  save.best[id] = { s: Math.max(st, prev ? prev.s : 0), t: prev ? Math.min(prev.t, t) : t };
-  save.cleared[id] = 1;
-  if (first && save.newArts.indexOf(id) < 0) save.newArts.push(id);
-  if (pos <= save.maxLevel) save.maxLevel = Math.max(save.maxLevel, Math.min(TOTAL, pos + 1));
-  const nx = nextOf(id);
-  save.level = nx || id;
+  const prev = !isCustom && save.best[id], firstS3 = !isCustom && st === 3 && !(prev && prev.s >= 3), newBest = !!prev && t < prev.t;
+  if (!isCustom) {
+    save.best[id] = { s: Math.max(st, prev ? prev.s : 0), t: prev ? Math.min(prev.t, t) : t };
+    save.cleared[id] = 1;
+    if (first && save.newArts.indexOf(id) < 0) save.newArts.push(id);
+    if (pos <= save.maxLevel) save.maxLevel = Math.max(save.maxLevel, Math.min(TOTAL, pos + 1));
+  }
+  const nx = isCustom ? 0 : nextOf(id);
+  if (!isCustom) save.level = nx || id;
 
   // ---- コインの計算（上手なほど増える） ----
   const lines = [], d = starsAt(pos);
@@ -634,13 +637,13 @@ function showClear() {
 
   Sound.fanfare(); haptic(30); Sound.duck(3.2);
   popText($('#clearTitle'), st === 3 ? 'パーフェクト！' : 'クリア！');
-  $('#clearLv').textContent = 'レベル ' + pos;
+  $('#clearLv').textContent = isCustom ? 'オリジナルステージ' : 'レベル ' + pos;
   $('#clearName').textContent = '「' + G.level.name + '」がかんせい！';
-  G.lastShare = { pos, name: G.level.name, stars: st, sec: t };
+  G.lastShare = { pos, name: G.level.name, stars: st, sec: t, custom: isCustom, url: isCustom && G.level.shareUrl ? G.level.shareUrl : 'https://hirocast.github.io/antflow/' };
   $('#clearSay').textContent = '🐜「' + talkLine(st === 3 ? 'star3' : 'clear') + '」';
   const cv = $('#revealCv'), S = Math.round(Math.min(innerWidth * 0.36, innerHeight * 0.21, 144));
   cv.style.width = cv.style.height = S + 'px'; cv.width = cv.height = Math.round(S * dpr);
-  G.reveal = { t: 0, art: getArt(id), g: cv.getContext('2d'), S };
+  G.reveal = { t: 0, art: isCustom ? G.level.art : getArt(id), g: cv.getContext('2d'), S };
   const se = $('#clearStars');
   se.innerHTML = '';
   for (let i = 0; i < 3; i++) {
@@ -679,7 +682,12 @@ function showClear() {
     if (first) { $('#albumNew').classList.add('on'); Sound.albumIn(); }
   }, 1700);
   const nc = $('#nextCv'), bn = $('#bNext');
-  if (nx) {
+  if (isCustom) {
+    nc.style.display = 'none';
+    $('#nextLabel').textContent = 'オリジナルステージ';
+    $('#nextName').textContent = 'シェアボタンで友達にも遊んでもらおう！';
+    bn.textContent = '🎨 つくる / もどる';
+  } else if (nx) {
     const na = getArt(nx);
     drawThumb(nc, na, 52, !save.cleared[nx]); nc.style.display = '';
     $('#nextLabel').textContent = 'つぎの絵（クリアで公開）';
@@ -1014,9 +1022,10 @@ const hudCache = { lv: '', st: '', name: '', left: '', w: '', dis: null, spd: ''
 function updateHUD() {
   G.hudDirty = false;
   if (!G.level) return;
-  const pos = posOf(G.levelId), st = starsAt(pos);
-  const lv = 'Lv.' + pos, stars = '★'.repeat(st) + '☆'.repeat(5 - st);
-  const name = save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
+  const isCustom = !!(G.level && G.level.custom);
+  const pos = isCustom ? 1 : posOf(G.levelId), st = starsAt(pos);
+  const lv = isCustom ? 'オリジナル' : 'Lv.' + pos, stars = isCustom ? '🎨' : '★'.repeat(st) + '☆'.repeat(5 - st);
+  const name = isCustom || save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
   const left = 'のこり ' + G.vleft + ' / ' + G.level.total;
   const w = (100 * (1 - G.vleft / G.level.total)).toFixed(2) + '%';
   const dis = !G.undo.length, spd = G.speed + 'x';
@@ -2002,19 +2011,30 @@ on('#bDayOk', () => {
 on('#bNext', () => {
   if (G.nextBusy) return;
   G.nextBusy = true; $('#bNext').disabled = true;
+  if (G.level && G.level.custom) {
+    G.reveal = null; G.clearTok++;
+    if (window.AF_openMaker) window.AF_openMaker(); else showOv('title');
+    return;
+  }
   const id = G.levelId, nx = nextOf(id);
   if (save.newArts.indexOf(id) >= 0) flyToAlbum(id);
   G.reveal = null; G.clearTok++;
   hideOv();
   if (!nx) openAlbum(false); else loadLevel(nx);
 });
-on('#bReplay', () => { G.reveal = null; G.clearTok++; updateBadge(); hideOv(); loadLevel(G.levelId); });
+on('#bReplay', () => {
+  G.reveal = null; G.clearTok++; updateBadge(); hideOv();
+  if (G.level && G.level.custom && G.customArt && window.AF_loadCustomLevel) window.AF_loadCustomLevel(G.customArt);
+  else loadLevel(G.levelId);
+});
 on('#bClearShare', async () => {
   Sound.tap();
-  const s = G.lastShare || { pos: 1, name: '', stars: 3, sec: 0 };
+  const s = G.lastShare || { pos: 1, name: '', stars: 3, sec: 0, custom: false, url: 'https://hirocast.github.io/antflow/' };
   const stars = '★'.repeat(s.stars) + '☆'.repeat(3 - s.stars);
-  const text = 'アントフロー レベル' + s.pos + (s.name ? '「' + s.name + '」' : '') + 'を ' + stars + '（' + s.sec + '秒）でクリア！🐜🍬\n#アントフロー #ブラウザゲーム';
-  const url = 'https://hirocast.github.io/antflow/';
+  const text = s.custom
+    ? 'アントフローのオリジナルステージ「' + (s.name || 'オリジナル') + '」を ' + stars + '（' + s.sec + '秒）でクリア！🐜🍬\n#アントフロー'
+    : 'アントフロー レベル' + s.pos + (s.name ? '「' + s.name + '」' : '') + 'を ' + stars + '（' + s.sec + '秒）でクリア！🐜🍬\n#アントフロー #ブラウザゲーム';
+  const url = s.url || 'https://hirocast.github.io/antflow/';
   if (navigator.share) {
     try { await navigator.share({ title: 'アントフロー｜ありんこ隊のおはこびパズル', text, url }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }

@@ -148,7 +148,7 @@
 <script>
 // 読み込みチェック：各 .js の最後の行で、自分のファイル名を AF_LOADED に登録する
 window.AF_LOADED = [];
-window.AF_FILES = ['base.js', 'arts.js', 'raster.js', 'logic.js', 'sound.js', 'render.js', 'ui.js', 'measure.js'];
+window.AF_FILES = ['base.js', 'arts.js', 'raster.js', 'logic.js', 'sound.js', 'render.js', 'ui.js', 'maker.js', 'measure.js'];
 window.AF_bootErr = function (msg) {
   var c = document.querySelector('#ov-title .card');
   if (!c || c.querySelectorAll('.bootErr').length >= 4) return;
@@ -175,6 +175,7 @@ window.addEventListener('error', function (e) {
 <script src="sound.js"></script>
 <script src="render.js"></script>
 <script src="ui.js"></script>
+<script src="maker.js"></script>
 <!-- 開発用：難しさの測定（不要になったら、この行と AF_FILES の 'measure.js' を消す） -->
 <script src="measure.js"></script>
 <script>
