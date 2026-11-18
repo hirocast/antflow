@@ -8,7 +8,7 @@
   const REPORT_KEY = 'antflow-reported-v1';
   const POST_COOLDOWN_MS = 60 * 1000; // 連続投稿制限（60秒）
   const REPO_URL = 'https://github.com/hirocast/antflow';
-  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?labels=custom-stage&state=open&per_page=24';
+  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
 
   const NG_WORDS = [
     '死ね', 'しね', '殺す', 'ころす', 'バカ', 'ばか', 'アホ', 'あほ', 'クズ', 'くず',
