@@ -5,7 +5,17 @@
 (function () {
   const MK_W = 16, MK_H = 16;
   const mkGrid = new Int8Array(MK_W * MK_H).fill(-1);
+  const mkHistory = [];
   let mkCol = 0, mkMirror = false, mkDrawing = false, mkBuilt = false;
+  function refreshUndoBtn() {
+    const b = $('#mkUndo');
+    if (b) b.disabled = !mkHistory.length;
+  }
+  function pushMkUndo() {
+    mkHistory.push(mkGrid.slice());
+    if (mkHistory.length > 40) mkHistory.shift();
+    refreshUndoBtn();
+  }
 
   /* ---- URL エンコード / デコード（サーバー不要） ---- */
   function toB64Url(bytes) {
@@ -184,6 +194,7 @@
       '.mksw.on{outline:3px solid #5a3d5c;transform:scale(1.12)}' +
       '.mktools{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:4px 0}' +
       '.mktools button{border:2px solid #fff;border-radius:12px;padding:4px 9px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
+      '.mktools button:disabled{opacity:.45;cursor:default;box-shadow:none}' +
       '.mktools button.on{background:#ffe0ed;border-color:#ff8fb3}' +
       '#mkName{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:7px 10px;font:800 13px var(--rf);color:var(--ink);margin:4px 0;text-align:center;background:#fff}';
     document.head.appendChild(style);
@@ -198,6 +209,7 @@
       '<input id="mkName" type="text" maxlength="14" placeholder="ステージ名（例：わたしのハート）">' +
       '<canvas id="mkCv"></canvas>' +
       '<div class="mktools">' +
+      '<button id="mkUndo" disabled>↶ もどす</button>' +
       '<button id="mkMir">🪞 左右対称</button>' +
       '<button id="mkHeart">❤️ ハート</button>' +
       '<button id="mkCat">🐱 ネコ</button>' +
@@ -242,17 +254,24 @@
       if (mkMirror) mkGrid[y * MK_W + (MK_W - 1 - x)] = mkCol;
       drawMaker();
     }
-    cv.addEventListener('pointerdown', e => { e.preventDefault(); mkDrawing = true; cv.setPointerCapture(e.pointerId); paintAt(e.clientX, e.clientY); });
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); pushMkUndo(); mkDrawing = true; cv.setPointerCapture(e.pointerId); paintAt(e.clientX, e.clientY); });
     cv.addEventListener('pointermove', e => { if (mkDrawing) { e.preventDefault(); paintAt(e.clientX, e.clientY); } });
     const stop = () => { mkDrawing = false; };
     cv.addEventListener('pointerup', stop);
     cv.addEventListener('pointercancel', stop);
 
+    $('#mkUndo').addEventListener('click', () => {
+      if (!mkHistory.length) return;
+      Sound.undo();
+      mkGrid.set(mkHistory.pop());
+      refreshUndoBtn();
+      drawMaker();
+    });
     $('#mkMir').addEventListener('click', () => { Sound.tap(); mkMirror = !mkMirror; $('#mkMir').classList.toggle('on', mkMirror); });
-    $('#mkHeart').addEventListener('click', () => { Sound.tap(); applyTemplate('heart'); });
-    $('#mkCat').addEventListener('click', () => { Sound.tap(); applyTemplate('cat'); });
-    $('#mkFlower').addEventListener('click', () => { Sound.tap(); applyTemplate('flower'); });
-    $('#mkClear').addEventListener('click', () => { Sound.tap(); mkGrid.fill(-1); drawMaker(); });
+    $('#mkHeart').addEventListener('click', () => { Sound.tap(); pushMkUndo(); applyTemplate('heart'); });
+    $('#mkCat').addEventListener('click', () => { Sound.tap(); pushMkUndo(); applyTemplate('cat'); });
+    $('#mkFlower').addEventListener('click', () => { Sound.tap(); pushMkUndo(); applyTemplate('flower'); });
+    $('#mkClear').addEventListener('click', () => { Sound.tap(); pushMkUndo(); mkGrid.fill(-1); drawMaker(); });
 
     $('#bMkPlay').addEventListener('click', () => {
       Sound.tap();
