@@ -220,7 +220,7 @@ body.wide .fb{max-width:none}
   const cr = document.createElement('div'); cr.className = 'cfrow';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
-  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button>');
+  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><button class="big sec" id="bClearShare">📣 クリアをシェアする</button>');
   $('#bSetClose').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetHome">🏠 ホーム（女王さま・ミッション・きせかえ）</button>');
   $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button>');
   // あそびかた：ページめくり式に作りかえる
@@ -636,6 +636,7 @@ function showClear() {
   popText($('#clearTitle'), st === 3 ? 'パーフェクト！' : 'クリア！');
   $('#clearLv').textContent = 'レベル ' + pos;
   $('#clearName').textContent = '「' + G.level.name + '」がかんせい！';
+  G.lastShare = { pos, name: G.level.name, stars: st, sec: t };
   $('#clearSay').textContent = '🐜「' + talkLine(st === 3 ? 'star3' : 'clear') + '」';
   const cv = $('#revealCv'), S = Math.round(Math.min(innerWidth * 0.36, innerHeight * 0.21, 144));
   cv.style.width = cv.style.height = S + 'px'; cv.width = cv.height = Math.round(S * dpr);
@@ -2008,6 +2009,22 @@ on('#bNext', () => {
   if (!nx) openAlbum(false); else loadLevel(nx);
 });
 on('#bReplay', () => { G.reveal = null; G.clearTok++; updateBadge(); hideOv(); loadLevel(G.levelId); });
+on('#bClearShare', async () => {
+  Sound.tap();
+  const s = G.lastShare || { pos: 1, name: '', stars: 3, sec: 0 };
+  const stars = '★'.repeat(s.stars) + '☆'.repeat(3 - s.stars);
+  const text = 'アントフロー レベル' + s.pos + (s.name ? '「' + s.name + '」' : '') + 'を ' + stars + '（' + s.sec + '秒）でクリア！🐜🍬\n#アントフロー #ブラウザゲーム';
+  const url = 'https://hirocast.github.io/antflow/';
+  if (navigator.share) {
+    try { await navigator.share({ title: 'アントフロー｜ありんこ隊のおはこびパズル', text, url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const xUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url);
+  const w = window.open(xUrl, '_blank', 'noopener');
+  if (!w && navigator.clipboard) {
+    navigator.clipboard.writeText(text + '\n' + url).then(() => toast('シェア文をコピーしたよ！')).catch(() => {});
+  }
+});
 on('#bCfCancel', () => {
   Sound.tap();
   const cf = G.cf; G.cf = null;
