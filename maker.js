@@ -9,8 +9,6 @@
   const POST_COOLDOWN_MS = 60 * 1000; // 連続投稿制限（60秒）
   const REPO_URL = 'https://github.com/hirocast/antflow';
   const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?labels=custom-stage&state=open&per_page=24';
-  // Google Apps Script ウェブアプリURL（scripts/gas_backend.gs をデプロイして設定するとアカウント不要で投稿・3件通報で自動非表示が有効になります）
-  const GAS_URL = '';
 
   const NG_WORDS = [
     '死ね', 'しね', '殺す', 'ころす', 'バカ', 'ばか', 'アホ', 'あほ', 'クズ', 'くず',
@@ -340,34 +338,20 @@
     pub.innerHTML = '<p class="fine">読み込み中…</p>';
     const reported = loadReported();
     try {
-      let list = [];
-      if (GAS_URL) {
-        const res = await fetch(GAS_URL);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        if (data && Array.isArray(data.items)) {
-          list = data.items.map(it => ({ id: it.id, token: it.token, name: it.name, sub: '投稿作品' }));
-        }
-      } else {
-        const res = await fetch(ISSUES_API);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const issues = await res.json();
-        for (const iss of issues) {
-          const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
-          if (!m) continue;
-          const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品';
-          list.push({ id: 'gh_' + iss.number, token: m[1], sub: author });
-        }
-      }
+      const res = await fetch(ISSUES_API);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const issues = await res.json();
       pub.innerHTML = '';
       let cnt = 0;
-      for (const item of list) {
-        if (reported.has(item.id) || reported.has(item.token)) continue;
-        const art = decodeCustomStage(item.token);
-        if (!art) continue;
-        if (item.name) art.name = item.name;
-        if (validateStageName(art.name)) continue;
-        pub.appendChild(makeGalCard(art, item.sub, item.id));
+      for (const iss of issues) {
+        const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
+        if (!m) continue;
+        const id = 'gh_' + iss.number;
+        if (reported.has(id) || reported.has(m[1])) continue;
+        const art = decodeCustomStage(m[1]);
+        if (!art || validateStageName(art.name)) continue;
+        const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品';
+        pub.appendChild(makeGalCard(art, author, id));
         cnt++;
       }
       if (!cnt) pub.innerHTML = '<p class="fine">表示できる投稿作品がありません。最初の1作を投稿してみよう！</p>';
@@ -382,20 +366,15 @@
       const rep = document.createElement('span');
       rep.className = 'galrep';
       rep.textContent = '⚠️';
-      rep.title = '不適切な作品を通報';
-      rep.addEventListener('click', async e => {
+      rep.title = '不適切な作品を非表示・通報';
+      rep.addEventListener('click', e => {
         e.stopPropagation();
         e.preventDefault();
-        if (!confirm('「' + art.name + '」を不適切な作品として通報し、一覧から非表示にしますか？')) return;
+        if (!confirm('「' + art.name + '」を不適切な作品として一覧から非表示にしますか？')) return;
         addReported(reportId);
         addReported(art.token);
         btn.remove();
-        if (GAS_URL) {
-          try {
-            await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'report', id: reportId }) });
-          } catch (err) {}
-        }
-        toast('通報しました（一覧から非表示にしました）');
+        toast('一覧から非表示にしました');
       });
       btn.appendChild(rep);
     }
@@ -715,22 +694,6 @@
       const cd = checkPostLimit(token);
       if (cd) { toast(cd); return; }
       saveMyStage(name, mkGrid, mkW, mkH);
-      if (GAS_URL) {
-        try {
-          const res = await fetch(GAS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ name, w: mkW, h: mkH, token })
-          });
-          const data = await res.json();
-          if (!data || !data.ok) { toast((data && data.error) || '投稿できませんでした'); return; }
-          recordPost(token);
-          toast('投稿しました！「🌟 みんなの絵」に載ったよ');
-        } catch (e) {
-          toast('通信エラーで投稿できませんでした');
-        }
-        return;
-      }
       recordPost(token);
       const url = stageShareUrl(name, mkGrid, mkW, mkH);
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
