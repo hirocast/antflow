@@ -10,7 +10,7 @@
   let mkW = 16, mkH = 16;
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
   const mkHistory = [];
-  let mkCol = 0, mkMirror = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
+  let mkCol = 0, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
   let mkZoom = 1, mkPanX = 0, mkPanY = 0;
   const mkPtrs = new Map();
   let mkPinch = null, mkLastPan = null, mkSel = null, mkSelDrag = null;
@@ -379,6 +379,7 @@
       '<button id="mkUndo" disabled>↶ もどす</button>' +
       '<button id="mkSelBtn">🔲 選択移動</button>' +
       '<button id="mkMir">🪞 左右対称</button>' +
+      '<button id="mkMirV">↕️ 上下対称</button>' +
       '<button id="mkHeart">❤️ ハート</button>' +
       '<button id="mkCat">🐱 ネコ</button>' +
       '<button id="mkFlower">🌸 おはな</button>' +
@@ -445,8 +446,11 @@
     function paintAt(clientX, clientY) {
       const { x, y } = cellAt(clientX, clientY, false);
       if (x < 0 || x >= mkW || y < 0 || y >= mkH) return;
+      const mx = mkW - 1 - x, my = mkH - 1 - y;
       mkGrid[y * mkW + x] = mkCol;
-      if (mkMirror) mkGrid[y * mkW + (mkW - 1 - x)] = mkCol;
+      if (mkMirror) mkGrid[y * mkW + mx] = mkCol;
+      if (mkMirrorV) mkGrid[my * mkW + x] = mkCol;
+      if (mkMirror && mkMirrorV) mkGrid[my * mkW + mx] = mkCol;
       drawMaker();
     }
     cv.addEventListener('pointerdown', e => {
@@ -585,7 +589,8 @@
       else if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
       $('#mkSelBtn').classList.toggle('on', mkSelMode);
     });
-    $('#mkMir').addEventListener('click', () => { Sound.tap(); mkMirror = !mkMirror; $('#mkMir').classList.toggle('on', mkMirror); });
+    $('#mkMir').addEventListener('click', () => { Sound.tap(); mkMirror = !mkMirror; $('#mkMir').classList.toggle('on', mkMirror); drawMaker(); });
+    $('#mkMirV').addEventListener('click', () => { Sound.tap(); mkMirrorV = !mkMirrorV; $('#mkMirV').classList.toggle('on', mkMirrorV); drawMaker(); });
     $('#mkHeart').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('heart'); });
     $('#mkCat').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('cat'); });
     $('#mkFlower').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('flower'); });
@@ -678,6 +683,11 @@
       g.strokeStyle = 'rgba(255,90,122,.45)';
       g.lineWidth = 2 / mkZoom;
       g.beginPath(); g.moveTo(S / 2, 0); g.lineTo(S / 2, S); g.stroke();
+    }
+    if (mkMirrorV) {
+      g.strokeStyle = 'rgba(255,90,122,.45)';
+      g.lineWidth = 2 / mkZoom;
+      g.beginPath(); g.moveTo(0, S / 2); g.lineTo(S, S / 2); g.stroke();
     }
     if (mkSel) {
       if (mkSel.buf) {
