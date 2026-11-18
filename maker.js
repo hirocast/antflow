@@ -10,10 +10,22 @@
   let mkW = 16, mkH = 16;
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
   const mkHistory = [];
-  let mkCol = 0, mkMirror = false, mkPanMode = false, mkDrawing = false, mkBuilt = false;
+  let mkCol = 0, mkMirror = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
   let mkZoom = 1, mkPanX = 0, mkPanY = 0;
   const mkPtrs = new Map();
-  let mkPinch = null, mkLastPan = null;
+  let mkPinch = null, mkLastPan = null, mkSel = null, mkSelDrag = null;
+  function commitSel() {
+    if (!mkSel) return;
+    if (mkSel.buf) {
+      for (let dy = 0; dy < mkSel.h; dy++) for (let dx = 0; dx < mkSel.w; dx++) {
+        const v = mkSel.buf[dy * mkSel.w + dx];
+        if (v < 0) continue;
+        const tx = mkSel.x + dx, ty = mkSel.y + dy;
+        if (tx >= 0 && tx < mkW && ty >= 0 && ty < mkH) mkGrid[ty * mkW + tx] = v;
+      }
+    }
+    mkSel = null;
+  }
 
   function refreshUndoBtn() {
     const b = $('#mkUndo');
@@ -365,6 +377,7 @@
       '<canvas id="mkCv"></canvas>' +
       '<div class="mktools">' +
       '<button id="mkUndo" disabled>↶ もどす</button>' +
+      '<button id="mkSelBtn">🔲 選択移動</button>' +
       '<button id="mkMir">🪞 左右対称</button>' +
       '<button id="mkHeart">❤️ ハート</button>' +
       '<button id="mkCat">🐱 ネコ</button>' +
@@ -419,13 +432,18 @@
     refreshPal();
 
     const cv = $('#mkCv');
-    function paintAt(clientX, clientY) {
+    function cellAt(clientX, clientY, clampEdge) {
       const rect = cv.getBoundingClientRect();
       const S = rect.width || 272;
       const px = (clientX - rect.left) / rect.width * S;
       const py = (clientY - rect.top) / rect.height * S;
-      const x = Math.floor((px - mkPanX) / (S * mkZoom) * mkW);
-      const y = Math.floor((py - mkPanY) / (S * mkZoom) * mkH);
+      let x = Math.floor((px - mkPanX) / (S * mkZoom) * mkW);
+      let y = Math.floor((py - mkPanY) / (S * mkZoom) * mkH);
+      if (clampEdge) { x = clamp(x, 0, mkW - 1); y = clamp(y, 0, mkH - 1); }
+      return { x, y };
+    }
+    function paintAt(clientX, clientY) {
+      const { x, y } = cellAt(clientX, clientY, false);
       if (x < 0 || x >= mkW || y < 0 || y >= mkH) return;
       mkGrid[y * mkW + x] = mkCol;
       if (mkMirror) mkGrid[y * mkW + (mkW - 1 - x)] = mkCol;
@@ -436,7 +454,7 @@
       cv.setPointerCapture(e.pointerId);
       mkPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (mkPtrs.size === 2) {
-        mkDrawing = false;
+        mkDrawing = false; mkSelDrag = null;
         const pts = [...mkPtrs.values()];
         mkPinch = {
           dist: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1,
@@ -448,6 +466,30 @@
       }
       if (mkPanMode && mkZoom > 1) {
         mkLastPan = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      if (mkSelMode) {
+        const { x, y } = cellAt(e.clientX, e.clientY, true);
+        if (mkSel && x >= mkSel.x && x < mkSel.x + mkSel.w && y >= mkSel.y && y < mkSel.y + mkSel.h) {
+          if (!mkSel.buf) {
+            pushMkUndo();
+            const buf = new Int8Array(mkSel.w * mkSel.h).fill(-1);
+            for (let dy = 0; dy < mkSel.h; dy++) for (let dx = 0; dx < mkSel.w; dx++) {
+              const gx = mkSel.x + dx, gy = mkSel.y + dy;
+              if (gx >= 0 && gx < mkW && gy >= 0 && gy < mkH) {
+                buf[dy * mkSel.w + dx] = mkGrid[gy * mkW + gx];
+                mkGrid[gy * mkW + gx] = -1;
+              }
+            }
+            mkSel.buf = buf;
+          }
+          mkSelDrag = { type: 'move', sx: x, sy: y, ox: mkSel.x, oy: mkSel.y };
+        } else {
+          commitSel();
+          mkSel = { x, y, w: 1, h: 1, buf: null };
+          mkSelDrag = { type: 'select', sx: x, sy: y };
+        }
+        drawMaker();
         return;
       }
       pushMkUndo();
@@ -480,12 +522,27 @@
         drawMaker();
         return;
       }
+      if (mkSelMode && mkSelDrag && mkSel) {
+        e.preventDefault();
+        const { x, y } = cellAt(e.clientX, e.clientY, true);
+        if (mkSelDrag.type === 'select') {
+          mkSel.x = Math.min(mkSelDrag.sx, x);
+          mkSel.y = Math.min(mkSelDrag.sy, y);
+          mkSel.w = Math.abs(x - mkSelDrag.sx) + 1;
+          mkSel.h = Math.abs(y - mkSelDrag.sy) + 1;
+        } else {
+          mkSel.x = mkSelDrag.ox + (x - mkSelDrag.sx);
+          mkSel.y = mkSelDrag.oy + (y - mkSelDrag.sy);
+        }
+        drawMaker();
+        return;
+      }
       if (mkDrawing) { e.preventDefault(); paintAt(e.clientX, e.clientY); }
     });
     const stop = e => {
       mkPtrs.delete(e.pointerId);
       if (mkPtrs.size < 2) mkPinch = null;
-      if (mkPtrs.size === 0) { mkDrawing = false; mkLastPan = null; }
+      if (mkPtrs.size === 0) { mkDrawing = false; mkLastPan = null; mkSelDrag = null; }
     };
     cv.addEventListener('pointerup', stop);
     cv.addEventListener('pointercancel', stop);
@@ -496,18 +553,21 @@
     }, { passive: false });
 
     document.querySelectorAll('.mksz').forEach(b => {
-      b.addEventListener('click', () => { Sound.tap(); setMakerSize(Number(b.dataset.sz)); });
+      b.addEventListener('click', () => { Sound.tap(); commitSel(); setMakerSize(Number(b.dataset.sz)); });
     });
     $('#mkZIn').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom < 2 ? 2 : mkZoom + 1); });
     $('#mkZOut').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom <= 2 ? 1 : mkZoom - 1); });
     $('#mkPanBtn').addEventListener('click', () => {
       if (mkZoom <= 1) return;
-      Sound.tap(); mkPanMode = !mkPanMode; refreshZoomUI();
+      Sound.tap(); mkPanMode = !mkPanMode;
+      if (mkPanMode && mkSelMode) { mkSelMode = false; $('#mkSelBtn').classList.remove('on'); }
+      refreshZoomUI();
     });
 
     $('#mkUndo').addEventListener('click', () => {
       if (!mkHistory.length) return;
       Sound.undo();
+      mkSel = null; mkSelDrag = null;
       const prev = mkHistory.pop();
       if (prev.w !== mkW || prev.h !== mkH) {
         mkW = prev.w; mkH = prev.h;
@@ -518,20 +578,27 @@
       refreshUndoBtn();
       drawMaker();
     });
+    $('#mkSelBtn').addEventListener('click', () => {
+      Sound.tap();
+      mkSelMode = !mkSelMode;
+      if (!mkSelMode) { commitSel(); drawMaker(); }
+      else if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
+      $('#mkSelBtn').classList.toggle('on', mkSelMode);
+    });
     $('#mkMir').addEventListener('click', () => { Sound.tap(); mkMirror = !mkMirror; $('#mkMir').classList.toggle('on', mkMirror); });
-    $('#mkHeart').addEventListener('click', () => { Sound.tap(); pushMkUndo(); applyTemplate('heart'); });
-    $('#mkCat').addEventListener('click', () => { Sound.tap(); pushMkUndo(); applyTemplate('cat'); });
-    $('#mkFlower').addEventListener('click', () => { Sound.tap(); pushMkUndo(); applyTemplate('flower'); });
-    $('#mkClear').addEventListener('click', () => { Sound.tap(); pushMkUndo(); mkGrid.fill(-1); drawMaker(); });
+    $('#mkHeart').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('heart'); });
+    $('#mkCat').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('cat'); });
+    $('#mkFlower').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('flower'); });
+    $('#mkClear').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); mkGrid.fill(-1); drawMaker(); });
 
     $('#bMkPlay').addEventListener('click', () => {
-      Sound.tap();
+      Sound.tap(); commitSel(); drawMaker();
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
       saveMyStage(name, mkGrid, mkW, mkH);
       loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル' });
     });
     $('#bMkShare').addEventListener('click', async () => {
-      Sound.tap();
+      Sound.tap(); commitSel(); drawMaker();
       let total = 0;
       for (const v of mkGrid) if (v >= 0) total++;
       if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
@@ -611,6 +678,22 @@
       g.strokeStyle = 'rgba(255,90,122,.45)';
       g.lineWidth = 2 / mkZoom;
       g.beginPath(); g.moveTo(S / 2, 0); g.lineTo(S / 2, S); g.stroke();
+    }
+    if (mkSel) {
+      if (mkSel.buf) {
+        for (let dy = 0; dy < mkSel.h; dy++) for (let dx = 0; dx < mkSel.w; dx++) {
+          const v = mkSel.buf[dy * mkSel.w + dx];
+          if (v >= 0) {
+            g.fillStyle = HEX[v];
+            g.fillRect((mkSel.x + dx) * cs + 0.35 / mkZoom, (mkSel.y + dy) * cs + 0.35 / mkZoom, cs - 0.7 / mkZoom, cs - 0.7 / mkZoom);
+          }
+        }
+      }
+      g.strokeStyle = '#ff4d6d';
+      g.lineWidth = 2 / mkZoom;
+      g.setLineDash([4 / mkZoom, 3 / mkZoom]);
+      g.strokeRect(mkSel.x * cs, mkSel.y * cs, mkSel.w * cs, mkSel.h * cs);
+      g.setLineDash([]);
     }
     g.restore();
   }
