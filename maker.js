@@ -1,18 +1,26 @@
 // File: maker.js
 'use strict';
 
-/* ================= オリジナルステージ作成＆URLシェア ================= */
+/* ================= オリジナルステージ作成＆URLシェア＆投稿 ================= */
 (function () {
-  const MK_W = 16, MK_H = 16;
-  const mkGrid = new Int8Array(MK_W * MK_H).fill(-1);
+  const MY_KEY = 'antflow-my-stages-v1';
+  const REPO_URL = 'https://github.com/hirocast/antflow';
+  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?labels=custom-stage&state=open&per_page=24';
+
+  let mkW = 16, mkH = 16;
+  let mkGrid = new Int8Array(mkW * mkH).fill(-1);
   const mkHistory = [];
-  let mkCol = 0, mkMirror = false, mkDrawing = false, mkBuilt = false;
+  let mkCol = 0, mkMirror = false, mkPanMode = false, mkDrawing = false, mkBuilt = false;
+  let mkZoom = 1, mkPanX = 0, mkPanY = 0;
+  const mkPtrs = new Map();
+  let mkPinch = null, mkLastPan = null;
+
   function refreshUndoBtn() {
     const b = $('#mkUndo');
     if (b) b.disabled = !mkHistory.length;
   }
   function pushMkUndo() {
-    mkHistory.push(mkGrid.slice());
+    mkHistory.push({ w: mkW, h: mkH, grid: mkGrid.slice() });
     if (mkHistory.length > 40) mkHistory.shift();
     refreshUndoBtn();
   }
@@ -30,7 +38,8 @@
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   }
-  function encodeCustomStage(name, grid) {
+  function encodeCustomStage(name, grid, w, h) {
+    const W = w || mkW, H = h || mkH;
     const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
     const runs = [];
     let i = 0;
@@ -43,8 +52,8 @@
     }
     const bytes = new Uint8Array(4 + nb.length + runs.length);
     bytes[0] = 1; // version
-    bytes[1] = MK_W;
-    bytes[2] = MK_H;
+    bytes[1] = W;
+    bytes[2] = H;
     bytes[3] = nb.length;
     bytes.set(nb, 4);
     bytes.set(runs, 4 + nb.length);
@@ -70,8 +79,8 @@
       return { W, H, grid, name, theme: 'オリジナル', token };
     } catch (e) { return null; }
   }
-  function stageShareUrl(name, grid) {
-    const token = encodeCustomStage(name, grid);
+  function stageShareUrl(name, grid, w, h) {
+    const token = encodeCustomStage(name, grid, w, h);
     return location.origin + location.pathname + '?stage=' + token;
   }
 
@@ -80,7 +89,7 @@
     let total = 0;
     for (const v of art.grid) if (v >= 0) total++;
     if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
-    const shareUrl = stageShareUrl(art.name, art.grid);
+    const shareUrl = stageShareUrl(art.name, art.grid, art.W, art.H);
     const P = params(5, total);
     const rng = mulberry32(hashInt(total, art.name.length + 77));
     const c = construct(art, P, rng);
@@ -96,6 +105,61 @@
     applyLevel(0, L);
   }
   window.AF_loadCustomLevel = loadCustomLevel;
+
+  /* ---- 広さ変更・ズーム管理 ---- */
+  function setMakerSize(newSize) {
+    if (newSize === mkW && newSize === mkH) return;
+    pushMkUndo();
+    const oldW = mkW, oldH = mkH, oldG = mkGrid;
+    mkW = newSize; mkH = newSize;
+    mkGrid = new Int8Array(mkW * mkH).fill(-1);
+    const ox = Math.floor((mkW - oldW) / 2), oy = Math.floor((mkH - oldH) / 2);
+    for (let y = 0; y < oldH; y++) for (let x = 0; x < oldW; x++) {
+      const nx = x + ox, ny = y + oy;
+      if (nx >= 0 && nx < mkW && ny >= 0 && ny < mkH) mkGrid[ny * mkW + nx] = oldG[y * oldW + x];
+    }
+    resetZoom();
+    refreshSizeBtns();
+    drawMaker();
+  }
+  function clampPan() {
+    const cv = $('#mkCv');
+    const S = Math.round((cv && cv.clientWidth) || 272);
+    const minP = S - S * mkZoom;
+    mkPanX = clamp(mkPanX, minP, 0);
+    mkPanY = clamp(mkPanY, minP, 0);
+  }
+  function setZoom(z, anchorX, anchorY) {
+    const cv = $('#mkCv');
+    const S = Math.round((cv && cv.clientWidth) || 272);
+    const nz = clamp(z, 1, 4);
+    if (nz === mkZoom) return;
+    const ax = anchorX == null ? S / 2 : anchorX;
+    const ay = anchorY == null ? S / 2 : anchorY;
+    const gx = (ax - mkPanX) / mkZoom;
+    const gy = (ay - mkPanY) / mkZoom;
+    mkZoom = nz;
+    mkPanX = ax - gx * mkZoom;
+    mkPanY = ay - gy * mkZoom;
+    if (mkZoom <= 1.01) { mkZoom = 1; mkPanX = 0; mkPanY = 0; mkPanMode = false; }
+    clampPan();
+    refreshZoomUI();
+    drawMaker();
+  }
+  function resetZoom() {
+    mkZoom = 1; mkPanX = 0; mkPanY = 0; mkPanMode = false;
+    refreshZoomUI();
+  }
+  function refreshZoomUI() {
+    const zl = $('#mkZoomLbl'), pm = $('#mkPanBtn');
+    if (zl) zl.textContent = mkZoom.toFixed(mkZoom % 1 ? 1 : 0) + 'x';
+    if (pm) { pm.disabled = mkZoom <= 1; pm.classList.toggle('on', mkPanMode && mkZoom > 1); }
+  }
+  function refreshSizeBtns() {
+    document.querySelectorAll('.mksz').forEach(b => {
+      b.classList.toggle('on', Number(b.dataset.sz) === mkW);
+    });
+  }
 
   /* ---- おてほんテンプレート ---- */
   const TEMPLATES = {
@@ -167,16 +231,93 @@
     const tp = TEMPLATES[key];
     if (!tp) return;
     mkGrid.fill(-1);
-    for (let y = 0; y < MK_H; y++) {
+    const ox = Math.floor((mkW - 16) / 2), oy = Math.floor((mkH - 16) / 2);
+    for (let y = 0; y < 16; y++) {
       const r = tp.rows[y] || '';
-      for (let x = 0; x < MK_W; x++) {
+      for (let x = 0; x < 16; x++) {
         const ch = r[x];
-        mkGrid[y * MK_W + x] = ch && ch !== '.' ? KEYS.indexOf(ch) : -1;
+        if (ch && ch !== '.') mkGrid[(y + oy) * mkW + (x + ox)] = KEYS.indexOf(ch);
       }
     }
     const ni = $('#mkName');
     if (ni) ni.value = tp.name;
     drawMaker();
+  }
+
+  /* ---- ローカル保存（マイ作品） ---- */
+  function loadMyStages() {
+    try { return JSON.parse(localStorage.getItem(MY_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveMyStage(name, grid, w, h) {
+    const list = loadMyStages();
+    const token = encodeCustomStage(name, grid, w, h);
+    const filtered = list.filter(x => x.token !== token);
+    filtered.unshift({ name, w, h, token, at: Date.now() });
+    if (filtered.length > 20) filtered.length = 20;
+    try { localStorage.setItem(MY_KEY, JSON.stringify(filtered)); } catch (e) {}
+  }
+
+  /* ---- みんなのステージ一覧（GitHub Issues + マイ作品） ---- */
+  function drawArtToCanvas(cv, art, size) {
+    cv.width = cv.height = Math.round(size * dpr);
+    cv.style.width = cv.style.height = size + 'px';
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = '#fff3dc';
+    g.fillRect(0, 0, size, size);
+    const c = (size - 4) / art.W;
+    for (let y = 0; y < art.H; y++) for (let x = 0; x < art.W; x++) {
+      const v = art.grid[y * art.W + x];
+      if (v >= 0) { g.fillStyle = HEX[v]; g.fillRect(2 + x * c, 2 + y * c, c + 0.3, c + 0.3); }
+    }
+  }
+  async function openGallery() {
+    showOv('gallery');
+    const mine = $('#galMine'), pub = $('#galPub');
+    mine.innerHTML = '';
+    const myList = loadMyStages();
+    if (!myList.length) {
+      mine.innerHTML = '<p class="fine">まだ保存した作品がありません（「💾 保存」で残せるよ）</p>';
+    } else {
+      myList.forEach(item => {
+        const art = decodeCustomStage(item.token);
+        if (!art) return;
+        mine.appendChild(makeGalCard(art, 'マイ作品'));
+      });
+    }
+    pub.innerHTML = '<p class="fine">読み込み中…</p>';
+    try {
+      const res = await fetch(ISSUES_API);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const issues = await res.json();
+      pub.innerHTML = '';
+      let cnt = 0;
+      for (const iss of issues) {
+        const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
+        if (!m) continue;
+        const art = decodeCustomStage(m[1]);
+        if (!art) continue;
+        const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品';
+        pub.appendChild(makeGalCard(art, author));
+        cnt++;
+      }
+      if (!cnt) pub.innerHTML = '<p class="fine">まだ投稿作品がありません。最初の1作を投稿してみよう！</p>';
+    } catch (e) {
+      pub.innerHTML = '<p class="fine">投稿一覧を読み込めませんでした（オフラインまたはアクセス集中）</p>';
+    }
+  }
+  function makeGalCard(art, sub) {
+    const btn = document.createElement('button');
+    btn.className = 'galcard';
+    const cv = document.createElement('canvas');
+    drawArtToCanvas(cv, art, 68);
+    const b = document.createElement('b');
+    b.textContent = art.name;
+    const sm = document.createElement('small');
+    sm.textContent = art.W + '×' + art.H + ' · ' + sub;
+    btn.appendChild(cv); btn.appendChild(b); btn.appendChild(sm);
+    btn.addEventListener('click', () => { Sound.tap(); loadCustomLevel(art); });
+    return btn;
   }
 
   /* ---- エディタ UI 構築 ---- */
@@ -187,16 +328,22 @@
     style.textContent =
       '.mrow{grid-template-columns:repeat(4,1fr)!important;gap:6px!important}' +
       '.mrow button{font-size:11px!important;padding:8px 1px!important}' +
-      '#ov-maker .card{padding:12px 14px}' +
+      '#ov-maker .card,#ov-gallery .card{padding:12px 14px}' +
       '#mkCv{display:block;width:100%;max-width:272px;aspect-ratio:1;margin:6px auto;border-radius:14px;border:3px solid #fff;box-shadow:0 4px 0 #f0c6d6;background:#fff3dc;touch-action:none;cursor:crosshair}' +
       '.mkpal{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:6px 0}' +
       '.mksw{width:24px;height:24px;border-radius:8px;border:2px solid #fff;box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;padding:0;font-size:12px;line-height:20px;background:#fff}' +
       '.mksw.on{outline:3px solid #5a3d5c;transform:scale(1.12)}' +
-      '.mktools{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:4px 0}' +
-      '.mktools button{border:2px solid #fff;border-radius:12px;padding:4px 9px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
+      '.mktools{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin:4px 0;align-items:center}' +
+      '.mktools button{border:2px solid #fff;border-radius:12px;padding:4px 8px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
       '.mktools button:disabled{opacity:.45;cursor:default;box-shadow:none}' +
       '.mktools button.on{background:#ffe0ed;border-color:#ff8fb3}' +
-      '#mkName{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:7px 10px;font:800 13px var(--rf);color:var(--ink);margin:4px 0;text-align:center;background:#fff}';
+      '.mkz{font:900 11px var(--rf);color:#c0507a;min-width:26px;text-align:center}' +
+      '#mkName{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:7px 10px;font:800 13px var(--rf);color:var(--ink);margin:4px 0;text-align:center;background:#fff}' +
+      '.galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:210px;overflow:auto;padding:4px 2px}' +
+      '.galcard{border:2px solid #fff;border-radius:14px;padding:6px 4px;background:#fff;box-shadow:0 3px 0 #f0c6d6;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-family:var(--rf);color:var(--ink)}' +
+      '.galcard canvas{border-radius:8px}' +
+      '.galcard b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}' +
+      '.galcard small{font-size:9px;color:#9a7b8c}';
     document.head.appendChild(style);
 
     const ov = document.createElement('div');
@@ -205,8 +352,16 @@
     ov.innerHTML =
       '<div class="card">' +
       '<h2>🎨 ステージをつくる</h2>' +
-      '<p class="fine">16×16の絵を描いて、友達にURLで送れるよ！</p>' +
       '<input id="mkName" type="text" maxlength="14" placeholder="ステージ名（例：わたしのハート）">' +
+      '<div class="mktools">' +
+      '<button class="mksz on" data-sz="16">16×16</button>' +
+      '<button class="mksz" data-sz="24">24×24</button>' +
+      '<button class="mksz" data-sz="32">32×32</button>' +
+      '<button id="mkZOut" title="縮小">🔍−</button>' +
+      '<span class="mkz" id="mkZoomLbl">1x</span>' +
+      '<button id="mkZIn" title="拡大">🔍＋</button>' +
+      '<button id="mkPanBtn" disabled>✋ 移動</button>' +
+      '</div>' +
       '<canvas id="mkCv"></canvas>' +
       '<div class="mktools">' +
       '<button id="mkUndo" disabled>↶ もどす</button>' +
@@ -221,9 +376,28 @@
       '<button class="big" id="bMkPlay">▶ あそぶ</button>' +
       '<button class="big mint" id="bMkShare">🔗 URLシェア</button>' +
       '</div>' +
+      '<div class="cfrow">' +
+      '<button class="big sec" id="bMkPost">📮 みんなに投稿</button>' +
+      '<button class="big sec" id="bMkGal">🌟 みんなの絵</button>' +
+      '</div>' +
       '<button class="big sec" id="bMkClose">とじる</button>' +
       '</div>';
     document.body.appendChild(ov);
+
+    const gov = document.createElement('div');
+    gov.className = 'ov';
+    gov.id = 'ov-gallery';
+    gov.innerHTML =
+      '<div class="card">' +
+      '<h2>🌟 みんなのステージ</h2>' +
+      '<h3>📮 投稿されたステージ</h3>' +
+      '<div class="galgrid" id="galPub"></div>' +
+      '<h3>💾 マイ作品</h3>' +
+      '<div class="galgrid" id="galMine"></div>' +
+      '<button class="big" id="bGalBack">🎨 つくるにもどる</button>' +
+      '<button class="big sec" id="bGalClose">ホームへ</button>' +
+      '</div>';
+    document.body.appendChild(gov);
 
     const pal = $('#mkPal');
     const er = document.createElement('button');
@@ -247,23 +421,100 @@
     const cv = $('#mkCv');
     function paintAt(clientX, clientY) {
       const rect = cv.getBoundingClientRect();
-      const x = Math.floor((clientX - rect.left) / rect.width * MK_W);
-      const y = Math.floor((clientY - rect.top) / rect.height * MK_H);
-      if (x < 0 || x >= MK_W || y < 0 || y >= MK_H) return;
-      mkGrid[y * MK_W + x] = mkCol;
-      if (mkMirror) mkGrid[y * MK_W + (MK_W - 1 - x)] = mkCol;
+      const S = rect.width || 272;
+      const px = (clientX - rect.left) / rect.width * S;
+      const py = (clientY - rect.top) / rect.height * S;
+      const x = Math.floor((px - mkPanX) / (S * mkZoom) * mkW);
+      const y = Math.floor((py - mkPanY) / (S * mkZoom) * mkH);
+      if (x < 0 || x >= mkW || y < 0 || y >= mkH) return;
+      mkGrid[y * mkW + x] = mkCol;
+      if (mkMirror) mkGrid[y * mkW + (mkW - 1 - x)] = mkCol;
       drawMaker();
     }
-    cv.addEventListener('pointerdown', e => { e.preventDefault(); pushMkUndo(); mkDrawing = true; cv.setPointerCapture(e.pointerId); paintAt(e.clientX, e.clientY); });
-    cv.addEventListener('pointermove', e => { if (mkDrawing) { e.preventDefault(); paintAt(e.clientX, e.clientY); } });
-    const stop = () => { mkDrawing = false; };
+    cv.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      cv.setPointerCapture(e.pointerId);
+      mkPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (mkPtrs.size === 2) {
+        mkDrawing = false;
+        const pts = [...mkPtrs.values()];
+        mkPinch = {
+          dist: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1,
+          zoom: mkZoom,
+          mx: (pts[0].x + pts[1].x) / 2,
+          my: (pts[0].y + pts[1].y) / 2
+        };
+        return;
+      }
+      if (mkPanMode && mkZoom > 1) {
+        mkLastPan = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      pushMkUndo();
+      mkDrawing = true;
+      paintAt(e.clientX, e.clientY);
+    });
+    cv.addEventListener('pointermove', e => {
+      if (!mkPtrs.has(e.pointerId)) return;
+      mkPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (mkPtrs.size === 2 && mkPinch) {
+        e.preventDefault();
+        const pts = [...mkPtrs.values()];
+        const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1;
+        const mx = (pts[0].x + pts[1].x) / 2, my = (pts[0].y + pts[1].y) / 2;
+        const rect = cv.getBoundingClientRect();
+        setZoom(mkPinch.zoom * (dist / mkPinch.dist), mx - rect.left, my - rect.top);
+        mkPanX += mx - mkPinch.mx;
+        mkPanY += my - mkPinch.my;
+        mkPinch.mx = mx; mkPinch.my = my;
+        clampPan();
+        drawMaker();
+        return;
+      }
+      if (mkPanMode && mkZoom > 1 && mkLastPan) {
+        e.preventDefault();
+        mkPanX += e.clientX - mkLastPan.x;
+        mkPanY += e.clientY - mkLastPan.y;
+        mkLastPan = { x: e.clientX, y: e.clientY };
+        clampPan();
+        drawMaker();
+        return;
+      }
+      if (mkDrawing) { e.preventDefault(); paintAt(e.clientX, e.clientY); }
+    });
+    const stop = e => {
+      mkPtrs.delete(e.pointerId);
+      if (mkPtrs.size < 2) mkPinch = null;
+      if (mkPtrs.size === 0) { mkDrawing = false; mkLastPan = null; }
+    };
     cv.addEventListener('pointerup', stop);
     cv.addEventListener('pointercancel', stop);
+    cv.addEventListener('wheel', e => {
+      e.preventDefault();
+      const rect = cv.getBoundingClientRect();
+      setZoom(mkZoom + (e.deltaY < 0 ? 0.5 : -0.5), e.clientX - rect.left, e.clientY - rect.top);
+    }, { passive: false });
+
+    document.querySelectorAll('.mksz').forEach(b => {
+      b.addEventListener('click', () => { Sound.tap(); setMakerSize(Number(b.dataset.sz)); });
+    });
+    $('#mkZIn').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom < 2 ? 2 : mkZoom + 1); });
+    $('#mkZOut').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom <= 2 ? 1 : mkZoom - 1); });
+    $('#mkPanBtn').addEventListener('click', () => {
+      if (mkZoom <= 1) return;
+      Sound.tap(); mkPanMode = !mkPanMode; refreshZoomUI();
+    });
 
     $('#mkUndo').addEventListener('click', () => {
       if (!mkHistory.length) return;
       Sound.undo();
-      mkGrid.set(mkHistory.pop());
+      const prev = mkHistory.pop();
+      if (prev.w !== mkW || prev.h !== mkH) {
+        mkW = prev.w; mkH = prev.h;
+        resetZoom();
+        refreshSizeBtns();
+      }
+      mkGrid = prev.grid;
       refreshUndoBtn();
       drawMaker();
     });
@@ -276,7 +527,8 @@
     $('#bMkPlay').addEventListener('click', () => {
       Sound.tap();
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
-      loadCustomLevel({ W: MK_W, H: MK_H, grid: mkGrid.slice(), name, theme: 'オリジナル' });
+      saveMyStage(name, mkGrid, mkW, mkH);
+      loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル' });
     });
     $('#bMkShare').addEventListener('click', async () => {
       Sound.tap();
@@ -284,7 +536,8 @@
       for (const v of mkGrid) if (v >= 0) total++;
       if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
-      const url = stageShareUrl(name, mkGrid);
+      saveMyStage(name, mkGrid, mkW, mkH);
+      const url = stageShareUrl(name, mkGrid, mkW, mkH);
       const text = 'アントフローでオリジナルステージ「' + name + '」を作ったよ！遊んでみてね🐜🍬\n#アントフロー';
       if (navigator.share) {
         try { await navigator.share({ title: 'アントフロー｜' + name, text, url }); return; }
@@ -296,10 +549,33 @@
         prompt('このURLをコピーしてシェアしてね：', url);
       }
     });
+    $('#bMkPost').addEventListener('click', () => {
+      Sound.tap();
+      let total = 0;
+      for (const v of mkGrid) if (v >= 0) total++;
+      if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
+      const name = ($('#mkName').value || '').trim() || 'オリジナル';
+      saveMyStage(name, mkGrid, mkW, mkH);
+      const url = stageShareUrl(name, mkGrid, mkW, mkH);
+      const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
+      const body =
+        '### オリジナルステージ投稿\n' +
+        '- ステージ名: ' + name + '\n' +
+        '- サイズ: ' + mkW + '×' + mkH + '\n' +
+        '- プレイURL: ' + url + '\n\n' +
+        '（このまま「Submit new issue」を押すと、ゲーム内の「🌟 みんなの絵」にも表示されます！）';
+      const issueUrl = REPO_URL + '/issues/new?labels=custom-stage&title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+      window.open(issueUrl, '_blank', 'noopener');
+      toast('投稿画面を開いたよ！（マイ作品にも保存しました）');
+    });
+    $('#bMkGal').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
+    $('#bGalBack').addEventListener('click', () => { Sound.tap(); openMaker(); });
+    $('#bGalClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
 
     // 初期状態は可愛いハートを入れておく
     applyTemplate('heart');
+    refreshZoomUI();
   }
 
   function drawMaker() {
@@ -311,28 +587,32 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.fillStyle = '#fff3dc';
     g.fillRect(0, 0, S, S);
-    const cs = S / MK_W;
-    for (let y = 0; y < MK_H; y++) for (let x = 0; x < MK_W; x++) {
-      const v = mkGrid[y * MK_W + x];
+    g.save();
+    g.translate(mkPanX, mkPanY);
+    g.scale(mkZoom, mkZoom);
+    const cs = S / mkW;
+    for (let y = 0; y < mkH; y++) for (let x = 0; x < mkW; x++) {
+      const v = mkGrid[y * mkW + x];
       if (v >= 0) {
         g.fillStyle = HEX[v];
-        g.fillRect(x * cs + 0.6, y * cs + 0.6, cs - 1.2, cs - 1.2);
+        g.fillRect(x * cs + 0.35 / mkZoom, y * cs + 0.35 / mkZoom, cs - 0.7 / mkZoom, cs - 0.7 / mkZoom);
       }
     }
-    g.strokeStyle = 'rgba(90,61,92,.12)';
-    g.lineWidth = 1;
+    g.strokeStyle = 'rgba(90,61,92,.14)';
+    g.lineWidth = 1 / mkZoom;
     g.beginPath();
-    for (let i = 1; i < MK_W; i++) {
-      const p = Math.round(i * cs) + 0.5;
+    for (let i = 1; i < mkW; i++) {
+      const p = i * cs;
       g.moveTo(p, 0); g.lineTo(p, S);
       g.moveTo(0, p); g.lineTo(S, p);
     }
     g.stroke();
     if (mkMirror) {
       g.strokeStyle = 'rgba(255,90,122,.45)';
-      g.lineWidth = 2;
+      g.lineWidth = 2 / mkZoom;
       g.beginPath(); g.moveTo(S / 2, 0); g.lineTo(S / 2, S); g.stroke();
     }
+    g.restore();
   }
 
   function openMaker() {
