@@ -2157,7 +2157,7 @@ if (window.ResizeObserver) new ResizeObserver(() => layout()).observe(stage); el
 if (/[?&]dev\b/.test(location.search)) { save.settings.dev = true; persist(); }
 
 /* ================= メインループ ================= */
-let lastT = performance.now();
+let lastT = performance.now(), lastDrawT = 0;
 function frame(now) {
   const rdt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
   lastT = now;
@@ -2190,7 +2190,10 @@ function frame(now) {
       checkEnd(rdt);
       if (G.hudDirty) updateHUD();
       updateTimer();
-      draw();
+      if ((!G.overlay || G.boardDirty) && now - lastDrawT >= 14.5) {
+        lastDrawT = now;
+        draw();
+      }
     }
     if (G.reveal && G.overlay === 'clear') drawReveal(rdt);
     if (G.overlay === 'title') drawMascot($('#mascot'), G.rt);

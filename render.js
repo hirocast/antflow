@@ -137,9 +137,10 @@ function paintBubble(g, x, y, text, fs, sc, al) {
   g.save();
   g.globalAlpha = al;
   g.font = fnt(800, fs);
-  const bw = g.measureText(text).width + fs * 0.9, bh = fs * 1.55, by = -bh - fs * 0.45;
+  const bw = Math.min(CW - 12, g.measureText(text).width + fs * 1.25), bh = fs * 1.7, by = -bh - fs * 0.45;
   const cx = CW > bw + 12 ? clamp(x, 6 + bw / 2, CW - 6 - bw / 2) : CW / 2;
-  const dx = (cx - x) / (sc || 1), yy = Math.max(y, 6 - by * (sc || 1));
+  const s = sc || 1;
+  const dx = (cx - x) / s, yy = clamp(y, 6 - by * s, Math.max(6 - by * s, CH - 6));
   const tx = clamp(0, dx - bw / 2 + fs * 0.6, dx + bw / 2 - fs * 0.6);
   g.translate(x, yy); g.scale(sc, sc);
   g.fillStyle = '#fff'; g.strokeStyle = '#5a3d5c'; g.lineWidth = Math.max(1.2, fs * 0.12);
@@ -147,7 +148,7 @@ function paintBubble(g, x, y, text, fs, sc, al) {
   roundRect(g, dx - bw / 2, by, bw, bh, bh / 2); g.fill(); g.stroke();
   g.beginPath(); g.moveTo(tx - fs * 0.2, -fs * 0.52); g.lineTo(tx, -fs * 0.12); g.lineTo(tx + fs * 0.2, -fs * 0.52); g.closePath(); g.fill();
   g.fillStyle = '#5a3d5c'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, dx, by + bh / 2 + fs * 0.04);
+  g.fillText(text, dx, by + bh / 2 + fs * 0.04, bw - fs * 0.6);
   g.restore();
 }
 
@@ -242,7 +243,7 @@ function planWide(W, H, n) {
 function layout() {
   const r = stage.getBoundingClientRect();
   CW = r.width; CH = r.height;
-  dpr = Math.min(2, window.devicePixelRatio || 1);
+  dpr = Math.min(innerWidth <= 640 ? 1.5 : 2, window.devicePixelRatio || 1);
   canvas.width = Math.max(1, Math.round(CW * dpr)); canvas.height = Math.max(1, Math.round(CH * dpr));
   Fx.resize();
   if (!G.s) return;
@@ -601,14 +602,35 @@ function renderBoard() {
   g.fillStyle = '#7ccf6a';
   for (const [lx, ly, rot] of [[x0 + 10, y0 + 5, -0.6], [x0 + 23, y0 + 1, 0.3], [x0 + bw - 10, y0 + bh - 5, -0.6], [x0 + bw - 23, y0 + bh - 1, 0.4]]) { ell(g, lx, ly, 9, 4.5, rot); g.fill(); }
   const ne = nestGate(), dist = visDist(ne.ex, ne.ey);
+  G.soilDark = new Uint8Array(W * H);
   g.fillStyle = '#ecd2ae';
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (G.vgrid[y * W + x] < 0 && dist[(y + 1) * EW + x + 1] < 0) g.fillRect(ox + x * cs, oy + y * cs, cs + 0.5, cs + 0.5);
+    const i = y * W + x;
+    if (G.vgrid[i] < 0 && dist[(y + 1) * EW + x + 1] < 0) {
+      G.soilDark[i] = 1;
+      g.fillRect(ox + x * cs, oy + y * cs, cs + 0.5, cs + 0.5);
+    }
   }
   const wash = save.settings.wash;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, v = G.vgrid[i];
     if (v >= 0) g.drawImage(wash && G.s.grid[i] < 0 ? cubeRes[v] : cubeSpr[v], ox + x * cs, oy + y * cs, cs, cs);
+  }
+}
+function updateSoilHoles() {
+  G.boardSoft = false; G.boardT = G.rt;
+  if (!G.s || !G.soilDark) return;
+  const g = boardG, W = G.s.W, H = G.s.H, EW = W + 2, ne = nestGate(), dist = visDist(ne.ex, ne.ey);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    if (G.vgrid[i] >= 0) continue;
+    const dark = dist[(y + 1) * EW + x + 1] < 0 ? 1 : 0;
+    if (dark !== G.soilDark[i]) {
+      G.soilDark[i] = dark;
+      g.fillStyle = dark ? '#ecd2ae' : SOIL;
+      g.fillRect(ox + x * cs - 0.2, oy + y * cs - 0.2, cs + 0.5, cs + 0.5);
+    }
   }
 }
 // 金のキャンディ：ピカピカ光らせる
@@ -855,18 +877,18 @@ function drawFxLocal() {
     if (p.star) { starPath(ctx, p.x, p.y, p.s, p.s * 0.45, 5); ctx.fill(); } else { ell(ctx, p.x, p.y, p.s / 2, p.s / 2); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
-  const fsB = clamp(antPx * 0.55, 10, 14), placed = [];
+  const fsB = clamp(antPx * 0.58, 11, 14), placed = [];
   ctx.font = fnt(800, fsB);
   for (const b of G.bubbles) {
     const w = toW(b.a.x, b.a.y), k = b.t / b.life, sc = b.t < 0.15 ? easeOutBack(b.t / 0.15) : 1;
-    const bw = ctx.measureText(b.text).width + fsB * 0.9, bh = fsB * 1.55, by = -bh - fsB * 0.45;
+    const bw = Math.min(CW - 12, ctx.measureText(b.text).width + fsB * 1.25), bh = fsB * 1.7, by = -bh - fsB * 0.45;
     const cx = CW > bw + 12 ? clamp(w.x, 6 + bw / 2, CW - 6 - bw / 2) : CW / 2;
-    let yy = w.y - antU * 1.9;
+    let yy = clamp(w.y - antU * 1.9, 6 - by, Math.max(6 - by, CH - 8));
     for (let tries = 0; tries < 4; tries++) {
       const l = cx - bw / 2, r = cx + bw / 2, t = yy + by, bot = t + bh;
       const hit = placed.find(p => l < p.r + 4 && r > p.l - 4 && t < p.b + 4 && bot > p.t - 4);
       if (!hit) break;
-      yy = hit.t - (by + bh) - 5;
+      yy = Math.max(6 - by, hit.t - (by + bh) - 5);
     }
     const topY = Math.max(yy, 6 - by) + by;
     placed.push({ l: cx - bw / 2, r: cx + bw / 2, t: topY, b: topY + bh });
@@ -1540,7 +1562,8 @@ function drawBgmBanner() {
   ctx.restore();
 }
 function draw() {
-  if (G.boardDirty || (G.boardSoft && G.rt - (G.boardT || 0) > 0.35)) renderBoard();
+  if (G.boardDirty) renderBoard();
+  else if (G.boardSoft && G.rt - (G.boardT || 0) > 0.8) updateSoilHoles();
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(boardCv, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1549,8 +1572,8 @@ function draw() {
 
 /* ================= 全画面エフェクト（紙吹雪・花火） ================= */
 const Fx = {
-  p: [], w: 0, h: 0,
-  resize() { this.w = innerWidth; this.h = innerHeight; fxCv.width = Math.round(this.w * dpr); fxCv.height = Math.round(this.h * dpr); },
+  p: [], w: 0, h: 0, had: false,
+  resize() { this.w = innerWidth; this.h = innerHeight; fxCv.width = Math.round(this.w * dpr); fxCv.height = Math.round(this.h * dpr); this.had = false; },
   add(o) { if (this.p.length < 700) this.p.push(o); },
   burst(x, y, n, sp, kinds) {
     for (let i = 0; i < n; i++) {
@@ -1570,9 +1593,11 @@ const Fx = {
     }
   },
   draw() {
+    if (!this.p.length && !this.had) return;
     const g = fxG;
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, fxCv.width, fxCv.height);
-    if (!this.p.length) return;
+    if (!this.p.length) { this.had = false; return; }
+    this.had = true;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const p of this.p) {
       g.globalAlpha = Math.min(1, (p.m - p.l) * 2.5); g.fillStyle = p.c;
