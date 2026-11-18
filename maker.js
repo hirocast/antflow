@@ -414,8 +414,27 @@
       '.galcard b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}' +
       '.galcard small{font-size:9px;color:#9a7b8c}' +
       '.galrep{position:absolute;top:2px;right:3px;font-size:12px;line-height:1;padding:3px;border-radius:8px;opacity:.75}' +
-      '.galrep:hover{opacity:1;background:#ffe0ed}';
+      '.galrep:hover{opacity:1;background:#ffe0ed}' +
+      '.poststeps{background:#fff;border-radius:14px;padding:10px 12px;margin:8px 0;text-align:left;font-size:12px;line-height:1.65;border:2px solid #ffd3e2}' +
+      '.poststeps b{color:#e46a92}';
     document.head.appendChild(style);
+
+    const pov = document.createElement('div');
+    pov.className = 'ov';
+    pov.id = 'ov-posthelp';
+    pov.innerHTML =
+      '<div class="card">' +
+      '<h2>📮 みんなに投稿する</h2>' +
+      '<p class="fine">※ 投稿には GitHub アカウントが必要です（見る・遊ぶ・URLシェアは不要）</p>' +
+      '<div class="poststeps">' +
+      '<div><b>①</b> 下のボタンで投稿ページが開きます</div>' +
+      '<div><b>②</b> 内容は自動入力されているので、そのまま緑色の <b>「Create」</b>（または「Submit new issue」）ボタンを押すだけ！</div>' +
+      '<div><b>③</b> <b>「🟢 Open」</b> の画面が出たら投稿完了！このアプリに戻って「🌟 みんなの絵」を見てね</div>' +
+      '</div>' +
+      '<button class="big" id="bPostGo">📮 投稿ページをひらく</button>' +
+      '<button class="big sec" id="bPostBack">もどる</button>' +
+      '</div>';
+    document.body.appendChild(pov);
 
     const ov = document.createElement('div');
     ov.className = 'ov';
@@ -682,7 +701,8 @@
         prompt('このURLをコピーしてシェアしてね：', url);
       }
     });
-    $('#bMkPost').addEventListener('click', async () => {
+    let pendingPost = null;
+    $('#bMkPost').addEventListener('click', () => {
       Sound.tap(); commitSel(); drawMaker();
       let total = 0;
       for (const v of mkGrid) if (v >= 0) total++;
@@ -694,7 +714,6 @@
       const cd = checkPostLimit(token);
       if (cd) { toast(cd); return; }
       saveMyStage(name, mkGrid, mkW, mkH);
-      recordPost(token);
       const url = stageShareUrl(name, mkGrid, mkW, mkH);
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
       const body =
@@ -702,11 +721,20 @@
         '- ステージ名: ' + name + '\n' +
         '- サイズ: ' + mkW + '×' + mkH + '\n' +
         '- プレイURL: ' + url + '\n\n' +
-        '（このまま「Submit new issue」を押すと、ゲーム内の「🌟 みんなの絵」にも表示されます！）';
-      const issueUrl = REPO_URL + '/issues/new?labels=custom-stage&title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
-      window.open(issueUrl, '_blank', 'noopener');
-      toast('投稿画面を開いたよ！（マイ作品にも保存しました）');
+        '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🌟 みんなの絵」に表示されます）';
+      pendingPost = { token, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
+      showOv('posthelp');
     });
+    $('#bPostGo').addEventListener('click', () => {
+      Sound.tap();
+      if (!pendingPost) { showOv('maker'); return; }
+      recordPost(pendingPost.token);
+      window.open(pendingPost.issueUrl, '_blank', 'noopener');
+      pendingPost = null;
+      showOv('maker');
+      toast('投稿ページを開いたよ！緑の「Create」を押してね');
+    });
+    $('#bPostBack').addEventListener('click', () => { Sound.tap(); showOv('maker'); });
     $('#bMkGal').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
     $('#bGalBack').addEventListener('click', () => { Sound.tap(); openMaker(); });
