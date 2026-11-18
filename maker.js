@@ -4,8 +4,48 @@
 /* ================= オリジナルステージ作成＆URLシェア＆投稿 ================= */
 (function () {
   const MY_KEY = 'antflow-my-stages-v1';
+  const POST_CD_KEY = 'antflow-post-cd-v1';
+  const REPORT_KEY = 'antflow-reported-v1';
+  const POST_COOLDOWN_MS = 60 * 1000; // 連続投稿制限（60秒）
   const REPO_URL = 'https://github.com/hirocast/antflow';
   const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?labels=custom-stage&state=open&per_page=24';
+  // Google Apps Script ウェブアプリURL（scripts/gas_backend.gs をデプロイして設定するとアカウント不要で投稿・3件通報で自動非表示が有効になります）
+  const GAS_URL = '';
+
+  const NG_WORDS = [
+    '死ね', 'しね', '殺す', 'ころす', 'バカ', 'ばか', 'アホ', 'あほ', 'クズ', 'くず',
+    'キモ', 'きも', 'うざ', 'ウザ', 'ちん', 'まん', 'せっくす', 'セックス', 'エロ', 'えろ',
+    'アダルト', '暴力', '薬物', '大麻', 'fuck', 'shit', 'bitch', 'porn', 'sex', 'nude'
+  ];
+  function validateStageName(name) {
+    const s = String(name || '');
+    if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|@/i.test(s)) return 'ステージ名にURLや@は使えません';
+    const norm = s.toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
+    for (let i = 0; i < NG_WORDS.length; i++) {
+      if (norm.indexOf(NG_WORDS[i]) >= 0) return 'ステージ名に使えない言葉が入っています';
+    }
+    return '';
+  }
+  function checkPostLimit(token) {
+    try {
+      const d = JSON.parse(localStorage.getItem(POST_CD_KEY) || '{}');
+      const left = Math.ceil(((d.at || 0) + POST_COOLDOWN_MS - Date.now()) / 1000);
+      if (left > 0) return '連続投稿制限：あと ' + left + ' 秒まってね';
+      if (d.token && d.token === token) return '同じステージは連続で投稿できません';
+    } catch (e) {}
+    return '';
+  }
+  function recordPost(token) {
+    try { localStorage.setItem(POST_CD_KEY, JSON.stringify({ at: Date.now(), token })); } catch (e) {}
+  }
+  function loadReported() {
+    try { return new Set(JSON.parse(localStorage.getItem(REPORT_KEY) || '[]')); } catch (e) { return new Set(); }
+  }
+  function addReported(key) {
+    const set = loadReported();
+    set.add(String(key));
+    try { localStorage.setItem(REPORT_KEY, JSON.stringify([...set].slice(-100))); } catch (e) {}
+  }
 
   let mkW = 16, mkH = 16;
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
@@ -289,38 +329,76 @@
     mine.innerHTML = '';
     const myList = loadMyStages();
     if (!myList.length) {
-      mine.innerHTML = '<p class="fine">まだ保存した作品がありません（「💾 保存」で残せるよ）</p>';
+      mine.innerHTML = '<p class="fine">まだ保存した作品がありません（「▶ あそぶ」「🔗 シェア」で残るよ）</p>';
     } else {
       myList.forEach(item => {
         const art = decodeCustomStage(item.token);
         if (!art) return;
-        mine.appendChild(makeGalCard(art, 'マイ作品'));
+        mine.appendChild(makeGalCard(art, 'マイ作品', null));
       });
     }
     pub.innerHTML = '<p class="fine">読み込み中…</p>';
+    const reported = loadReported();
     try {
-      const res = await fetch(ISSUES_API);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const issues = await res.json();
+      let list = [];
+      if (GAS_URL) {
+        const res = await fetch(GAS_URL);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data && Array.isArray(data.items)) {
+          list = data.items.map(it => ({ id: it.id, token: it.token, name: it.name, sub: '投稿作品' }));
+        }
+      } else {
+        const res = await fetch(ISSUES_API);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const issues = await res.json();
+        for (const iss of issues) {
+          const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
+          if (!m) continue;
+          const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品';
+          list.push({ id: 'gh_' + iss.number, token: m[1], sub: author });
+        }
+      }
       pub.innerHTML = '';
       let cnt = 0;
-      for (const iss of issues) {
-        const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
-        if (!m) continue;
-        const art = decodeCustomStage(m[1]);
+      for (const item of list) {
+        if (reported.has(item.id) || reported.has(item.token)) continue;
+        const art = decodeCustomStage(item.token);
         if (!art) continue;
-        const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品';
-        pub.appendChild(makeGalCard(art, author));
+        if (item.name) art.name = item.name;
+        if (validateStageName(art.name)) continue;
+        pub.appendChild(makeGalCard(art, item.sub, item.id));
         cnt++;
       }
-      if (!cnt) pub.innerHTML = '<p class="fine">まだ投稿作品がありません。最初の1作を投稿してみよう！</p>';
+      if (!cnt) pub.innerHTML = '<p class="fine">表示できる投稿作品がありません。最初の1作を投稿してみよう！</p>';
     } catch (e) {
       pub.innerHTML = '<p class="fine">投稿一覧を読み込めませんでした（オフラインまたはアクセス集中）</p>';
     }
   }
-  function makeGalCard(art, sub) {
+  function makeGalCard(art, sub, reportId) {
     const btn = document.createElement('button');
     btn.className = 'galcard';
+    if (reportId) {
+      const rep = document.createElement('span');
+      rep.className = 'galrep';
+      rep.textContent = '⚠️';
+      rep.title = '不適切な作品を通報';
+      rep.addEventListener('click', async e => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (!confirm('「' + art.name + '」を不適切な作品として通報し、一覧から非表示にしますか？')) return;
+        addReported(reportId);
+        addReported(art.token);
+        btn.remove();
+        if (GAS_URL) {
+          try {
+            await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'report', id: reportId }) });
+          } catch (err) {}
+        }
+        toast('通報しました（一覧から非表示にしました）');
+      });
+      btn.appendChild(rep);
+    }
     const cv = document.createElement('canvas');
     drawArtToCanvas(cv, art, 68);
     const b = document.createElement('b');
@@ -352,10 +430,12 @@
       '.mkz{font:900 11px var(--rf);color:#c0507a;min-width:26px;text-align:center}' +
       '#mkName{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:7px 10px;font:800 13px var(--rf);color:var(--ink);margin:4px 0;text-align:center;background:#fff}' +
       '.galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:210px;overflow:auto;padding:4px 2px}' +
-      '.galcard{border:2px solid #fff;border-radius:14px;padding:6px 4px;background:#fff;box-shadow:0 3px 0 #f0c6d6;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-family:var(--rf);color:var(--ink)}' +
+      '.galcard{position:relative;border:2px solid #fff;border-radius:14px;padding:6px 4px;background:#fff;box-shadow:0 3px 0 #f0c6d6;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-family:var(--rf);color:var(--ink)}' +
       '.galcard canvas{border-radius:8px}' +
       '.galcard b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}' +
-      '.galcard small{font-size:9px;color:#9a7b8c}';
+      '.galcard small{font-size:9px;color:#9a7b8c}' +
+      '.galrep{position:absolute;top:2px;right:3px;font-size:12px;line-height:1;padding:3px;border-radius:8px;opacity:.75}' +
+      '.galrep:hover{opacity:1;background:#ffe0ed}';
     document.head.appendChild(style);
 
     const ov = document.createElement('div');
@@ -608,6 +688,8 @@
       for (const v of mkGrid) if (v >= 0) total++;
       if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
+      const ng = validateStageName(name);
+      if (ng) { toast(ng); return; }
       saveMyStage(name, mkGrid, mkW, mkH);
       const url = stageShareUrl(name, mkGrid, mkW, mkH);
       const text = 'アントフローでオリジナルステージ「' + name + '」を作ったよ！遊んでみてね🐜🍬\n#アントフロー';
@@ -621,13 +703,35 @@
         prompt('このURLをコピーしてシェアしてね：', url);
       }
     });
-    $('#bMkPost').addEventListener('click', () => {
-      Sound.tap();
+    $('#bMkPost').addEventListener('click', async () => {
+      Sound.tap(); commitSel(); drawMaker();
       let total = 0;
       for (const v of mkGrid) if (v >= 0) total++;
       if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
+      const ng = validateStageName(name);
+      if (ng) { toast(ng); return; }
+      const token = encodeCustomStage(name, mkGrid, mkW, mkH);
+      const cd = checkPostLimit(token);
+      if (cd) { toast(cd); return; }
       saveMyStage(name, mkGrid, mkW, mkH);
+      if (GAS_URL) {
+        try {
+          const res = await fetch(GAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ name, w: mkW, h: mkH, token })
+          });
+          const data = await res.json();
+          if (!data || !data.ok) { toast((data && data.error) || '投稿できませんでした'); return; }
+          recordPost(token);
+          toast('投稿しました！「🌟 みんなの絵」に載ったよ');
+        } catch (e) {
+          toast('通信エラーで投稿できませんでした');
+        }
+        return;
+      }
+      recordPost(token);
       const url = stageShareUrl(name, mkGrid, mkW, mkH);
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
       const body =
