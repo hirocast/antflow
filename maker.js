@@ -741,7 +741,7 @@
       '.stbgm-card button.pick{background:var(--mint);color:#fff}' +
       '.poststeps{background:#fff;border-radius:14px;padding:10px 12px;margin:8px 0;text-align:left;font-size:12px;line-height:1.65;border:2px solid #ffd3e2}' +
       '.poststeps b{color:#e46a92}' +
-      '#ov-posthelp h2,#ov-bgm-posthelp h2{background:none;box-shadow:none;border:none;color:#c0507a;font-size:18px;padding:2px 0 4px;margin:0 0 4px}';
+      '#ov-posthelp h2,#ov-bgm-posthelp h2{display:block;background:none;box-shadow:none;border:none;border-bottom:2px dashed #ffd3e2;border-radius:0;text-shadow:none;color:#c0507a;font-size:19px;padding:0 0 8px;margin:0 0 10px}';
     document.head.appendChild(style);
 
     const pov = document.createElement('div');
