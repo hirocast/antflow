@@ -59,7 +59,33 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;border-radius:22px;box-shadow:inset 0 0 42px rgba(255,160,130,.75);animation:fvg .45s ease-in-out infinite alternate}
 @keyframes fvg{from{opacity:.5}to{opacity:1}}
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
+#ov-title .home-h2{margin:0 0 4px;padding:4px 20px;font-size:17px}
 .tinfo span{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
+.hub{background:#fff;border:2px solid #ffd3e2;border-radius:18px;padding:10px;margin:8px 0 4px;text-align:left;box-shadow:0 3px 0 #f3d5e0}
+.hub-q{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;font-weight:900}
+.hub-q b{color:var(--pinkd)}
+.hub-q .hq-food{background:#fff4c9;border:1.5px solid #ffe08a;border-radius:10px;padding:1px 7px;font-size:11px;color:#8a5a00;white-space:nowrap}
+.hub-q .hq-food.ready{background:#ffe0ec;border-color:#ff8fb3;color:#c03060;animation:bump .7s ease infinite alternate}
+.hub .abar{margin:5px 0 3px;height:9px}
+.hub-sub{font-size:11px;font-weight:700;opacity:.78;margin-bottom:7px}
+.hub-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+.hub-chip{background:#fff8fb;border:1.5px solid #ffe4ee;border-radius:11px;padding:5px 8px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0}
+.hub-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hub-chip b{color:var(--pinkd);white-space:nowrap;font-size:11px}
+.hub-toggle{width:100%;margin-top:7px;padding:6px 10px;border:none;border-radius:12px;background:#fff1d6;color:var(--ink);font:900 12px var(--rf);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 2px 0 #e8cfa0}
+.hub-toggle:active{transform:translateY(2px);box-shadow:none}
+.hub-arr{font-style:normal;font-size:10px;transition:transform .2s}
+.hub.open .hub-arr{transform:rotate(180deg)}
+.hub-detail{display:none;margin-top:8px;padding-top:8px;border-top:2px dotted #ffd3e2}
+.hub.open .hub-detail{display:block}
+.hub-sec{background:#fffaf3;border:1.5px solid #f5dfc0;border-radius:13px;padding:8px 10px;margin-bottom:7px}
+.hub-sec:last-child{margin-bottom:0}
+.hub-sec-h{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:900;color:#c0507a;margin-bottom:4px}
+.hub-go{border:none;border-radius:9px;padding:3px 9px;background:#ff8fb3;color:#fff;font:900 11px var(--rf);cursor:pointer;box-shadow:0 2px 0 var(--pinkd)}
+.hub-go:active{transform:translateY(1px);box-shadow:none}
+.hub-line{font-size:11px;font-weight:700;line-height:1.55;color:var(--ink)}
+.hub-mis{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:2px 0}
+.hub-mis.done{color:#2f8f5b}
 .mrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
 .mrow button{position:relative;border:3px solid #fff;border-radius:18px;padding:8px 2px;background:linear-gradient(#eef8ff,#cbe7ff);box-shadow:0 4px 0 #8fbde6;font:900 12px var(--rf);color:var(--ink);cursor:pointer}
 .mrow button:active{transform:translateY(3px);box-shadow:none}
@@ -223,7 +249,23 @@ body.wide .fb{max-width:none}
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
   $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全部運べる</small><em class="price" id="pScan"></em></button>');
-  $('#ttl').insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div>');
+  $('#ov-title .card').insertAdjacentHTML('afterbegin', '<h2 class="home-h2">🏠 ホーム</h2>');
+  $('#ttl').insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div><div class="hub" id="homeHub"></div>');
+  $('#homeHub').addEventListener('click', e => {
+    const t = e.target.closest('button[data-hub]');
+    if (!t) return;
+    Sound.tap();
+    const act = t.dataset.hub;
+    if (act === 'toggle') {
+      const hub = $('#homeHub');
+      hub.classList.toggle('open');
+      const lbl = t.querySelector('span');
+      if (lbl) lbl.textContent = hub.classList.contains('open') ? '📊 くわしい情報をとじる' : '📊 コロニー・進行状況をもっと見る';
+    } else if (act === 'queen') openColony('title');
+    else if (act === 'mis') openMissions('title');
+    else if (act === 'album') openAlbum(true);
+    else if (act === 'skin') openSkins('title');
+  });
   $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
   const tf = $('#ov-title .fine');
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
@@ -861,11 +903,72 @@ function updateClearQueenBtn() {
 function renderTitle() {
   const el = $('#titleInfo');
   if (!el) return;
-  el.innerHTML = '<span>🪙 ' + save.coins + '</span><span>⭐ ' + totalStars() + '</span><span>👑 Lv.' + save.qlv + '</span>';
   misCheck();
+  const qs = queenStatus(), ts = totalStars(), got = gotCount(), lv = save.qlv, maxQ = lv >= Q_MAX;
+  const need = qNeed(lv), qPct = maxQ ? 100 : clamp(100 * save.qexp / need, 0, 100);
+  el.innerHTML = '<span>🪙 ' + save.coins + '</span><span>⭐ ' + ts + '</span><span>👑 Lv.' + lv + '</span>' + (save.tickets > 0 ? '<span>🎟️ ' + save.tickets + '</span>' : '');
   $('#misDot').classList.toggle('on', save.mis.list.some(m => !m.done));
-  const qs = queenStatus();
   $('#queenDot').classList.toggle('on', qs.canUnlock);
+
+  const hub = $('#homeHub');
+  if (!hub) return;
+  const isOpen = hub.classList.contains('open');
+  const misDone = save.mis.list.filter(m => m.done).length;
+  const sk = SKINS.find(s => s.k === save.skin) || SKINS[0];
+  const baseStar = save.road * 10, nxtStar = baseStar + 10;
+  const roomsOn = ROOMS.filter(r => lv >= r[0]).length, perksOn = Q_PERKS.filter(p => lv >= p[0]).length;
+  let s3 = 0;
+  for (let i = 1; i <= TOTAL; i++) if (save.cleared[i] && save.best[i] && save.best[i].s >= 3) s3++;
+  const curArt = getArt(save.level);
+  const curName = curArt ? curArt.n : '';
+
+  let qSub = maxQ ? 'さいだいレベル達成！' : 'つぎのLvまで あと ' + qs.toNext + ' こ（' + save.qexp + '/' + need + '）';
+  if (!maxQ && qs.canUnlock) qSub = '✨ いまエサをあげると「' + qs.unlocks.join('・') + '」が解放！';
+  else if (!maxQ && qs.canLvUp) qSub = '✨ いまエサをあげると Lv.' + qs.afterLv + ' にアップ！';
+  else if (!maxQ && qs.nextUnlock) qSub += ' ｜ 次の解放 Lv.' + qs.nextUnlock.lv + ' まであと' + qs.toUnlock;
+
+  const foodBadge = (qs.canLvUp || qs.canUnlock)
+    ? '<span class="hq-food ready">🍬 ' + save.food + ' ✨育成可</span>'
+    : '<span class="hq-food">🍬 エサ ' + save.food + '</span>';
+
+  const misRows = save.mis.list.map(m => {
+    const d = MISSION_POOL[m.i], p = Math.min(m.p, d.n);
+    return '<div class="hub-mis' + (m.done ? ' done' : '') + '"><span>' + (m.done ? '✅ ' : '▫️ ') + d.t + '</span><span>' + p + '/' + d.n + ' (🪙' + d.r + ')</span></div>';
+  }).join('');
+
+  hub.innerHTML =
+    '<div class="hub-q"><b>👑 女王さま Lv.' + lv + '（' + qTitle(lv) + '）</b>' + foodBadge + '</div>' +
+    '<div class="abar"><i style="width:' + qPct + '%"></i></div>' +
+    '<div class="hub-sub">' + qSub + '</div>' +
+    '<div class="hub-grid">' +
+      '<div class="hub-chip"><span>📋 ミッション</span><b>' + misDone + ' / 3</b></div>' +
+      '<div class="hub-chip"><span>📒 アルバム</span><b>' + got + ' / ' + TOTAL + '</b></div>' +
+      '<div class="hub-chip"><span>' + sk.e + ' ' + sk.n + '</span><b>' + save.skins.length + '/' + SKINS.length + '</b></div>' +
+      '<div class="hub-chip"><span>⭐ スターロード</span><b>' + ts + ' / ' + nxtStar + '</b></div>' +
+    '</div>' +
+    '<button type="button" class="hub-toggle" data-hub="toggle"><span>' + (isOpen ? '📊 くわしい情報をとじる' : '📊 コロニー・進行状況をもっと見る') + '</span><i class="hub-arr">▼</i></button>' +
+    '<div class="hub-detail">' +
+      '<div class="hub-sec">' +
+        '<div class="hub-sec-h"><span>👑 女王さまの育成</span><button type="button" class="hub-go" data-hub="queen">へやへ ▶</button></div>' +
+        '<div class="hub-line">コインボーナス：<b>+' + (lv - 1) * 2 + '%</b> ／ おへや：<b>' + roomsOn + '/' + ROOMS.length + '</b> ／ 特技：<b>' + perksOn + '/' + Q_PERKS.length + '</b></div>' +
+        (qs.nextUnlock ? '<div class="hub-line">つぎの解放：Lv.' + qs.nextUnlock.lv + '「' + qs.nextUnlock.label + '」（あと🍬' + qs.toUnlock + '）</div>' : '') +
+      '</div>' +
+      '<div class="hub-sec">' +
+        '<div class="hub-sec-h"><span>📋 きょうのミッション</span><button type="button" class="hub-go" data-hub="mis">くわしく ▶</button></div>' +
+        misRows +
+        '<div class="hub-line" style="margin-top:3px">全達成ボーナス：🪙100＋🎟️1' + (save.mis.bonus ? '（✅ うけとりずみ）' : '') + ' ｜ ⭐ロード ' + ts + '/' + nxtStar + '★</div>' +
+      '</div>' +
+      '<div class="hub-sec">' +
+        '<div class="hub-sec-h"><span>📒 ステージ・アルバム</span><button type="button" class="hub-go" data-hub="album">アルバム ▶</button></div>' +
+        '<div class="hub-line">挑戦中：<b>Lv.' + posOf(save.level) + (curName ? '「' + curName + '」' : '') + '</b></div>' +
+        '<div class="hub-line">クリア：<b>' + got + ' / ' + TOTAL + '</b> ｜ 獲得★：<b>' + ts + ' / ' + (TOTAL * 3) + '</b>（★★★ × ' + s3 + '）</div>' +
+      '</div>' +
+      '<div class="hub-sec">' +
+        '<div class="hub-sec-h"><span>🎀 きせかえ・もちもの</span><button type="button" class="hub-go" data-hub="skin">きせかえ ▶</button></div>' +
+        '<div class="hub-line">そうび中：<b>' + sk.e + ' ' + sk.n + '</b>（' + sk.d + '）</div>' +
+        '<div class="hub-line">所持：きせかえ <b>' + save.skins.length + '/' + SKINS.length + '</b> ｜ 🪙 <b>' + save.coins + '</b> ｜ 🎟️ <b>' + save.tickets + '</b> ｜ 🍬 <b>' + save.food + '</b></div>' +
+      '</div>' +
+    '</div>';
 }
 // metaFrom：とじたときに戻る画面（'title' / 'clear' / それ以外はゲーム画面）
 function closeMeta() {
