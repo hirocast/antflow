@@ -308,8 +308,9 @@ const Sound = {
       this.surdo(w, 0.55, false);
       if (semi != null) this.pluckBass(this.hz(semi - 12), w, 0.18, 0.65);
     } else if (kind === 2) {
-      this.clap(w);
-      this.shaker(w, 0.35);
+      for (let i = 0; i < 3; i++) this.mnoise(w + i * 0.011, 0.075, 0.22 - i * 0.04, 1850, 'bandpass', 0.75);
+      this.tone(240, 0.045, { type: 'triangle', vol: 0.09, when: w, glide: 0.45, attack: 0.002, dest: this.mus });
+      this.shaker(w, 0.65);
     }
   },
   bgmTitle() {
