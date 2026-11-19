@@ -439,21 +439,16 @@
   }
 
   /* ---- パズル生成してプレイ開始 ---- */
-  function loadCustomLevel(art) {
+  function buildCustomPuzzle(art) {
     let total = 0;
     for (const v of art.grid) if (v >= 0) total++;
-    if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
-    const baseUrl = location.origin + location.pathname + '?stage=';
-    const talk = normalizeCustomTalk(art.talk);
-    const bgmToken = art.bgmToken || '';
+    if (total < 4) return null;
     const diff = clampDiff(art.diff), di = STAGE_DIFFS[diff];
-    const customBgm = art.bgm || (bgmToken && window.AF_bgmTools ? window.AF_bgmTools.decodeBgm(bgmToken) : null);
-    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix, diff));
     const P = params(di.paramId, total);
     let c = null;
     const tries = diff >= 3 ? 4 : 1;
     for (let k = 0; k < tries; k++) {
-      const rng = mulberry32(hashInt(total, art.name.length + 77 + k * 31));
+      const rng = mulberry32(hashInt(total, (art.name || 'オリジナル').length + 77 + k * 31));
       c = construct(art, P, rng);
       if (tries === 1) break;
       const testL = { W: art.W, H: art.H, grid: art.grid, cols: c.cols, total };
@@ -461,6 +456,17 @@
       for (const f of [polLeft, polRight, polComplete, polMost]) if (playout(testL, f, null)) { naive = true; break; }
       if (!naive) break;
     }
+    return { total, diff, di, P, c };
+  }
+  function loadCustomLevel(art) {
+    const built = buildCustomPuzzle(art);
+    if (!built) { toast('キャンディを4マス以上おいてね！'); return; }
+    const { total, diff, di, c } = built;
+    const baseUrl = location.origin + location.pathname + '?stage=';
+    const talk = normalizeCustomTalk(art.talk);
+    const bgmToken = art.bgmToken || '';
+    const customBgm = art.bgm || (bgmToken && window.AF_bgmTools ? window.AF_bgmTools.decodeBgm(bgmToken) : null);
+    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix, diff));
     const L = {
       id: 0, custom: true, art: Object.assign({}, art, { diff }), shareUrl,
       name: art.name || 'オリジナル', theme: 'オリジナル',
@@ -945,6 +951,10 @@
       '.mkdiff-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}' +
       '.mkd{border:2px solid #fff;border-radius:10px;padding:5px 2px;background:#ffeef4;color:#8c546e;font:900 10.5px var(--rf);cursor:pointer;box-shadow:0 2px 0 #e6bfd0;white-space:nowrap}' +
       '.mkd.on{background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;box-shadow:0 2px 0 #d4507c}' +
+      '.mkai-btn{flex:0 0 auto;border:2px solid #fff;border-radius:10px;padding:3px 9px;background:linear-gradient(#eef8ff,#cbe7ff);color:#2a5c8a;font:900 10.5px var(--rf);cursor:pointer;box-shadow:0 2px 0 #8fbde6;white-space:nowrap}' +
+      '.mkai-btn:disabled{opacity:.6;cursor:wait}' +
+      '.mkai-res{margin-top:5px;padding:6px 8px;border-radius:10px;background:#fff;border:1.5px solid #cfe6ff;font-size:10.5px;line-height:1.45;color:var(--ink)}' +
+      '.mkai-res b{display:block;font-size:11.5px;color:#c0507a;margin-bottom:1px}' +
       '.stbgm-list{max-height:24vh;overflow:auto;text-align:left;margin:4px 0 8px}' +
       '.stbgm-card{display:flex;align-items:center;gap:6px;padding:7px 9px;background:#fff;border:2px solid #ffd3e2;border-radius:12px;margin-bottom:5px}' +
       '.stbgm-card .info{flex:1;min-width:0}' +
@@ -1180,13 +1190,15 @@
       '</div>' +
       '</div>' +
       '<div class="mkdiff">' +
-      '<div class="mkdiff-h"><span>🎯 むずかしさ</span><small id="mkDiffHint">3列・標準のバランスだよ</small></div>' +
+      '<div class="mkdiff-h"><span>🎯 むずかしさ</span><button type="button" class="mkai-btn" id="bMkEval">🤖 AIでむずかしさ測定</button></div>' +
       '<div class="mkdiff-btns">' +
       '<button type="button" class="mkd" data-d="1">🌱 かんたん</button>' +
       '<button type="button" class="mkd on" data-d="2">⭐ ふつう</button>' +
       '<button type="button" class="mkd" data-d="3">🔥 むずかしい</button>' +
       '<button type="button" class="mkd" data-d="4">💀 げきむず</button>' +
       '</div>' +
+      '<div id="mkDiffHint" style="font-size:9.5px;color:#8a6578;font-weight:700;margin-top:4px">3列・標準のバランスだよ</div>' +
+      '<div class="mkai-res" id="mkAiRes" style="display:none"></div>' +
       '</div>' +
       '<label class="mkperm"><input type="checkbox" id="mkAllowRemix"> ✏️ 他の人がこのステージをアレンジしてOK</label>' +
       '<div class="cfrow">' +
@@ -1544,6 +1556,10 @@
       if (save.settings.bgm) Sound.startBgm();
       showOv('maker');
     });
+    function clearAiRes() {
+      const r = $('#mkAiRes');
+      if (r) { r.style.display = 'none'; r.innerHTML = ''; }
+    }
     function refreshDiffUI() {
       const di = STAGE_DIFFS[clampDiff(mkDiff)];
       document.querySelectorAll('.mkd').forEach(b => b.classList.toggle('on', Number(b.dataset.d) === clampDiff(mkDiff)));
@@ -1553,8 +1569,48 @@
       Sound.tap();
       mkDiff = clampDiff(b.dataset.d);
       refreshDiffUI();
+      clearAiRes();
     }));
     refreshDiffUI();
+    $('#bMkEval').addEventListener('click', () => {
+      Sound.tap(); commitSel(); drawMaker();
+      const name = ($('#mkName').value || '').trim() || 'オリジナル';
+      const art = { W: mkW, H: mkH, grid: mkGrid.slice(), name, diff: mkDiff };
+      const built = buildCustomPuzzle(art);
+      if (!built) { toast('キャンディを4マス以上おいてね！'); return; }
+      const btn = $('#bMkEval'), resEl = $('#mkAiRes');
+      btn.disabled = true;
+      resEl.style.display = 'block';
+      resEl.innerHTML = '<b>🤖 AIがテストプレイ中…</b><span>すこし待ってね</span>';
+      setTimeout(() => {
+        try {
+          const { total, P, c } = built;
+          const L = { W: art.W, H: art.H, grid: art.grid, cols: c.cols, total };
+          let naive = 0;
+          for (const f of [polLeft, polRight, polComplete, polMost]) if (playout(L, f, null)) naive++;
+          const runs = total > 1200 ? 6 : 10;
+          const rng = mulberry32(hashInt(total, name.length + 1007));
+          const o = winRate(L, polOuter, rng, runs, runs);
+          const r = winRate(L, polRandom, rng, runs, runs);
+          const outerPct = Math.round(o.rate * 100), randPct = Math.round(r.rate * 100);
+          const m = evaluate(L, P, hashInt(total, name.length + 1007));
+          let rank = '';
+          if (naive > 0) rank = '🌱 かんたん（単純タップでクリア可）';
+          else if (outerPct === 0 && randPct === 0) rank = '💀 激ムズ認定！（AI勝率 0%・要先読み）';
+          else if (m.ok || (outerPct <= 25 && randPct <= 20)) rank = '🔥 むずかしい！（考えないと解けない！）';
+          else if (outerPct <= 50) rank = '⭐ ふつう（ちょうどいい手応え！）';
+          else rank = '🌱 やさしめ（さくさく遊べる！）';
+          const boxCnt = c.cols.reduce((a, col) => a + col.length, 0);
+          resEl.innerHTML =
+            '<b>' + rank + '</b>' +
+            '<span>クリア可能 ✅（' + boxCnt + '箱・' + c.cols.length + '列）｜外側AI勝率 ' + outerPct + '%｜適当AI勝率 ' + randPct + '%</span>';
+        } catch (e) {
+          resEl.innerHTML = '<b>測定できませんでした</b>';
+        } finally {
+          btn.disabled = false;
+        }
+      }, 24);
+    });
     $('#mkAllowRemix').addEventListener('change', e => { mkAllowRemix = !!e.target.checked; });
 
     window.AF_loadArtIntoMaker = function (art, isMine) {
