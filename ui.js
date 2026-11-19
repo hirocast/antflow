@@ -897,7 +897,10 @@ function showOv(name) {
   document.querySelectorAll('.ov').forEach(o => o.classList.toggle('show', o.id === 'ov-' + name));
   const card = document.querySelector('#ov-' + name + ' .card');
   if (card) card.scrollTop = 0;
-  if (name === 'title') renderTitle();
+  if (name === 'title') {
+    if (Sound.stageBgm) { Sound.stageBgm = null; Sound.step = 0; Sound.lyricQ = []; }
+    renderTitle();
+  }
 }
 function hideOv() { G.overlay = null; document.querySelectorAll('.ov').forEach(o => o.classList.remove('show')); }
 function popText(el, text) {

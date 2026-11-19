@@ -295,6 +295,8 @@ const Sound = {
   },
   customBgm: null,
   useCustomBgm: false,
+  stageBgm: null,
+  activeCustomBgm() { return this.stageBgm || (this.useCustomBgm && this.customBgm ? this.customBgm : null); },
   playCustomNote(inst, semi, w, dur) {
     if (!this.ctx) return;
     const f = this.hz(semi + 12);
@@ -319,7 +321,8 @@ const Sound = {
     }
   },
   bgmTitle() {
-    if (this.useCustomBgm && this.customBgm) return '🎵 ' + (this.customBgm.name || 'オリジナルBGM');
+    const cb = this.activeCustomBgm();
+    if (cb) return '🎵 ' + (cb.name || 'オリジナルBGM');
     return this.BGM_TITLES[this.bgmKey] || this.bgmKey;
   },
   startBgm() {
@@ -669,10 +672,11 @@ const Sound = {
     ]
   },
   singerState() {
-    const isCustom = !!(this.useCustomBgm && this.customBgm);
+    const cb = this.activeCustomBgm();
+    const isCustom = !!cb;
     const lyr = isCustom ? null : this.LYRICS[this.bgmKey];
     if (!isCustom && !lyr) return null;
-    const sKey = isCustom ? (this.customBgm.singer || 'custom') : this.bgmKey;
+    const sKey = isCustom ? (cb.singer || 'custom') : this.bgmKey;
     const c = this.ctx, playing = !!(c && c.state === 'running' && save.settings.bgm && this.bgmTimer);
     if (!playing) {
       return { key: sKey, text: save.settings.bgm ? '♪ タップで うたうよ！' : '♪ 〜', singing: false, pulse: 0 };
@@ -685,7 +689,7 @@ const Sound = {
     }
     const pulse = lastNote > 0 ? Math.max(0, 1 - (now - lastNote) * 4.5) : 0;
     const defTxt = isCustom
-      ? ((this.customBgm.bars[0] && this.customBgm.bars[0].lyric) ? '♪ ' + this.customBgm.bars[0].lyric.replace(/^♪\s*/, '') : '♪ ' + (this.customBgm.name || 'オリジナルBGM'))
+      ? ((cb.bars[0] && cb.bars[0].lyric) ? '♪ ' + cb.bars[0].lyric.replace(/^♪\s*/, '') : '♪ ' + (cb.name || 'オリジナルBGM'))
       : lyr[0];
     return { key: sKey, text: cur ? cur.text : defTxt, singing: true, pulse };
   },
@@ -1283,8 +1287,8 @@ const Sound = {
       if (this.AGO[st]) this.agogo(w, this.AGO[st] === 2);
     }
   },
-  schedCustom(c) {
-    const B = this.customBgm;
+  schedCustom(c, B) {
+    B = B || this.activeCustomBgm();
     if (!B || !B.bars || !B.bars.length) return;
     const s16 = 60 / clamp(B.bpm || 112, 60, 200) / 4;
     if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05;
@@ -1319,7 +1323,8 @@ const Sound = {
   sched() {
     const c = this.ctx;
     if (!c || c.state !== 'running') return;
-    if (this.useCustomBgm && this.customBgm) { this.schedCustom(c); return; }
+    const cb = this.activeCustomBgm();
+    if (cb) { this.schedCustom(c, cb); return; }
     const ex = this.EXTRA_SONGS[this.bgmKey];
     const bpm = ex ? ex.bpm : this.BPM;
     // FORM：A（0）→ A'（1）→ B（2）→ A'（1）

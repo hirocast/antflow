@@ -128,8 +128,16 @@
       bpm: clamp(Number(s.bpm) || 112, 70, 170),
       inst: INSTS.some(x => x.id === s.inst) ? s.inst : 'mallet',
       singer: SINGERS.some(x => x.id === s.singer) ? s.singer : 'custom',
+      allowUse: !!s.allowUse,
+      allowRemix: !!s.allowRemix,
       bars: (s.bars && s.bars.length ? s.bars : [emptyBar()]).slice(0, 8).map(cloneBar)
     };
+  }
+  function makeArrangeName(name) {
+    const base = String(name || 'BGM').trim() || 'BGM';
+    if (base.endsWith('アレンジ')) return base.slice(0, 20);
+    if (base.length + 4 <= 20) return base + 'アレンジ';
+    return (base.slice(0, 18) + '改').slice(0, 20);
   }
 
   const SCALE = [-1, 0, 2, 4, 5, 7, 9, 11, 12];
@@ -318,6 +326,8 @@
         return o;
       })
     };
+    if (s.allowUse) min.au = 1;
+    if (s.allowRemix) min.ar = 1;
     const json = JSON.stringify(min);
     const bytes = new TextEncoder().encode(json);
     let bin = '';
@@ -339,6 +349,8 @@
         bpm: min.b || 116,
         inst: min.i || 'mallet',
         singer: min.sg || 'custom',
+        allowUse: !!min.au,
+        allowRemix: !!min.ar,
         bars: min.r.map(rb => ({
           notes: Array.from({ length: 16 }, (_, idx) => Array.isArray(rb.n && rb.n[idx]) ? rb.n[idx].filter(v => Number.isFinite(v)) : []),
           ties: Array.from({ length: 16 }, (_, idx) => Array.isArray(rb.t && rb.t[idx]) ? rb.t[idx].filter(v => Number.isFinite(v)) : []),
@@ -523,6 +535,7 @@
         '<b>' + String(s.name || '無題').replace(/[<>&"]/g, '') + '</b>' +
         '<small>BPM' + s.bpm + ' / ' + (s.bars ? s.bars.length : 1) + '小節</small>' +
         '<button type="button" class="bgm-mini" data-act="load" data-i="' + i + '">ひらく</button>' +
+        '<button type="button" class="bgm-mini" data-act="arrange" data-i="' + i + '">✏️ アレンジ</button>' +
         '<button type="button" class="bgm-mini use" data-act="use" data-i="' + i + '">使う</button>' +
         '<button type="button" class="bgm-mini del" data-act="del" data-i="' + i + '">✕</button>' +
       '</div>'
@@ -549,6 +562,9 @@
     if (bv) bv.textContent = song.bpm;
     if (inst) inst.value = song.inst;
     if (sg) sg.value = song.singer || 'custom';
+    const au = $('#bgmAllowUse'), ar = $('#bgmAllowRemix');
+    if (au) au.checked = !!song.allowUse;
+    if (ar) ar.checked = !!song.allowRemix;
     drawSingerPreview();
     renderBarTabs();
     renderGrid();
@@ -722,6 +738,9 @@
 .bgm-gcard .info b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bgm-gcard .info small{display:block;font-size:10px;color:#8a6a7a}
 .bgm-gcard .rep{border:none;background:none;font-size:13px;padding:2px 4px;cursor:pointer;opacity:.7}
+.bgm-perm{display:flex;flex-wrap:wrap;gap:6px 10px;justify-content:center;margin:7px 0 2px;padding:6px 8px;background:#fff7fb;border:1.5px solid #ffd3e2;border-radius:12px;font-size:11px;font-weight:800;color:var(--ink)}
+.bgm-perm label{display:flex;align-items:center;gap:4px;cursor:pointer}
+.bgm-perm input{accent-color:#ff6f9e;width:15px;height:15px;cursor:pointer}
 `;
     document.head.appendChild(st);
 
@@ -754,6 +773,10 @@
         '<button type="button" class="big mint" id="bgmActiveBtn" style="margin-top:8px;height:46px;font-size:15px">🎧 この曲をゲームのBGMにする</button>' +
         '<p class="fine" id="bgmStatus" style="margin:4px 0 0"></p>' +
         '<button type="button" class="link" id="bgmResetBtn" style="display:none;margin-top:4px">🔄 標準のBGMにもどす</button>' +
+        '<div class="bgm-perm">' +
+          '<label><input type="checkbox" id="bgmAllowUse"> 🎵 他の人がステージに使ってOK</label>' +
+          '<label><input type="checkbox" id="bgmAllowRemix"> ✏️ 他の人がアレンジしてOK</label>' +
+        '</div>' +
         '<div class="bgm-row2">' +
           '<button type="button" class="big sec" id="bgmSaveBtn">💾 ほぞん</button>' +
           '<button type="button" class="big sec" id="bgmShareBtn">🔗 URLコピー</button>' +
@@ -850,6 +873,8 @@
     $('#bgmLyric').addEventListener('input', e => { song.bars[curBar].lyric = e.target.value.slice(0, 24); syncActiveIfUsed(); });
     $('#bgmSinger').addEventListener('change', e => { song.singer = e.target.value; drawSingerPreview(); syncActiveIfUsed(); });
     $('#bgmInst').addEventListener('change', e => { song.inst = e.target.value; syncActiveIfUsed(); });
+    $('#bgmAllowUse').addEventListener('change', e => { song.allowUse = !!e.target.checked; syncActiveIfUsed(); });
+    $('#bgmAllowRemix').addEventListener('change', e => { song.allowRemix = !!e.target.checked; syncActiveIfUsed(); });
     $('#bgmBpm').addEventListener('input', e => {
       song.bpm = +e.target.value;
       $('#bgmBpmVal').textContent = song.bpm;
@@ -947,6 +972,9 @@
       if (act === 'load') {
         song = cloneSong(arr[i]); curBar = 0; syncUI();
         toast('🎵「' + song.name + '」をひらいたよ');
+      } else if (act === 'arrange') {
+        song = cloneSong(arr[i]); song.name = makeArrangeName(song.name); curBar = 0; syncUI();
+        toast('✏️「' + arr[i].name + '」を土台にアレンジしよう！');
       } else if (act === 'use') {
         Sound.init(); stopPreview();
         song = cloneSong(arr[i]); curBar = 0; syncUI();
@@ -978,6 +1006,8 @@
         '### オリジナルBGM投稿\n' +
         '- 曲名: ' + name + '\n' +
         '- BPM: ' + song.bpm + ' / ' + song.bars.length + '小節\n' +
+        '- ステージ利用: ' + (song.allowUse ? 'OK' : '不可') + '\n' +
+        '- アレンジ: ' + (song.allowRemix ? 'OK' : '不可') + '\n' +
         '- 試聴・プレイURL: ' + url + '\n\n' +
         '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🎶 みんなのBGM」に表示されます）';
       pendingBgmPost = { tok, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
@@ -1019,11 +1049,12 @@
           '<button type="button" class="bgm-mini">▶</button>' +
           '<button type="button" class="bgm-mini use">使う</button>' +
           '<button type="button" class="bgm-mini">ひらく</button>' +
+          '<button type="button" class="bgm-mini">✏️ アレンジ</button>' +
           '<button type="button" class="bgm-mini" title="URLシェア">🔗</button>' +
           '<button type="button" class="rep" title="削除">🗑️</button>';
         card.querySelector('b').textContent = s.name;
         card.querySelector('small').textContent = instInfo.label + ' · BPM' + s.bpm + ' · ' + s.bars.length + '小節';
-        const [pBtn, uBtn, lBtn, shBtn] = card.querySelectorAll('.bgm-mini');
+        const [pBtn, uBtn, lBtn, aBtn, shBtn] = card.querySelectorAll('.bgm-mini');
         pBtn.addEventListener('click', () => {
           const was = pBtn.classList.contains('play');
           stopGalPreview();
@@ -1053,6 +1084,12 @@
           song = cloneSong(s); curBar = 0; syncUI();
           showOv('bgm');
           toast('🎵「' + song.name + '」をひらいたよ');
+        });
+        aBtn.addEventListener('click', () => {
+          Sound.tap(); stopGalPreview();
+          song = cloneSong(s); song.name = makeArrangeName(s.name); curBar = 0; syncUI();
+          showOv('bgm');
+          toast('✏️「' + s.name + '」を土台にアレンジしよう！');
         });
         shBtn.addEventListener('click', async () => {
           Sound.tap();
@@ -1106,12 +1143,15 @@
           card.innerHTML =
             '<div class="info"><b></b><small></small></div>' +
             '<button type="button" class="bgm-mini">▶</button>' +
-            '<button type="button" class="bgm-mini use">使う</button>' +
-            '<button type="button" class="bgm-mini">ひらく</button>' +
+            (s.allowUse ? '<button type="button" class="bgm-mini use">使う</button>' : '') +
+            (s.allowRemix ? '<button type="button" class="bgm-mini arr">✏️ アレンジ</button>' : '') +
             '<button type="button" class="rep" title="不適切なBGMを非表示・通報">⚠️</button>';
           card.querySelector('b').textContent = s.name;
-          card.querySelector('small').textContent = instInfo.label + ' · BPM' + s.bpm + ' · ' + s.bars.length + '小節 · ' + author;
-          const [pBtn, uBtn, lBtn] = card.querySelectorAll('.bgm-mini');
+          const perms = (s.allowUse ? ' · 🎵使用OK' : '') + (s.allowRemix ? ' · ✏️アレンジOK' : '');
+          card.querySelector('small').textContent = instInfo.label + ' · BPM' + s.bpm + ' · ' + s.bars.length + '小節 · ' + author + perms;
+          const pBtn = card.querySelector('.bgm-mini');
+          const uBtn = card.querySelector('.bgm-mini.use');
+          const aBtn = card.querySelector('.bgm-mini.arr');
           pBtn.addEventListener('click', () => {
             const was = pBtn.classList.contains('play');
             stopGalPreview();
@@ -1130,17 +1170,17 @@
             stepFn();
             galTimer = setInterval(stepFn, Math.round(60000 / s.bpm / 4));
           });
-          uBtn.addEventListener('click', () => {
+          if (uBtn) uBtn.addEventListener('click', () => {
             Sound.init(); stopGalPreview();
             song = cloneSong(s); curBar = 0;
             applyActiveBgm(song, true);
             toast('🎧「' + song.name + '」をゲームのBGMにしたよ！');
           });
-          lBtn.addEventListener('click', () => {
+          if (aBtn) aBtn.addEventListener('click', () => {
             Sound.tap(); stopGalPreview();
-            song = cloneSong(s); curBar = 0; syncUI();
+            song = cloneSong(s); song.name = makeArrangeName(s.name); song.allowUse = false; song.allowRemix = false; curBar = 0; syncUI();
             showOv('bgm');
-            toast('🎵「' + song.name + '」をひらいたよ');
+            toast('✏️「' + s.name + '」を土台にアレンジしよう！');
           });
           card.querySelector('.rep').addEventListener('click', () => {
             if (!confirm('「' + s.name + '」を不適切なBGMとして一覧から非表示にしますか？')) return;
@@ -1270,6 +1310,61 @@
       }, 60);
     }
   }
+  let extPreviewTimer = null;
+  function stopExtPreview() {
+    clearInterval(extPreviewTimer);
+    extPreviewTimer = null;
+    document.querySelectorAll('.stbgm-play.play').forEach(b => { b.textContent = '▶'; b.classList.remove('play'); });
+  }
+  window.AF_bgmTools = {
+    encodeBgm,
+    decodeBgm,
+    getMyBgms() {
+      return loadMyBgms().map(raw => {
+        const s = cloneSong(raw);
+        const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
+        return { song: s, token: encodeBgm(s), instLabel: instInfo.label };
+      });
+    },
+    async fetchAllowedPublicBgms() {
+      const reported = loadBgmReported();
+      const res = await fetch(ISSUES_API);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const issues = await res.json();
+      const out = [];
+      for (const iss of issues) {
+        const m = (iss.body || '').match(/[?&]bgm=([A-Za-z0-9_-]+)/);
+        if (!m) continue;
+        const id = 'gh_bgm_' + iss.number;
+        if (reported.has(id) || reported.has(m[1])) continue;
+        const s = decodeBgm(m[1]);
+        if (!s || !s.allowUse || validateBgmName(s.name) || s.bars.some(b => b.lyric && validateBgmName(b.lyric))) continue;
+        const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM';
+        const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
+        out.push({ song: s, token: m[1], author, instLabel: instInfo.label });
+      }
+      return out;
+    },
+    togglePreview(s, btn) {
+      const was = btn.classList.contains('play');
+      stopExtPreview();
+      if (was || !s || !s.bars || !s.bars.length) return;
+      Sound.init(); Sound.stopBgm();
+      btn.textContent = '⏹'; btn.classList.add('play');
+      let st = 0;
+      const total = s.bars.length * 16;
+      const stepFn = () => {
+        const idx = st % total, b = s.bars[Math.floor(idx / 16)], k = idx % 16;
+        for (const n of b.notes[k]) Sound.playCustomNote(s.inst, n, 0, 0.22);
+        if (b.kick[k]) Sound.playCustomDrum(1, 0, b.notes[k].length ? b.notes[k][0] : 0);
+        if (b.clap[k]) Sound.playCustomDrum(2, 0);
+        st++;
+      };
+      stepFn();
+      extPreviewTimer = setInterval(stepFn, Math.round(60000 / s.bpm / 4));
+    },
+    stopPreview: stopExtPreview
+  };
 })();
 
 AF_LOADED.push('bgm_maker.js');
