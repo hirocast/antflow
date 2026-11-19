@@ -102,9 +102,37 @@
     w.close();
     return new Uint8Array(await new Response(ds.readable).arrayBuffer());
   }
-  function encodeCustomStageV1(name, grid, w, h) {
+  function parseTalkField(str) {
+    return String(str || '').split(/[/／\n]+/).map(s => s.trim().slice(0, 28)).filter(Boolean).slice(0, 5);
+  }
+  function normalizeCustomTalk(t) {
+    if (!t || typeof t !== 'object') return null;
+    const out = { hi: [], p: [], c: [], j: [], q: [] };
+    let cnt = 0;
+    for (const k of ['hi', 'p', 'c', 'j', 'q']) {
+      if (Array.isArray(t[k])) {
+        out[k] = t[k].map(s => String(s || '').trim().slice(0, 28)).filter(Boolean).slice(0, 5);
+        cnt += out[k].length;
+      }
+    }
+    return cnt > 0 ? out : null;
+  }
+  function compactTalkObj(t) {
+    const n = normalizeCustomTalk(t);
+    if (!n) return null;
+    const o = {};
+    for (const k of ['hi', 'p', 'c', 'j', 'q']) if (n[k].length) o[k] = n[k];
+    return Object.keys(o).length ? o : null;
+  }
+  function countTalkLines(t) {
+    const n = normalizeCustomTalk(t);
+    return n ? n.hi.length + n.p.length + n.c.length + n.j.length + n.q.length : 0;
+  }
+  function encodeCustomStageV1(name, grid, w, h, talk) {
     const W = w || mkW, H = h || mkH;
     const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
+    const ct = compactTalkObj(talk);
+    const tb = ct ? new TextEncoder().encode(JSON.stringify(ct)) : new Uint8Array(0);
     const runs = [];
     let i = 0;
     while (i < grid.length) {
@@ -113,6 +141,19 @@
       while (i + cnt < grid.length && grid[i + cnt] === v && cnt < 255) cnt++;
       runs.push(v + 1, cnt);
       i += cnt;
+    }
+    if (tb.length > 0 && tb.length <= 65535) {
+      const bytes = new Uint8Array(6 + nb.length + tb.length + runs.length);
+      bytes[0] = 4; // version 4 (RLE + talk)
+      bytes[1] = W;
+      bytes[2] = H;
+      bytes[3] = nb.length;
+      bytes.set(nb, 4);
+      bytes[4 + nb.length] = tb.length & 255;
+      bytes[5 + nb.length] = (tb.length >> 8) & 255;
+      bytes.set(tb, 6 + nb.length);
+      bytes.set(runs, 6 + nb.length + tb.length);
+      return toB64Url(bytes);
     }
     const bytes = new Uint8Array(4 + nb.length + runs.length);
     bytes[0] = 1; // version
@@ -123,12 +164,32 @@
     bytes.set(runs, 4 + nb.length);
     return toB64Url(bytes);
   }
-  async function encodeCustomStage(name, grid, w, h) {
-    const v1 = encodeCustomStageV1(name, grid, w, h);
+  async function encodeCustomStage(name, grid, w, h, talk) {
+    const v1 = encodeCustomStageV1(name, grid, w, h, talk);
     if (typeof CompressionStream !== 'function') return v1;
     try {
       const W = w || mkW, H = h || mkH;
       const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
+      const ct = compactTalkObj(talk);
+      const tb = ct ? new TextEncoder().encode(JSON.stringify(ct)) : new Uint8Array(0);
+      if (tb.length > 0 && tb.length <= 65535) {
+        const raw = new Uint8Array(5 + nb.length + tb.length + grid.length);
+        raw[0] = W;
+        raw[1] = H;
+        raw[2] = nb.length;
+        raw.set(nb, 3);
+        raw[3 + nb.length] = tb.length & 255;
+        raw[4 + nb.length] = (tb.length >> 8) & 255;
+        raw.set(tb, 5 + nb.length);
+        const off = 5 + nb.length + tb.length;
+        for (let i = 0; i < grid.length; i++) raw[off + i] = grid[i] + 1;
+        const comp = await deflateRawBytes(raw);
+        const out = new Uint8Array(1 + comp.length);
+        out[0] = 3;
+        out.set(comp, 1);
+        const v3 = toB64Url(out);
+        return v3.length < v1.length ? v3 : v1;
+      }
       const raw = new Uint8Array(3 + nb.length + grid.length);
       raw[0] = W;
       raw[1] = H;
@@ -166,7 +227,31 @@
         let total = 0;
         for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
         if (total < 4) return null;
-        return { W, H, grid, name, theme: 'オリジナル', token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: null, token };
+      }
+      if (ver === 4) {
+        const W = bytes[1], H = bytes[2], nLen = bytes[3];
+        if (W < 8 || W > 32 || H < 8 || H > 32 || 6 + nLen >= bytes.length) return null;
+        const name = new TextDecoder().decode(bytes.slice(4, 4 + nLen)) || 'オリジナル';
+        const tLen = bytes[4 + nLen] | (bytes[5 + nLen] << 8);
+        const tStart = 6 + nLen, tEnd = tStart + tLen;
+        if (tEnd >= bytes.length) return null;
+        let talk = null;
+        if (tLen > 0) {
+          try { talk = normalizeCustomTalk(JSON.parse(new TextDecoder().decode(bytes.slice(tStart, tEnd)))); } catch (e) { return null; }
+        }
+        const grid = new Int8Array(W * H).fill(-1);
+        let idx = 0, p = tEnd;
+        for (; p + 1 < bytes.length && idx < grid.length; p += 2) {
+          const val = bytes[p] - 1, cnt = bytes[p + 1];
+          if (val < -1 || val >= HEX.length || cnt < 1) return null;
+          for (let k = 0; k < cnt && idx < grid.length; k++) grid[idx++] = val;
+        }
+        if (idx !== grid.length || p !== bytes.length) return null;
+        let total = 0;
+        for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
+        if (total < 4) return null;
+        return { W, H, grid, name, theme: 'オリジナル', talk, token };
       }
       if (ver === 2) {
         if (typeof DecompressionStream !== 'function') return null;
@@ -185,13 +270,38 @@
           if (val >= 0) total++;
         }
         if (total < 4) return null;
-        return { W, H, grid, name, theme: 'オリジナル', token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: null, token };
+      }
+      if (ver === 3) {
+        if (typeof DecompressionStream !== 'function') return null;
+        const raw = await inflateRawBytes(bytes.slice(1));
+        if (raw.length < 6) return null;
+        const W = raw[0], H = raw[1], nLen = raw[2];
+        if (W < 8 || W > 32 || H < 8 || H > 32 || 5 + nLen >= raw.length) return null;
+        const name = new TextDecoder().decode(raw.slice(3, 3 + nLen)) || 'オリジナル';
+        const tLen = raw[3 + nLen] | (raw[4 + nLen] << 8);
+        const tStart = 5 + nLen, off = tStart + tLen;
+        if (raw.length !== off + W * H) return null;
+        let talk = null;
+        if (tLen > 0) {
+          try { talk = normalizeCustomTalk(JSON.parse(new TextDecoder().decode(raw.slice(tStart, off)))); } catch (e) { return null; }
+        }
+        const grid = new Int8Array(W * H);
+        let total = 0;
+        for (let i = 0; i < grid.length; i++) {
+          const val = raw[off + i] - 1;
+          if (val < -1 || val >= HEX.length) return null;
+          grid[i] = val;
+          if (val >= 0) total++;
+        }
+        if (total < 4) return null;
+        return { W, H, grid, name, theme: 'オリジナル', talk, token };
       }
       return null;
     } catch (e) { return null; }
   }
-  async function stageShareUrl(name, grid, w, h, preToken) {
-    const token = preToken || await encodeCustomStage(name, grid, w, h);
+  async function stageShareUrl(name, grid, w, h, preToken, talk) {
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk);
     return location.origin + location.pathname + '?stage=' + token;
   }
   function extractStageToken(input) {
@@ -209,18 +319,20 @@
     for (const v of art.grid) if (v >= 0) total++;
     if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
     const baseUrl = location.origin + location.pathname + '?stage=';
-    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H));
+    const talk = normalizeCustomTalk(art.talk);
+    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk));
     const P = params(5, total);
     const rng = mulberry32(hashInt(total, art.name.length + 77));
     const c = construct(art, P, rng);
     const L = {
       id: 0, custom: true, art, shareUrl,
       name: art.name || 'オリジナル', theme: 'オリジナル',
+      customTalk: talk,
       W: art.W, H: art.H, grid: art.grid, cols: c.cols, solution: c.solution, total,
       metrics: { stars: 2 }
     };
     if (!art.token) {
-      stageShareUrl(art.name, art.grid, art.W, art.H).then(u => {
+      stageShareUrl(art.name, art.grid, art.W, art.H, null, talk).then(u => {
         L.shareUrl = u;
         if (G.lastShare && G.lastShare.custom) G.lastShare.url = u;
       });
@@ -374,9 +486,9 @@
   function loadMyStages() {
     try { return JSON.parse(localStorage.getItem(MY_KEY) || '[]'); } catch (e) { return []; }
   }
-  async function saveMyStage(name, grid, w, h, preToken) {
+  async function saveMyStage(name, grid, w, h, preToken, talk) {
     const list = loadMyStages();
-    const token = preToken || await encodeCustomStage(name, grid, w, h);
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk);
     const filtered = list.filter(x => x.token !== token);
     filtered.unshift({ name, w, h, token, at: Date.now() });
     if (filtered.length > 20) filtered.length = 20;
@@ -398,10 +510,10 @@
       if (v >= 0) { g.fillStyle = HEX[v]; g.fillRect(2 + x * c, 2 + y * c, c + 0.3, c + 0.3); }
     }
   }
-  async function shareStageArt(name, grid, w, h) {
-    const token = await encodeCustomStage(name, grid, w, h);
-    await saveMyStage(name, grid, w, h, token);
-    const url = await stageShareUrl(name, grid, w, h, token);
+  async function shareStageArt(name, grid, w, h, talk, preToken) {
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk);
+    await saveMyStage(name, grid, w, h, token, talk);
+    const url = await stageShareUrl(name, grid, w, h, token, talk);
     const text = 'アントフローでオリジナルステージ「' + name + '」を作ったよ！遊んでみてね🐜🍬\n#アントフロー';
     if (navigator.share) {
       try {
@@ -491,7 +603,7 @@
         e.stopPropagation();
         e.preventDefault();
         Sound.tap();
-        await shareStageArt(art.name, art.grid, art.W, art.H);
+        await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token);
       });
       btn.appendChild(sh);
     }
@@ -505,8 +617,8 @@
     mkBuilt = true;
     const style = document.createElement('style');
     style.textContent =
-      '.mrow{grid-template-columns:repeat(3,1fr)!important;gap:6px!important}' +
-      '.mrow button{font-size:11px!important;padding:8px 1px!important}' +
+      '.mrow{grid-template-columns:repeat(4,1fr)!important;gap:6px!important}' +
+      '.mrow button{font-size:11px!important;padding:7px 2px!important}' +
       '#ov-maker .card,#ov-gallery .card{padding:12px 14px}' +
       '.mktop{display:flex;gap:6px;justify-content:center;margin:4px 0 6px}' +
       '.mktop button{border:2px solid #ffd3e2;border-radius:14px;padding:6px 12px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
@@ -521,6 +633,16 @@
       '.mktools button.on{background:#ffe0ed;border-color:#ff8fb3}' +
       '.mkz{font:900 11px var(--rf);color:#c0507a;min-width:26px;text-align:center}' +
       '#mkName{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:7px 10px;font:800 13px var(--rf);color:var(--ink);margin:4px 0;text-align:center;background:#fff}' +
+      '.mktalk{margin:6px 0 4px;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:4px 8px;text-align:left}' +
+      '.mktalk-btn{width:100%;border:none;background:transparent;display:flex;justify-content:space-between;align-items:center;padding:4px 2px;font:900 12px var(--rf);color:#c0507a;cursor:pointer}' +
+      '.mktalk-body{display:none;margin-top:6px;border-top:1.5px dashed #ffd3e2;padding-top:6px}' +
+      '.mktalk.open .mktalk-body{display:block}' +
+      '.mktalk-hint{font-size:10px;font-weight:700;color:#8c6578;margin:0 0 5px;line-height:1.4}' +
+      '.mktalk-row{display:flex;align-items:center;gap:6px;margin:4px 0}' +
+      '.mktalk-row span{flex:0 0 64px;font-size:11px;font-weight:900;color:var(--ink)}' +
+      '.mktalk-row input{flex:1;min-width:0;border:1.5px solid #f0c6d6;border-radius:10px;padding:5px 8px;font:700 11px var(--rf);color:var(--ink);background:#fff}' +
+      '.mktalk-act{display:flex;gap:6px;margin-top:6px}' +
+      '.mktalk-act button{flex:1;border:2px solid #fff;border-radius:10px;padding:5px;font:800 11px var(--rf);cursor:pointer;background:#ffeef4;color:#c0507a;box-shadow:0 2px 0 #e6bfd0}' +
       '.galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:190px;overflow:auto;padding:4px 2px}' +
       '.galcard{position:relative;border:2px solid #fff;border-radius:14px;padding:6px 4px;background:#fff;box-shadow:0 3px 0 #f0c6d6;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-family:var(--rf);color:var(--ink)}' +
       '.galcard canvas{border-radius:8px}' +
@@ -580,6 +702,18 @@
       '<button id="mkClear">🗑️ けす</button>' +
       '</div>' +
       '<div class="mkpal" id="mkPal"></div>' +
+      '<div class="mktalk" id="mkTalkBox">' +
+      '<button type="button" class="mktalk-btn" id="mkTalkToggle"><span>💬 セリフをつくる（任意）</span><i id="mkTalkArr">▼</i></button>' +
+      '<div class="mktalk-body">' +
+      '<p class="mktalk-hint">「/」で区切ると複数パターン作れるよ（空欄はいつものセリフになるよ）</p>' +
+      '<div class="mktalk-row"><span>🚀 開始時</span><input id="mkTalkHi" type="text" maxlength="90" placeholder="例：わたしの作品だ！ / みてみて！"></div>' +
+      '<div class="mktalk-row"><span>🐜 プレイ中</span><input id="mkTalkP" type="text" maxlength="120" placeholder="例：かわいいでしょ？ / 運ぶぞー！"></div>' +
+      '<div class="mktalk-row"><span>🎉 クリア時</span><input id="mkTalkC" type="text" maxlength="90" placeholder="例：かんせい！ / ありがとう！"></div>' +
+      '<div class="mktalk-row"><span>💦 渋滞時</span><input id="mkTalkJ" type="text" maxlength="90" placeholder="例：つまった～！ / もう1回！"></div>' +
+      '<div class="mktalk-row"><span>👑 女王さま</span><input id="mkTalkQ" type="text" maxlength="90" placeholder="例：すてきな絵ですわ！"></div>' +
+      '<div class="mktalk-act"><button type="button" id="mkTalkAuto">✨ おまかせで作る</button><button type="button" id="mkTalkClr">🗑️ セリフを消す</button></div>' +
+      '</div>' +
+      '</div>' +
       '<div class="cfrow">' +
       '<button class="big" id="bMkPlay">▶ あそぶ</button>' +
       '<button class="big mint" id="bMkShare">🔗 URLシェア</button>' +
@@ -804,11 +938,49 @@
     $('#mkFlower').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('flower'); });
     $('#mkClear').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); mkGrid.fill(-1); drawMaker(); });
 
+    const talkIds = [['hi', '#mkTalkHi'], ['p', '#mkTalkP'], ['c', '#mkTalkC'], ['j', '#mkTalkJ'], ['q', '#mkTalkQ']];
+    function readTalkFromUI() {
+      const obj = {};
+      for (const [k, sel] of talkIds) obj[k] = parseTalkField($(sel).value);
+      return normalizeCustomTalk(obj);
+    }
+    function updateTalkBadge() {
+      const cnt = countTalkLines(readTalkFromUI());
+      const box = $('#mkTalkBox');
+      const sp = $('#mkTalkToggle span');
+      const arr = $('#mkTalkArr');
+      if (sp) sp.textContent = cnt ? '💬 セリフをつくる（' + cnt + 'こ入力中）' : '💬 セリフをつくる（任意）';
+      if (arr && box) arr.textContent = box.classList.contains('open') ? '▲' : '▼';
+    }
+    $('#mkTalkToggle').addEventListener('click', () => {
+      Sound.tap();
+      $('#mkTalkBox').classList.toggle('open');
+      updateTalkBadge();
+    });
+    for (const [, sel] of talkIds) $(sel).addEventListener('input', updateTalkBadge);
+    $('#mkTalkAuto').addEventListener('click', () => {
+      Sound.tap();
+      const n = (($('#mkName').value || '').trim() || 'オリジナル').slice(0, 12);
+      $('#mkTalkHi').value = n + 'だ！運ぶぞー！ / みてみて、' + n + '！';
+      $('#mkTalkP').value = n + '、かわいいでしょ？ / どんな絵になるかな / せっせと運ぼう！';
+      $('#mkTalkC').value = n + '、かんせい！大成功！ / 遊んでくれてありがとう！';
+      $('#mkTalkJ').value = n + 'の途中でつまっちゃった…';
+      $('#mkTalkQ').value = '「' + n + '」、とっても素敵ですわね！';
+      updateTalkBadge();
+      toast('✨ ステージ名からセリフを作ったよ！');
+    });
+    $('#mkTalkClr').addEventListener('click', () => {
+      Sound.tap();
+      for (const [, sel] of talkIds) $(sel).value = '';
+      updateTalkBadge();
+    });
+
     $('#bMkPlay').addEventListener('click', () => {
       Sound.tap(); commitSel(); drawMaker();
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
-      saveMyStage(name, mkGrid, mkW, mkH);
-      loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル' });
+      const talk = readTalkFromUI();
+      saveMyStage(name, mkGrid, mkW, mkH, null, talk);
+      loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル', talk });
     });
     $('#bMkShare').addEventListener('click', async () => {
       Sound.tap(); commitSel(); drawMaker();
@@ -818,7 +990,14 @@
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
       const ng = validateStageName(name);
       if (ng) { toast(ng); return; }
-      await shareStageArt(name, mkGrid, mkW, mkH);
+      const talk = readTalkFromUI();
+      if (talk) {
+        for (const k of ['hi', 'p', 'c', 'j', 'q']) for (const s of talk[k]) {
+          const tng = validateStageName(s);
+          if (tng) { toast('セリフ：' + tng); return; }
+        }
+      }
+      await shareStageArt(name, mkGrid, mkW, mkH, talk);
     });
     let pendingPost = null;
     $('#bMkPost').addEventListener('click', async () => {
@@ -829,16 +1008,25 @@
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
       const ng = validateStageName(name);
       if (ng) { toast(ng); return; }
-      const token = await encodeCustomStage(name, mkGrid, mkW, mkH);
+      const talk = readTalkFromUI();
+      if (talk) {
+        for (const k of ['hi', 'p', 'c', 'j', 'q']) for (const s of talk[k]) {
+          const tng = validateStageName(s);
+          if (tng) { toast('セリフ：' + tng); return; }
+        }
+      }
+      const token = await encodeCustomStage(name, mkGrid, mkW, mkH, talk);
       const cd = checkPostLimit(token);
       if (cd) { toast(cd); return; }
-      await saveMyStage(name, mkGrid, mkW, mkH, token);
-      const url = await stageShareUrl(name, mkGrid, mkW, mkH, token);
+      await saveMyStage(name, mkGrid, mkW, mkH, token, talk);
+      const url = await stageShareUrl(name, mkGrid, mkW, mkH, token, talk);
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
+      const tCnt = countTalkLines(talk);
       const body =
         '### オリジナルステージ投稿\n' +
         '- ステージ名: ' + name + '\n' +
         '- サイズ: ' + mkW + '×' + mkH + '\n' +
+        (tCnt ? '- セリフ: あり（' + tCnt + 'こ）\n' : '') +
         '- プレイURL: ' + url + '\n\n' +
         '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🌟 みんなの絵」に表示されます）';
       pendingPost = { token, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };

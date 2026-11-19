@@ -591,6 +591,7 @@ const talkRecent = [];
 let talkIntroRun = null;
 function stageTalk() {
   if (typeof G === 'undefined' || !G || !G.level) return null;
+  if (G.level.customTalk) return G.level.customTalk;
   return TALK_STAGE[G.level.name] || null;
 }
 function talkLine(kind, c, theme) {
