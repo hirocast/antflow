@@ -28,7 +28,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-eve
  radial-gradient(ellipse 110px 34px at 82% 18%,#fff 60%,transparent 62%),radial-gradient(ellipse 66px 26px at 89% 14%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%)}
 header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
-.lv{min-width:72px;margin-right:0;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
+.lv{display:grid!important;grid-template-columns:auto auto;align-items:center;column-gap:7px;row-gap:1px;min-width:0;margin-right:auto;padding:4px 9px;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
+.lv #lvNum{grid-column:1;grid-row:1;font-size:15px;line-height:1.1}
+.lv #lvStars{grid-column:1;grid-row:2;font-size:10px;line-height:1.1}
+.lv #lvName{grid-column:2;grid-row:1;font-size:10.5px;font-weight:900;color:var(--ink);max-width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.lv #lvTalkSub{grid-column:2;grid-row:2;font-size:8.5px;font-weight:900;color:#c0507a;letter-spacing:-0.02em;white-space:nowrap;text-align:center}
 .ib{border:3px solid #fff;background:linear-gradient(#fff,#ffeef5);box-shadow:0 4px 0 rgba(90,61,92,.22)}
 .prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:8px;padding-top:1px}
 .bar{flex:1;min-width:44px;height:12px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
@@ -38,10 +42,6 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 #timeTxt{flex:0 0 auto;font-size:11px;font-weight:800;white-space:nowrap;text-shadow:0 1px 0 #fff}
 #timeTxt b{color:#ffa000}
 #timeTxt b.s1{color:#b99aa8}
-#coinPill{margin-left:auto}
-#lvTalk{display:flex;flex-direction:column;align-items:center;line-height:1.15;background:linear-gradient(#fff,#fff2f7);border:2px solid #fff;border-radius:12px;padding:3px 6px;color:#c0507a;box-shadow:0 3px 0 rgba(90,61,92,.18);white-space:nowrap;min-width:0;max-width:74px;flex:0 1 auto}
-#lvTalk #lvName{font-size:10px;font-weight:900;color:var(--ink);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#lvTalk small{font-size:8.5px;font-weight:900;color:#c0507a;letter-spacing:-0.02em}
 .coin{display:flex;align-items:center;gap:3px;height:38px;padding:0 10px 0 6px;border-radius:19px;background:linear-gradient(#fffbe6,#ffe39a);border:3px solid #fff;box-shadow:0 4px 0 #d9a520;font-weight:900;font-size:15px;color:#8a5a00;flex:0 0 auto;cursor:pointer}
 .coin i{font-style:normal;font-size:17px}
 .coin.bump{animation:cbump .45s}
@@ -271,9 +271,9 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  .fb span{font-size:16px}
 }
 @media (max-width:420px){
- header{gap:3px;padding:4px 6px 3px}
- .lv{min-width:68px;padding:4px 7px}
- .lv b{font-size:14px}
+ header{gap:4px;padding:4px 6px 3px}
+ .lv{padding:4px 8px;column-gap:6px}
+ .lv #lvNum{font-size:14px}
  .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
  .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
  .coin i{font-size:15px}
@@ -323,10 +323,7 @@ function handleTalkLikeClick(e) {
   $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b>'; return d; })(), $('#bAlbum'));
   $('header').insertBefore((() => { const b = document.createElement('button'); b.className = 'ib'; b.id = 'bHome'; b.setAttribute('aria-label', 'ホーム'); b.textContent = '🏠'; return b; })(), $('#bAlbum'));
   const tt = document.createElement('span'); tt.id = 'timeTxt'; $('.prog').appendChild(tt);
-  const lt = document.createElement('div'); lt.id = 'lvTalk';
-  const ln = $('#lvName'); if (ln) lt.appendChild(ln);
-  const lts = document.createElement('small'); lts.id = 'lvTalkSub'; lt.appendChild(lts);
-  $('header').insertBefore(lt, $('#coinPill'));
+  const lts = document.createElement('small'); lts.id = 'lvTalkSub'; $('.lv').appendChild(lts);
   document.body.appendChild($('#toast'));
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
