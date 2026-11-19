@@ -1077,7 +1077,9 @@ function showClear() {
   if (talkBox) {
     const newTalks = Array.isArray(R.newTalks) ? R.newTalks : [];
     const imp = calcBingoImpact(R.bingoSnap);
-    if (newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0) {
+    const stAll = !isCustom ? stageTalkList(G.level.name) : [];
+    const stSeen = stAll.length ? stAll.filter(s => seenTalkSet.has(s)).length : 0;
+    if (newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0 || stAll.length > 0) {
       const liked = loadTalkLikes();
       const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       const chips = newTalks.map(s => {
@@ -1090,10 +1092,13 @@ function showClear() {
       if (imp.newCells > 0) bgParts.push('マス <b>+' + imp.newCells + '</b>（カード' + (imp.curIdx + 1) + ': ' + imp.curFilled + '/25）');
       else if (imp.newLines > 0 || imp.newReach > 0) bgParts.push('カード' + (imp.curIdx + 1) + ': ' + imp.curFilled + '/25');
       const btnHtml = (imp.readyCards > 0 || imp.newCells > 0) ? '<button type="button" class="restalk-btn" data-bingo-go="1">' + (imp.readyCards > 0 ? '🎁 報酬をうけとる' : '🎯 ビンゴを見る') + '</button>' : '';
+      const stTxt = stAll.length ? ('この面 ' + stSeen + '/' + stAll.length + (stSeen === stAll.length ? '🎉' : '') + ' · ') : '';
+      const titleTxt = newTalks.length ? ('💬 新しくみつけたセリフ（' + newTalks.length + 'こ）') : '💬 このステージのセリフ';
+      const showBg = newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0;
       talkBox.innerHTML =
-        '<div class="restalk-h"><span>💬 新しくみつけたセリフ（' + newTalks.length + 'こ）</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>' +
+        '<div class="restalk-h"><span>' + titleTxt + '</span><span>' + stTxt + '累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>' +
         (chips ? '<div class="restalk-list">' + chips + '</div>' : '') +
-        '<div class="restalk-bg"><span>🎯 ' + (bgParts.length ? bgParts.join(' ／ ') : 'ビンゴ進捗：カード' + (imp.curIdx + 1) + ' ' + imp.curFilled + '/25') + '</span>' + btnHtml + '</div>';
+        (showBg ? '<div class="restalk-bg"><span>🎯 ' + (bgParts.length ? bgParts.join(' ／ ') : 'ビンゴ進捗：カード' + (imp.curIdx + 1) + ' ' + imp.curFilled + '/25') + '</span>' + btnHtml + '</div>' : '');
       talkBox.classList.add('on');
     } else {
       talkBox.classList.remove('on');
