@@ -746,8 +746,20 @@ function refreshPrices() {
   if (c) c.textContent = on ? 'ON' : priceLabel('scan');
   if (sc) sc.classList.toggle('on', on);
 }
+function runEarnedCoins(R = G.run) {
+  if (!R) return 0;
+  let c = 0;
+  if (R.maxCombo >= 5) c += Math.floor(R.maxCombo / 5);
+  if (R.fevers) c += R.fevers * 10 + R.fcoin;
+  if (R.gold) c += R.gold * 15;
+  if (R.nice) c += R.nice * 8;
+  return c;
+}
+function showRunCoins() {
+  return !!G.run && G.overlay !== 'title' && G.overlay !== 'clear' && G.overlay !== 'daily';
+}
 function updateCoins(bump) {
-  $('#coinTxt').textContent = save.coins;
+  $('#coinTxt').textContent = showRunCoins() ? runEarnedCoins(G.run) : save.coins;
   if (bump) { const p = $('#coinPill'); p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); }
   refreshPrices();
   if (G.overlay === 'title') renderTitle();
@@ -886,6 +898,7 @@ function applyLevel(id, L) {
   G.bgmBanner = save.settings.music !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   if (!L.custom) Tut.levelStart(id);
   updateTip(); refreshPrices(); updateStageTalkHud();
+  hudCache.coin = 0; updateCoins();
   if (!L.custom) $('#bPlay').textContent = 'あそぶ（Lv.' + posOf(id) + '）';
 }
 function headCounts(s) {
@@ -919,6 +932,7 @@ function resetVisual() {
 function niceRead() {
   if (!G.run) return;
   G.run.nice++;
+  G.hudDirty = true;
   popup('ナイス先読み！', slotCX, slotY - slotSize * 0.95, '#7cffb0');
   Sound.nice();
   Tut.add('nice');
@@ -990,8 +1004,9 @@ function showOv(name) {
     if (Sound.stageBgm) { Sound.stageBgm = null; Sound.step = 0; Sound.lyricQ = []; }
     renderTitle();
   }
+  updateCoins();
 }
-function hideOv() { G.overlay = null; document.querySelectorAll('.ov').forEach(o => o.classList.remove('show')); }
+function hideOv() { G.overlay = null; document.querySelectorAll('.ov').forEach(o => o.classList.remove('show')); updateCoins(); }
 function popText(el, text) {
   el.innerHTML = '';
   [...text].forEach((ch, i) => {
@@ -1562,7 +1577,7 @@ const TIPS = {
   5: [[0, 4, 'おやすみ（z）の箱をためすぎると渋滞するよ']],
   6: [[0, 3, '渋滞しても「⏪」で解ける所まで戻れるよ']]
 };
-const hudCache = { lv: '', st: '', name: '', left: '', w: '', dis: null, spd: '' };
+const hudCache = { lv: '', st: '', name: '', left: '', w: '', dis: null, spd: '', coin: -1 };
 function updateHUD() {
   G.hudDirty = false;
   if (!G.level) return;
@@ -1572,12 +1587,14 @@ function updateHUD() {
   const name = isCustom || save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
   const left = 'のこり ' + G.vleft + ' / ' + G.level.total;
   const dis = !G.undo.length, spd = G.speed + 'x';
+  const coin = runEarnedCoins(G.run);
   if (hudCache.lv !== lv) { hudCache.lv = lv; $('#lvNum').textContent = lv; }
   if (hudCache.st !== stars) { hudCache.st = stars; $('#lvStars').textContent = stars; }
   if (hudCache.name !== name) { hudCache.name = name; $('#lvName').textContent = name; }
   if (hudCache.left !== left) { hudCache.left = left; $('#leftTxt').textContent = left; }
   if (hudCache.dis !== dis) { hudCache.dis = dis; $('#bUndo').disabled = dis; }
   if (hudCache.spd !== spd) { hudCache.spd = spd; $('#spdIco').textContent = spd; }
+  if (hudCache.coin !== coin) { const up = hudCache.coin >= 0 && coin > hudCache.coin; hudCache.coin = coin; updateCoins(up); }
 }
 function updateTimer() {
   const R = G.run, el = $('#timeTxt'), bar = $('#progBar');
