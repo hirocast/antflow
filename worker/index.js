@@ -115,6 +115,63 @@ async function checkDuplicateIssue(env, kind, token, contentHash) {
   return '';
 }
 
+async function handleTalkLike(request, env, cors) {
+  let body;
+  try { body = await request.json(); } catch { return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors); }
+  const talk = String(body.talk || '').trim().replace(/[\r\n|<>`]/g, '').slice(0, 60);
+  if (!talk || hasNgWord(talk)) return jsonRes({ ok: false, error: 'Invalid talk' }, 400, cors);
+
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const cache = caches.default;
+  const lkKey = new Request('https://antflow-rl.internal/like/' + encodeURIComponent(ip + ':' + talk));
+  if (await cache.match(lkKey)) {
+    return jsonRes({ ok: true, skipped: true }, 200, cors);
+  }
+  await cache.put(lkKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=86400' } }));
+
+  const ghHeaders = {
+    'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+    'Accept': 'application/vnd.github+json',
+    'User-Agent': 'antflow-post-worker',
+    'Content-Type': 'application/json'
+  };
+  const listRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=talk-likes&state=open&per_page=1`, { headers: ghHeaders });
+  if (!listRes.ok) return jsonRes({ ok: false, error: 'GitHub read failed' }, 502, cors);
+  const existing = await listRes.json();
+  const iss = Array.isArray(existing) && existing[0] ? existing[0] : null;
+
+  let counts = {};
+  if (iss && iss.body) {
+    const m = iss.body.match(/<!--\s*LIKES_JSON:([\s\S]*?)-->/);
+    if (m) {
+      try { counts = JSON.parse(m[1]) || {}; } catch {}
+    }
+  }
+  counts[talk] = (Number(counts[talk]) || 0) + 1;
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 200);
+  const compact = Object.fromEntries(sorted);
+
+  let md = '### 💬 人気のセリフ ランキング（自動集計）\n';
+  md += '<!-- LIKES_JSON:' + JSON.stringify(compact) + ' -->\n\n';
+  md += '| 順位 | いいね | セリフ |\n| --- | ---: | --- |\n';
+  sorted.forEach(([t, c], i) => { md += `| ${i + 1} | ${c} | ${t} |\n`; });
+
+  if (iss) {
+    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${iss.number}`, {
+      method: 'PATCH',
+      headers: ghHeaders,
+      body: JSON.stringify({ body: md })
+    });
+  } else {
+    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
+      method: 'POST',
+      headers: ghHeaders,
+      body: JSON.stringify({ title: '[集計] 人気のセリフ ランキング', labels: ['talk-likes'], body: md })
+    });
+  }
+  return jsonRes({ ok: true, count: counts[talk] }, 200, cors);
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -127,12 +184,16 @@ export default {
       return jsonRes({ ok: true, service: 'antflow-post-worker' }, 200, cors);
     }
 
-    if (request.method !== 'POST' || (url.pathname !== '/post' && url.pathname !== '/')) {
-      return jsonRes({ ok: false, error: 'Not Found' }, 404, cors);
-    }
-
     if (!env.GITHUB_TOKEN) {
       return jsonRes({ ok: false, error: 'Server not configured (missing GITHUB_TOKEN)' }, 500, cors);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/like-talk') {
+      return handleTalkLike(request, env, cors);
+    }
+
+    if (request.method !== 'POST' || (url.pathname !== '/post' && url.pathname !== '/')) {
+      return jsonRes({ ok: false, error: 'Not Found' }, 404, cors);
     }
 
     let body;

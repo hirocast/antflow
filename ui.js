@@ -143,8 +143,10 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .restalk{display:none;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:6px 10px;margin:5px 0;text-align:left;font-size:11px;font-weight:800;color:var(--ink)}
 .restalk.on{display:block}
 .restalk-h{display:flex;justify-content:space-between;align-items:center;gap:6px;color:#c0507a;font-weight:900;margin-bottom:4px}
-.restalk-list{display:flex;flex-wrap:wrap;gap:4px;max-height:54px;overflow:auto;margin-bottom:4px}
-.restalk-chip{background:#fff;border:1.5px solid #ffd3e2;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:800;color:var(--ink)}
+.restalk-list{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px}
+.restalk-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid #ffd3e2;border-radius:10px;padding:2px 6px 2px 7px;font-size:10px;font-weight:800;color:var(--ink)}
+.restalk-like{border:none;background:#ffeef4;color:#d65b88;border-radius:8px;padding:1px 5px;font:900 10px var(--rf);cursor:pointer;line-height:1.2}
+.restalk-like.on{background:#ff6f9e;color:#fff}
 .restalk-bg{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:5px;padding-top:4px;border-top:1.5px dashed #ffd3e2;font-size:11px}
 .restalk-bg b{color:#d08a00}
 .restalk-bg .hit{color:#e46a92;font-weight:900}
@@ -318,8 +320,36 @@ body.wide .fb{max-width:none}
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
   $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div><div class="restalk" id="resTalkBox"></div>');
+  const TALK_LIKE_KEY = 'antflow-talk-likes-v1';
+  const TALK_LIKE_API = 'https://antflow.hiroshi-artcast.workers.dev/like-talk';
+  function loadTalkLikes() {
+    try { return new Set(JSON.parse(localStorage.getItem(TALK_LIKE_KEY) || '[]')); } catch (e) { return new Set(); }
+  }
+  function saveTalkLike(text) {
+    const s = loadTalkLikes();
+    if (s.has(text)) return false;
+    s.add(text);
+    try { localStorage.setItem(TALK_LIKE_KEY, JSON.stringify([...s].slice(-500))); } catch (e) {}
+    return true;
+  }
   $('#resTalkBox').addEventListener('click', e => {
-    if (e.target.closest('[data-bingo-go]')) { Sound.tap(); openBingo('clear'); }
+    if (e.target.closest('[data-bingo-go]')) { Sound.tap(); openBingo('clear'); return; }
+    const lb = e.target.closest('.restalk-like');
+    if (lb && lb.dataset.talk) {
+      Sound.tap();
+      const t = lb.dataset.talk;
+      if (lb.classList.contains('on')) { toast('♥ もういいね！済みだよ'); return; }
+      lb.classList.add('on');
+      lb.textContent = '♥ いいね';
+      if (saveTalkLike(t)) {
+        toast('♥ セリフにいいね！したよ');
+        fetch(TALK_LIKE_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ talk: t })
+        }).catch(() => {});
+      }
+    }
   });
   const cr = document.createElement('div'); cr.className = 'cfrow';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
@@ -1039,10 +1069,12 @@ function showClear() {
     const newTalks = Array.isArray(R.newTalks) ? R.newTalks : [];
     const imp = calcBingoImpact(R.bingoSnap);
     if (newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0) {
-      const shown = newTalks.slice(0, 6);
-      const more = newTalks.length - shown.length;
-      const chips = shown.map(s => '<span class="restalk-chip">「' + s.replace(/[<>&"]/g, '') + '」</span>').join('') +
-        (more > 0 ? '<span class="restalk-chip">ほか +' + more + 'こ</span>' : '');
+      const liked = loadTalkLikes();
+      const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const chips = newTalks.map(s => {
+        const isOn = liked.has(s);
+        return '<span class="restalk-chip"><span>「' + esc(s) + '」</span><button type="button" class="restalk-like' + (isOn ? ' on' : '') + '" data-talk="' + esc(s) + '">' + (isOn ? '♥ いいね' : '♡') + '</button></span>';
+      }).join('');
       const bgParts = [];
       if (imp.newLines > 0) bgParts.push('<span class="hit">🎉 ビンゴ達成 +' + imp.newLines + 'ライン！</span>');
       else if (imp.newReach > 0) bgParts.push('<span class="hit">🔥 リーチ +' + imp.newReach + '！</span>');
