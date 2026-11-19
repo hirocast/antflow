@@ -91,12 +91,36 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .hub-line{font-size:11px;font-weight:700;line-height:1.55;color:var(--ink)}
 .hub-mis{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:2px 0}
 .hub-mis.done{color:#2f8f5b}
-.mrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.mrow button{position:relative;border:3px solid #fff;border-radius:18px;padding:8px 2px;background:linear-gradient(#eef8ff,#cbe7ff);box-shadow:0 4px 0 #8fbde6;font:900 12px var(--rf);color:var(--ink);cursor:pointer}
+.mrow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
+.mrow button{position:relative;border:3px solid #fff;border-radius:16px;padding:7px 2px;background:linear-gradient(#eef8ff,#cbe7ff);box-shadow:0 4px 0 #8fbde6;font:900 11px var(--rf);color:var(--ink);cursor:pointer}
 .mrow button:active{transform:translateY(3px);box-shadow:none}
-.mrow button i{display:block;font-style:normal;font-size:24px}
+.mrow button i{display:block;font-style:normal;font-size:22px}
 .dot{position:absolute;top:-5px;right:-5px;width:14px;height:14px;border-radius:50%;background:#ff4d6d;border:2px solid #fff;display:none}
 .dot.on{display:block;animation:bump .7s ease infinite alternate}
+.bg-sum{font-size:11px;font-weight:800;margin:2px 0 6px;color:var(--ink)}
+.bg-tabs{display:flex;gap:5px;overflow-x:auto;padding:4px 2px 6px;margin:0 -2px;touch-action:pan-x;-webkit-overflow-scrolling:touch}
+.bg-tab{position:relative;flex:0 0 auto;min-width:36px;height:32px;border:2px solid #fff;border-radius:12px;background:#ffeef4;color:var(--ink);font:900 12px var(--rf);cursor:pointer;box-shadow:0 2px 0 #e6bfd0;padding:0 8px}
+.bg-tab.on{background:linear-gradient(#ff9fbf,#ff6f9e);color:#fff;box-shadow:0 2px 0 #d64575}
+.bg-tab.done{background:linear-gradient(#fff6cc,#ffe074);border-color:#fff}
+.bg-tab.on.done{background:linear-gradient(#ffb74d,#ff8f00);color:#fff}
+.bg-tab i{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#ff4d6d;border:1.5px solid #fff}
+.bg-head{background:#fff6fa;border:2px solid #ffe0ea;border-radius:14px;padding:6px 10px;margin:4px 0 6px;text-align:left}
+.bg-head-t{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--pinkd)}
+.bg-head-d{font-size:10px;font-weight:700;opacity:.8;margin-top:1px}
+.bg-head-r{font-size:10px;font-weight:800;color:#b87600;margin-top:2px}
+.bg-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:4px 0}
+.bg-c{position:relative;border:2px solid #ffd8e6;border-radius:10px;background:#fff;padding:4px 2px;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:800 9px/1.15 var(--rf);color:var(--ink);cursor:pointer;box-shadow:0 2px 0 #f2c8d8;overflow:hidden}
+.bg-c b{font-size:9px;color:var(--pinkd);display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bg-c span{font-size:8.5px;opacity:.75}
+.bg-c.done{background:linear-gradient(#fff7fb,#ffe2ee);border-color:#ff9fbf}
+.bg-c.bingo{background:linear-gradient(#fff9db,#ffe58f);border-color:#ffb703;box-shadow:0 2px 0 #e09900}
+.bg-c.free{background:linear-gradient(#eafff3,#c7f5dc);border-color:#7ad8a8}
+.bg-c.bingo.free{background:linear-gradient(#fff9db,#ffe58f);border-color:#ffb703}
+.bg-c.sel{outline:2.5px solid #ff4d6d;outline-offset:-1px}
+.bg-c em{position:absolute;top:1px;right:2px;font-style:normal;font-size:9px}
+.bg-det{background:#fff;border:2px solid #cfe6ff;border-radius:12px;padding:6px 10px;margin:6px 0;text-align:left;font-size:11px;font-weight:800;min-height:38px}
+.bg-det .abar{margin:4px 0 0;height:7px}
+#bBingoClaim{margin-top:4px;animation:bump .75s ease infinite alternate}
 #ov-clear .card{padding:12px 14px}
 #ov-clear .ctitle{font-size:28px;margin:0}
 #ov-clear .fine{font-size:11px;margin:0}
@@ -262,6 +286,7 @@ body.wide .fb{max-width:none}
     Sound.tap();
     if (t.dataset.hub === 'queen') openColony('title');
     else if (t.dataset.hub === 'mis') openMissions('title');
+    else if (t.dataset.hub === 'bingo') openBingo('title');
   });
   $('#homeHub').addEventListener('click', e => {
     const t = e.target.closest('button[data-hub]');
@@ -277,8 +302,9 @@ body.wide .fb{max-width:none}
     else if (act === 'mis') openMissions('title');
     else if (act === 'album') openAlbum(true);
     else if (act === 'skin') openSkins('title');
+    else if (act === 'bingo') openBingo('title');
   });
-  $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
+  $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMBingo"><i>🎯</i>ビンゴ<em class="dot" id="bingoDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
   const tf = $('#ov-title .fine');
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
@@ -312,6 +338,11 @@ body.wide .fb{max-width:none}
       '<h2>📋 きょうのミッション</h2><div id="misList"></div><p class="fine" id="misBonus"></p>' +
       '<h3>⭐ スターロード</h3><div id="roadBox"></div>' +
       '<button class="big sec" id="bMisClose">とじる</button></div></div>' +
+    '<div class="ov" id="ov-bingo"><div class="card">' +
+      '<h2>🎯 セリフビンゴ</h2><p class="bg-sum" id="bgSum"></p><div class="bg-tabs" id="bgTabs"></div>' +
+      '<div class="bg-head" id="bgHead"></div><div class="bg-grid" id="bgGrid"></div>' +
+      '<div class="bg-det" id="bgDet"></div><button class="big mint" id="bBingoClaim" style="display:none"></button>' +
+      '<button class="big sec" id="bBingoClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-skins"><div class="card">' +
       '<h2>🎀 きせかえ</h2><canvas id="skCv"></canvas><p class="fine" id="skSum"></p><div class="skgrid" id="skGrid"></div>' +
       '<button class="big" id="bGacha"></button><button class="big sec" id="bSkClose">とじる</button></div></div>' +
@@ -342,7 +373,8 @@ Sound.nice = function () { if (this.ok()) [659.25, 987.77].forEach((f, i) => thi
 
 /* ================= 育成・経済（セーブに項目を足す。古いセーブもそのまま使える） ================= */
 // tut：見おわったチュートリアルの記録
-const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {} };
+const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {}, seenTalk: [], bingo: { card: 0, claimed: {} } };
+let seenTalkSet = new Set();
 function metaInit(force) {
   for (const k in META_DEF) {
     const d = META_DEF[k], v = save[k];
@@ -358,11 +390,251 @@ function metaInit(force) {
   save.scanT = Math.max(0, Math.floor(save.scanT) || 0);
   for (const k in save.best) if (!(+k >= 1 && +k <= TOTAL) || !save.best[k] || typeof save.best[k].t !== 'number') delete save.best[k];
   if (!Array.isArray(save.mis.list)) save.mis = JSON.parse(JSON.stringify(META_DEF.mis));
+  if (!Array.isArray(save.seenTalk)) save.seenTalk = [];
+  if (!save.bingo || typeof save.bingo !== 'object') save.bingo = { card: 0, claimed: {} };
+  if (!save.bingo.claimed || typeof save.bingo.claimed !== 'object') save.bingo.claimed = {};
+  save.bingo.card = clamp(Math.floor(save.bingo.card) || 0, 0, BINGO_CARDS.length - 1);
+  seenTalkSet = new Set(save.seenTalk);
   persist();
 }
 metaInit(false);
 G.waitIds = new Set();
 G.perk = perks(); G.spdMul = G.perk.speed;
+
+/* ================= セリフビンゴ：集計・判定・UI ================= */
+const BINGO_IDX = (() => {
+  const colorSet = new Set();
+  for (const t of TALK_COLOR) for (const cn of COLOR_NAME) colorSet.add(t.replace('{c}', cn));
+  const themeSets = {};
+  for (const k in TALK_THEME) themeSets[k] = new Set(TALK_THEME[k]);
+  for (const a of ARTS) {
+    const S = TALK_STAGE[a.n];
+    if (!S || !themeSets[a.t]) continue;
+    for (const grp of ['hi', 'p', 'c', 'j', 'q']) for (const s of S[grp]) themeSets[a.t].add(s);
+  }
+  const stageAll = {}, stageC = {}, stageQ = {}, stageJ = {};
+  const allC = new Set(), allQ = new Set(), allJ = new Set();
+  for (const k in TALK_STAGE) {
+    const S = TALK_STAGE[k];
+    stageAll[k] = new Set([...S.hi, ...S.p, ...S.c, ...S.j, ...S.q]);
+    stageC[k] = new Set(S.c);
+    stageQ[k] = new Set(S.q);
+    stageJ[k] = new Set(S.j);
+    S.c.forEach(s => allC.add(s));
+    S.q.forEach(s => allQ.add(s));
+    S.j.forEach(s => allJ.add(s));
+  }
+  const kindSets = {};
+  for (const k in TALK) kindSets[k] = new Set(TALK[k]);
+  const allTalk = new Set([...colorSet]);
+  Object.values(themeSets).forEach(st => st.forEach(s => allTalk.add(s)));
+  Object.values(stageAll).forEach(st => st.forEach(s => allTalk.add(s)));
+  Object.values(kindSets).forEach(st => st.forEach(s => allTalk.add(s)));
+  return { colorSet, themeSets, stageAll, stageC, stageQ, stageJ, allC, allQ, allJ, kindSets, totalTalk: allTalk.size };
+})();
+const KIND_LABEL = {
+  go: 'しゅつどう', pick: 'ひろった', lift: 'もちあげ', carry: 'はこび中', home: 'とうちゃく',
+  combo: 'コンボ', fever: 'フィーバー', gold: '金キャンディ', clear: 'クリア', star3: '★3クリア', jam: '渋滞', queen: '女王さま'
+};
+function countSetSeen(set) {
+  if (!set) return 0;
+  let n = 0;
+  for (const s of set) if (seenTalkSet.has(s)) n++;
+  return n;
+}
+function bingoCellInfo(cell) {
+  const tp = cell[0];
+  if (tp === 'F') return { label: 'FREE', sub: '🐜', detail: 'ボーナスFREEマス！最初から達成ずみだよ', cur: 1, max: 1, done: true, free: true };
+  if (tp === 'T') {
+    const max = cell[1], cur = Math.min(seenTalkSet.size, max);
+    return { label: 'セリフ計', sub: max + '種', detail: '表示されたセリフを合計 ' + max + '種類 見る（いま ' + seenTalkSet.size + ' / ' + max + '）', cur, max, done: seenTalkSet.size >= max };
+  }
+  if (tp === 'C') {
+    const max = cell[1], raw = countSetSeen(BINGO_IDX.colorSet), cur = Math.min(raw, max);
+    return { label: '色セリフ', sub: max + '種', detail: '色名入りのセリフを ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'S') {
+    const k = cell[1], max = cell[2], raw = countSetSeen(BINGO_IDX.stageAll[k]), cur = Math.min(raw, max);
+    return { label: k, sub: cur + '/' + max, detail: '「' + k + '」の専用セリフを ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'Sc') {
+    const k = cell[1], max = cell[2], raw = countSetSeen(BINGO_IDX.stageC[k]), cur = Math.min(raw, max);
+    return { label: k + '🎉', sub: cur + '/' + max, detail: '「' + k + '」のクリア時セリフを ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'Sq') {
+    const k = cell[1], max = cell[2], raw = countSetSeen(BINGO_IDX.stageQ[k]), cur = Math.min(raw, max);
+    return { label: k + '👑', sub: cur + '/' + max, detail: '「' + k + '」選択中・クリア後の女王さまセリフを ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'Sj') {
+    const k = cell[1], max = cell[2], raw = countSetSeen(BINGO_IDX.stageJ[k]), cur = Math.min(raw, max);
+    return { label: k + '💦', sub: cur + '/' + max, detail: '「' + k + '」の渋滞時セリフを ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'G') {
+    const k = cell[1], max = cell[2], raw = countSetSeen(BINGO_IDX.themeSets[k]), cur = Math.min(raw, max);
+    return { label: k, sub: cur + '/' + max, detail: '「' + k + '」ジャンルのセリフを ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'K') {
+    const k = cell[1], max = cell[2], raw = countSetSeen(BINGO_IDX.kindSets[k]), cur = Math.min(raw, max);
+    const lbl = KIND_LABEL[k] || k;
+    return { label: lbl, sub: cur + '/' + max, detail: '「' + lbl + '」の場面セリフを ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'AC') {
+    const max = cell[1], raw = countSetSeen(BINGO_IDX.allC), cur = Math.min(raw, max);
+    return { label: '専用🎉', sub: cur + '/' + max, detail: '各ステージ専用のクリア時セリフを合計 ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'AQ') {
+    const max = cell[1], raw = countSetSeen(BINGO_IDX.allQ), cur = Math.min(raw, max);
+    return { label: '専用👑', sub: cur + '/' + max, detail: '各ステージ専用の女王さまセリフを合計 ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  if (tp === 'AJ') {
+    const max = cell[1], raw = countSetSeen(BINGO_IDX.allJ), cur = Math.min(raw, max);
+    return { label: '専用💦', sub: cur + '/' + max, detail: '各ステージ専用の渋滞時セリフを合計 ' + max + '種類 見る（いま ' + raw + ' / ' + max + '）', cur, max, done: raw >= max };
+  }
+  return { label: '?', sub: '', detail: '', cur: 0, max: 1, done: false };
+}
+function bingoCardStatus(card) {
+  const cells = card.cells.map(bingoCellInfo);
+  const cl = save.bingo.claimed[card.id] || { lines: [], comp: false };
+  const claimedSet = new Set(Array.isArray(cl.lines) ? cl.lines : []);
+  const lineDone = BINGO_LINES.map(ln => ln.every(idx => cells[idx].done));
+  const lineCount = lineDone.filter(Boolean).length;
+  const allDone = lineCount === BINGO_LINES.length;
+  const unclaimedLines = [];
+  for (let i = 0; i < BINGO_LINES.length; i++) if (lineDone[i] && !claimedSet.has(i)) unclaimedLines.push(i);
+  const unclaimedComp = allDone && !cl.comp;
+  const inBingo = new Array(25).fill(false);
+  lineDone.forEach((ok, li) => { if (ok) BINGO_LINES[li].forEach(idx => { inBingo[idx] = true; }); });
+  return { cells, lineDone, lineCount, allDone, unclaimedLines, unclaimedComp, hasReward: unclaimedLines.length > 0 || unclaimedComp, inBingo, compClaimed: !!cl.comp };
+}
+function bingoSummary() {
+  let lines = 0, comp = 0, ready = 0;
+  for (const card of BINGO_CARDS) {
+    const st = bingoCardStatus(card);
+    lines += st.lineCount;
+    if (st.allDone) comp++;
+    if (st.hasReward) ready++;
+  }
+  return { lines, totalLines: BINGO_CARDS.length * 12, comp, totalCards: BINGO_CARDS.length, ready };
+}
+function fmtReward(r) {
+  const p = [];
+  if (r.c) p.push('🪙' + r.c);
+  if (r.f) p.push('🍬' + r.f);
+  if (r.h) p.push('💡' + r.h);
+  if (r.s) p.push('🔍' + r.s);
+  if (r.t) p.push('🎟️' + r.t);
+  return p.join('＋');
+}
+function grantReward(r) {
+  if (r.c) save.coins += r.c;
+  if (r.f) save.food += r.f;
+  if (r.h) save.hintT += r.h;
+  if (r.s) save.scanT += r.s;
+  if (r.t) save.tickets += r.t;
+}
+let lastBingoToast = 0;
+window.isTalkSeen = text => seenTalkSet.has(text);
+window.onTalkShown = text => {
+  if (!text || seenTalkSet.has(text)) return;
+  seenTalkSet.add(text);
+  save.seenTalk.push(text);
+  const dot = $('#bingoDot');
+  let hasAny = false;
+  for (const card of BINGO_CARDS) if (bingoCardStatus(card).hasReward) { hasAny = true; break; }
+  if (dot) dot.classList.toggle('on', hasAny);
+  if (hasAny && Date.now() - lastBingoToast > 6000) {
+    lastBingoToast = Date.now();
+    toast('🎯 セリフビンゴ達成！ホームの「ビンゴ」で報酬をうけとろう！', 3000);
+  }
+  persist();
+};
+let bingoSelCell = null;
+function openBingo(from) {
+  G.metaFrom = from;
+  bingoSelCell = null;
+  renderBingo();
+  showOv('bingo');
+}
+function renderBingo() {
+  const sum = bingoSummary(), totT = BINGO_IDX.totalTalk, pct = totT ? (Math.floor(1000 * seenTalkSet.size / totT) / 10).toFixed(1) : '0.0';
+  $('#bgSum').innerHTML = 'みたセリフ：<b>' + seenTalkSet.size + '</b>/' + totT + '（' + pct + '%） ／ 達成：<b>' + sum.lines + '</b>/' + sum.totalLines + ' ライン ／ コンプ：<b>' + sum.comp + '</b>/' + sum.totalCards + ' 枚';
+  const tabs = $('#bgTabs');
+  tabs.innerHTML = '';
+  BINGO_CARDS.forEach((c, idx) => {
+    const st = bingoCardStatus(c);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'bg-tab' + (idx === save.bingo.card ? ' on' : '') + (st.allDone ? ' done' : '');
+    b.innerHTML = (st.allDone ? '★' : '') + c.num + (st.hasReward ? '<i></i>' : '');
+    b.addEventListener('click', () => {
+      save.bingo.card = idx;
+      bingoSelCell = null;
+      persist();
+      Sound.tap();
+      renderBingo();
+    });
+    tabs.appendChild(b);
+  });
+  const card = BINGO_CARDS[save.bingo.card] || BINGO_CARDS[0];
+  const st = bingoCardStatus(card);
+  $('#bgHead').innerHTML =
+    '<div class="bg-head-t"><span>No.' + card.num + ' ' + card.title + '</span><span>' + (st.allDone ? '👑 コンプリート！' : st.lineCount + ' / 12 ライン') + '</span></div>' +
+    '<div class="bg-head-d">' + card.desc + '</div>' +
+    '<div class="bg-head-r">1ライン：' + fmtReward(card.lineR) + ' ｜ 全達成：' + fmtReward(card.compR) + '</div>';
+  const grid = $('#bgGrid');
+  grid.innerHTML = '';
+  st.cells.forEach((ci, idx) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'bg-c' + (ci.done ? ' done' : '') + (st.inBingo[idx] ? ' bingo' : '') + (ci.free ? ' free' : '') + (bingoSelCell === idx ? ' sel' : '');
+    b.innerHTML = (ci.done ? '<em>✅</em>' : '') + '<b>' + ci.label + '</b><span>' + ci.sub + '</span>';
+    b.addEventListener('click', () => {
+      bingoSelCell = idx;
+      Sound.tap();
+      renderBingo();
+    });
+    grid.appendChild(b);
+  });
+  const det = $('#bgDet');
+  if (bingoSelCell != null && st.cells[bingoSelCell]) {
+    const ci = st.cells[bingoSelCell];
+    det.innerHTML = '<div>' + (ci.done ? '✅ ' : '▫️ ') + ci.detail + '</div><div class="abar"><i style="width:' + clamp(100 * ci.cur / ci.max, 0, 100) + '%"></i></div>';
+  } else {
+    det.innerHTML = '<div>マスをタップすると達成条件が見られるよ！いろいろなステージや女王さまのセリフを集めよう</div>';
+  }
+  const btn = $('#bBingoClaim');
+  if (st.hasReward) {
+    const tot = { c: 0, f: 0, h: 0, s: 0, t: 0 };
+    const addR = r => { tot.c += r.c || 0; tot.f += r.f || 0; tot.h += r.h || 0; tot.s += r.s || 0; tot.t += r.t || 0; };
+    st.unclaimedLines.forEach(() => addR(card.lineR));
+    if (st.unclaimedComp) addR(card.compR);
+    btn.style.display = 'block';
+    btn.textContent = '🎁 ' + (st.unclaimedLines.length ? st.unclaimedLines.length + 'ライン' : '') + (st.unclaimedComp ? (st.unclaimedLines.length ? '＋' : '') + 'コンプリート' : '') + '報酬をうけとる！（' + fmtReward(tot) + '）';
+  } else {
+    btn.style.display = 'none';
+  }
+  const dot = $('#bingoDot');
+  if (dot) dot.classList.toggle('on', sum.ready > 0);
+}
+function claimBingo() {
+  const card = BINGO_CARDS[save.bingo.card] || BINGO_CARDS[0];
+  const st = bingoCardStatus(card);
+  if (!st.hasReward) return;
+  const cl = save.bingo.claimed[card.id] || { lines: [], comp: false };
+  if (!Array.isArray(cl.lines)) cl.lines = [];
+  const tot = { c: 0, f: 0, h: 0, s: 0, t: 0 };
+  const addR = r => { tot.c += r.c || 0; tot.f += r.f || 0; tot.h += r.h || 0; tot.s += r.s || 0; tot.t += r.t || 0; };
+  st.unclaimedLines.forEach(li => { if (cl.lines.indexOf(li) < 0) cl.lines.push(li); grantReward(card.lineR); addR(card.lineR); });
+  if (st.unclaimedComp) { cl.comp = true; grantReward(card.compR); addR(card.compR); }
+  save.bingo.claimed[card.id] = cl;
+  persist();
+  Sound.fanfare();
+  haptic(20);
+  Fx.burst(innerWidth / 2, innerHeight * 0.35, 70, 420, ['star', 'conf', 'dot']);
+  toast('🎯 ビンゴ報酬ゲット！ ' + fmtReward(tot), 3200);
+  updateCoins(true);
+  renderBingo();
+}
 
 function dayKey(off) { const d = new Date(); d.setDate(d.getDate() + (off || 0)); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -916,11 +1188,16 @@ function renderTitle() {
   const el = $('#titleInfo');
   if (!el) return;
   misCheck();
-  const qs = queenStatus(), ts = totalStars(), got = gotCount(), lv = save.qlv, maxQ = lv >= Q_MAX;
+  const qs = queenStatus(), ts = totalStars(), got = gotCount(), lv = save.qlv, maxQ = lv >= Q_MAX, bg = bingoSummary();
+  const talkCur = seenTalkSet.size, talkTot = BINGO_IDX.totalTalk;
+  const talkPct = talkTot ? clamp(100 * talkCur / talkTot, 0, 100) : 0;
+  const talkPctStr = (Math.floor(talkPct * 10) / 10).toFixed(1);
   const need = qNeed(lv), qPct = maxQ ? 100 : clamp(100 * save.qexp / need, 0, 100);
-  el.innerHTML = '<span>🪙 ' + save.coins + '</span><button type="button" class="tinfo-btn" data-hub="mis">⭐ ' + ts + '</button><button type="button" class="tinfo-btn" data-hub="queen">👑 Lv.' + lv + '</button>' + (save.tickets > 0 ? '<span>🎟️ ' + save.tickets + '</span>' : '');
+  el.innerHTML = '<span>🪙 ' + save.coins + '</span><button type="button" class="tinfo-btn" data-hub="mis">⭐ ' + ts + '</button><button type="button" class="tinfo-btn" data-hub="queen">👑 Lv.' + lv + '</button><button type="button" class="tinfo-btn" data-hub="bingo">💬 ' + talkCur + '/' + talkTot + '</button>' + (save.tickets > 0 ? '<span>🎟️ ' + save.tickets + '</span>' : '');
   $('#misDot').classList.toggle('on', save.mis.list.some(m => !m.done));
   $('#queenDot').classList.toggle('on', qs.canUnlock);
+  const bDot = $('#bingoDot');
+  if (bDot) bDot.classList.toggle('on', bg.ready > 0);
 
   const hub = $('#homeHub');
   if (!hub) return;
@@ -954,11 +1231,16 @@ function renderTitle() {
       '<div class="abar"><i style="width:' + qPct + '%"></i></div>' +
       '<div class="hub-sub">' + qSub + '</div>' +
     '</button>' +
+    '<button type="button" class="hub-qbtn" data-hub="bingo" style="margin-top:6px">' +
+      '<div class="hub-q"><b>💬 表示セリフ達成度</b><span class="hq-food' + (bg.ready > 0 ? ' ready' : '') + '">' + talkCur + ' / ' + talkTot + '（' + talkPctStr + '%）</span></div>' +
+      '<div class="abar"><i style="width:' + talkPct + '%"></i></div>' +
+      '<div class="hub-sub">🎯 ビンゴ：' + bg.lines + ' / ' + bg.totalLines + ' ライン（コンプ ' + bg.comp + '/' + bg.totalCards + ' 枚）' + (bg.ready > 0 ? ' ✨ 報酬うけとり可！' : '') + '</div>' +
+    '</button>' +
     '<div class="hub-grid">' +
       '<button type="button" class="hub-chip" data-hub="mis"><span>📋 ミッション</span><b>' + misDone + ' / 3</b></button>' +
+      '<button type="button" class="hub-chip" data-hub="bingo"><span>🎯 セリフビンゴ</span><b>' + bg.lines + ' / ' + bg.totalLines + '</b></button>' +
       '<button type="button" class="hub-chip" data-hub="album"><span>📒 アルバム</span><b>' + got + ' / ' + TOTAL + '</b></button>' +
       '<button type="button" class="hub-chip" data-hub="skin"><span>' + sk.e + ' ' + sk.n + '</span><b>' + save.skins.length + '/' + SKINS.length + '</b></button>' +
-      '<button type="button" class="hub-chip" data-hub="mis"><span>⭐ スターロード</span><b>' + ts + ' / ' + nxtStar + '</b></button>' +
     '</div>' +
     '<button type="button" class="hub-toggle" data-hub="toggle"><span>' + (isOpen ? '📊 くわしい情報をとじる' : '📊 コロニー・進行状況をもっと見る') + '</span><i class="hub-arr">▼</i></button>' +
     '<div class="hub-detail">' +
@@ -966,6 +1248,10 @@ function renderTitle() {
         '<div class="hub-sec-h"><span>👑 女王さまの育成</span><button type="button" class="hub-go" data-hub="queen">へやへ ▶</button></div>' +
         '<div class="hub-line">コインボーナス：<b>+' + (lv - 1) * 2 + '%</b> ／ おへや：<b>' + roomsOn + '/' + ROOMS.length + '</b> ／ 特技：<b>' + perksOn + '/' + Q_PERKS.length + '</b></div>' +
         (qs.nextUnlock ? '<div class="hub-line">つぎの解放：Lv.' + qs.nextUnlock.lv + '「' + qs.nextUnlock.label + '」（あと🍬' + qs.toUnlock + '）</div>' : '') +
+      '</div>' +
+      '<div class="hub-sec">' +
+        '<div class="hub-sec-h"><span>🎯 セリフビンゴ</span><button type="button" class="hub-go" data-hub="bingo">カードへ ▶</button></div>' +
+        '<div class="hub-line">みたセリフ：<b>' + talkCur + ' / ' + talkTot + ' 種類（' + talkPctStr + '%）</b> ／ 達成ライン：<b>' + bg.lines + ' / ' + bg.totalLines + '</b>（コンプ ' + bg.comp + '/' + bg.totalCards + ' 枚）</div>' +
       '</div>' +
       '<div class="hub-sec">' +
         '<div class="hub-sec-h"><span>📋 きょうのミッション</span><button type="button" class="hub-go" data-hub="mis">くわしく ▶</button></div>' +
@@ -2072,7 +2358,7 @@ window.addEventListener('keydown', e => {
   if (G.overlay) {
     if (k === 'escape') {
       if (['settings', 'album', 'dev', 'view'].includes(G.overlay)) back();
-      else if (['colony', 'missions', 'skins'].includes(G.overlay)) closeMeta();
+      else if (['colony', 'missions', 'skins', 'bingo'].includes(G.overlay)) closeMeta();
     }
     return;
   }
@@ -2131,6 +2417,7 @@ on('#bAlbumHome', () => { Sound.init(); showOv('title'); });
 on('#coinPill', () => { if (!G.overlay) { Sound.init(); showOv('title'); } });
 on('#bMQueen', () => { Sound.init(); openColony('title'); });
 on('#bMMis', () => { Sound.init(); openMissions('title'); });
+on('#bMBingo', () => { Sound.init(); openBingo('title'); });
 on('#bMSkin', () => { Sound.init(); openSkins('title'); });
 on('#bClearQueen', () => openColony('clear'));
 on('#bFeed', () => doFeed(false));
@@ -2138,6 +2425,8 @@ on('#bFeedAll', () => doFeed(true));
 on('#qCv', () => { G.qBounce = 1; Sound.squeak(); $('#qSay').textContent = '👑「' + talkLine('queen') + '」'; });
 on('#bQClose', closeMeta);
 on('#bMisClose', closeMeta);
+on('#bBingoClose', closeMeta);
+on('#bBingoClaim', () => { Sound.init(); claimBingo(); });
 on('#bSkClose', closeMeta);
 on('#bGacha', () => { Sound.init(); doGacha(); });
 on('#bDayOk', () => {
