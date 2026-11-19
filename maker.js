@@ -118,12 +118,12 @@
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
   const mkHistory = [];
   let mkCol = 0, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
-  let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '', mkDiff = 2;
+  let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '', mkDiff = 2, mkGenIdx = 0;
   const STAGE_DIFFS = {
-    1: { label: 'かんたん', short: '🌱 かんたん', hint: '3列・おやすみ少なめでのんびり遊べるよ', paramId: 2, stars: 1 },
-    2: { label: 'ふつう', short: '⭐ ふつう', hint: '3列・標準のバランスだよ', paramId: 5, stars: 2 },
-    3: { label: 'むずかしい', short: '🔥 むずかしい', hint: '3列・先読みがカギ！色を交互の層にするとさらに難化', paramId: 15, stars: 4 },
-    4: { label: 'げきむず', short: '💀 げきむず', hint: '4列・おやすみ多め！上級者向けの歯ごたえ配置', paramId: 30, stars: 5 }
+    1: { label: 'かんたん', short: '🌱 かんたん', stars: 1 },
+    2: { label: 'ふつう', short: '⭐ ふつう', stars: 2 },
+    3: { label: 'むずかしい', short: '🔥 むずかしい', stars: 4 },
+    4: { label: 'げきむず', short: '💀 げきむず', stars: 5 }
   };
   function clampDiff(d) { const n = Number(d) | 0; return (n >= 1 && n <= 4) ? n : 2; }
   const UID_KEY = 'antflow-anon-name-v1';
@@ -230,7 +230,7 @@
     const n = normalizeCustomTalk(t);
     return n ? n.hi.length + n.p.length + n.c.length + n.j.length + n.q.length : 0;
   }
-  function encodeStageMeta(talk, bgmToken, allowRemix, diff) {
+  function encodeStageMeta(talk, bgmToken, allowRemix, diff, genIdx) {
     const o = {};
     const ct = compactTalkObj(talk);
     if (ct) o.t = ct;
@@ -238,23 +238,26 @@
     if (allowRemix) o.r = 1;
     const d = clampDiff(diff);
     if (d !== 2) o.d = d;
+    const g = Number(genIdx) | 0;
+    if (g > 0) o.g = g;
     return Object.keys(o).length ? o : null;
   }
   function decodeStageMeta(obj) {
-    if (!obj || typeof obj !== 'object') return { talk: null, bgmToken: '', allowRemix: false, diff: 2 };
+    if (!obj || typeof obj !== 'object') return { talk: null, bgmToken: '', allowRemix: false, diff: 2, genIdx: 0 };
     if (obj.hi || obj.p || obj.c || obj.j || obj.q) {
-      return { talk: normalizeCustomTalk(obj), bgmToken: '', allowRemix: false, diff: 2 };
+      return { talk: normalizeCustomTalk(obj), bgmToken: '', allowRemix: false, diff: 2, genIdx: 0 };
     }
     const talk = normalizeCustomTalk(obj.t);
     const bgmToken = (typeof obj.b === 'string' && /^[A-Za-z0-9_-]+$/.test(obj.b)) ? obj.b : '';
     const allowRemix = !!obj.r;
     const diff = clampDiff(obj.d);
-    return { talk, bgmToken, allowRemix, diff };
+    const genIdx = Math.max(0, Number(obj.g) | 0);
+    return { talk, bgmToken, allowRemix, diff, genIdx };
   }
-  function encodeCustomStageV1(name, grid, w, h, talk, bgmToken, allowRemix, diff) {
+  function encodeCustomStageV1(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx) {
     const W = w || mkW, H = h || mkH;
     const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
-    const meta = encodeStageMeta(talk, bgmToken, allowRemix, diff);
+    const meta = encodeStageMeta(talk, bgmToken, allowRemix, diff, genIdx);
     const tb = meta ? new TextEncoder().encode(JSON.stringify(meta)) : new Uint8Array(0);
     const runs = [];
     let i = 0;
@@ -287,13 +290,13 @@
     bytes.set(runs, 4 + nb.length);
     return toB64Url(bytes);
   }
-  async function encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff) {
-    const v1 = encodeCustomStageV1(name, grid, w, h, talk, bgmToken, allowRemix, diff);
+  async function encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx) {
+    const v1 = encodeCustomStageV1(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx);
     if (typeof CompressionStream !== 'function') return v1;
     try {
       const W = w || mkW, H = h || mkH;
       const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
-      const meta = encodeStageMeta(talk, bgmToken, allowRemix, diff);
+      const meta = encodeStageMeta(talk, bgmToken, allowRemix, diff, genIdx);
       const tb = meta ? new TextEncoder().encode(JSON.stringify(meta)) : new Uint8Array(0);
       if (tb.length > 0 && tb.length <= 65535) {
         const raw = new Uint8Array(5 + nb.length + tb.length + grid.length);
@@ -350,7 +353,7 @@
         let total = 0;
         for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
         if (total < 4) return null;
-        return { W, H, grid, name, theme: 'オリジナル', talk: null, bgmToken: '', bgm: null, allowRemix: false, diff: 2, token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: null, bgmToken: '', bgm: null, allowRemix: false, diff: 2, genIdx: 0, token };
       }
       if (ver === 4) {
         const W = bytes[1], H = bytes[2], nLen = bytes[3];
@@ -359,7 +362,7 @@
         const tLen = bytes[4 + nLen] | (bytes[5 + nLen] << 8);
         const tStart = 6 + nLen, tEnd = tStart + tLen;
         if (tEnd >= bytes.length) return null;
-        let meta = { talk: null, bgmToken: '', allowRemix: false, diff: 2 };
+        let meta = { talk: null, bgmToken: '', allowRemix: false, diff: 2, genIdx: 0 };
         if (tLen > 0) {
           try { meta = decodeStageMeta(JSON.parse(new TextDecoder().decode(bytes.slice(tStart, tEnd)))); } catch (e) { return null; }
         }
@@ -375,7 +378,7 @@
         for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
         if (total < 4) return null;
         const bgm = (meta.bgmToken && window.AF_bgmTools) ? window.AF_bgmTools.decodeBgm(meta.bgmToken) : null;
-        return { W, H, grid, name, theme: 'オリジナル', talk: meta.talk, bgmToken: meta.bgmToken, bgm, allowRemix: meta.allowRemix, diff: meta.diff, token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: meta.talk, bgmToken: meta.bgmToken, bgm, allowRemix: meta.allowRemix, diff: meta.diff, genIdx: meta.genIdx || 0, token };
       }
       if (ver === 2) {
         if (typeof DecompressionStream !== 'function') return null;
@@ -394,7 +397,7 @@
           if (val >= 0) total++;
         }
         if (total < 4) return null;
-        return { W, H, grid, name, theme: 'オリジナル', talk: null, bgmToken: '', bgm: null, allowRemix: false, diff: 2, token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: null, bgmToken: '', bgm: null, allowRemix: false, diff: 2, genIdx: 0, token };
       }
       if (ver === 3) {
         if (typeof DecompressionStream !== 'function') return null;
@@ -406,7 +409,7 @@
         const tLen = raw[3 + nLen] | (raw[4 + nLen] << 8);
         const tStart = 5 + nLen, off = tStart + tLen;
         if (raw.length !== off + W * H) return null;
-        let meta = { talk: null, bgmToken: '', allowRemix: false, diff: 2 };
+        let meta = { talk: null, bgmToken: '', allowRemix: false, diff: 2, genIdx: 0 };
         if (tLen > 0) {
           try { meta = decodeStageMeta(JSON.parse(new TextDecoder().decode(raw.slice(tStart, off)))); } catch (e) { return null; }
         }
@@ -420,13 +423,13 @@
         }
         if (total < 4) return null;
         const bgm = (meta.bgmToken && window.AF_bgmTools) ? window.AF_bgmTools.decodeBgm(meta.bgmToken) : null;
-        return { W, H, grid, name, theme: 'オリジナル', talk: meta.talk, bgmToken: meta.bgmToken, bgm, allowRemix: meta.allowRemix, diff: meta.diff, token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: meta.talk, bgmToken: meta.bgmToken, bgm, allowRemix: meta.allowRemix, diff: meta.diff, genIdx: meta.genIdx || 0, token };
       }
       return null;
     } catch (e) { return null; }
   }
-  async function stageShareUrl(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff) {
-    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff);
+  async function stageShareUrl(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff, genIdx) {
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx);
     return location.origin + location.pathname + '?stage=' + token;
   }
   function extractStageToken(input) {
@@ -439,43 +442,103 @@
   }
 
   /* ---- パズル生成してプレイ開始 ---- */
-  function buildCustomPuzzle(art) {
+  function genCustomConfig(art, genIdx) {
     let total = 0;
     for (const v of art.grid) if (v >= 0) total++;
     if (total < 4) return null;
-    const diff = clampDiff(art.diff), di = STAGE_DIFFS[diff];
-    const P = params(di.paramId, total);
-    let c = null;
-    const tries = diff >= 3 ? 4 : 1;
-    for (let k = 0; k < tries; k++) {
-      const rng = mulberry32(hashInt(total, (art.name || 'オリジナル').length + 77 + k * 31));
-      c = construct(art, P, rng);
-      if (tries === 1) break;
-      const testL = { W: art.W, H: art.H, grid: art.grid, cols: c.cols, total };
-      let naive = false;
-      for (const f of [polLeft, polRight, polComplete, polMost]) if (playout(testL, f, null)) { naive = true; break; }
-      if (!naive) break;
+    const idx = Math.max(0, Number(genIdx) | 0);
+    if (idx === 0) {
+      const P = params(30, total);
+      return { total, idx: 0, P, Q: P, seed: hashInt(total, (art.name || 'オリジナル').length + 77) };
     }
-    return { total, diff, di, P, c };
+    const baseId = (idx % 2 === 1) ? 15 : 30;
+    const P = params(baseId, total);
+    const esc = Math.min(idx >> 1, 8) * 0.04;
+    const Q = Object.assign({}, P, {
+      pPartial: Math.min(0.6, P.pPartial + esc),
+      pWait: Math.min(0.55, P.pWait + esc * 0.6),
+      pChain: Math.min(0.95, P.pChain + esc)
+    });
+    const seed = hashInt(total, (art.name || 'オリジナル').length + 77 + idx * 31);
+    return { total, idx, P, Q, seed };
+  }
+  function buildCustomPuzzle(art) {
+    const cfg = genCustomConfig(art, art.genIdx || 0);
+    if (!cfg) return null;
+    const diff = clampDiff(art.diff), di = STAGE_DIFFS[diff];
+    const c = construct(art, cfg.Q, mulberry32(cfg.seed));
+    return { total: cfg.total, diff, di, P: cfg.P, c, genIdx: cfg.idx };
+  }
+  const aiBestCache = new Map();
+  function findHardestConfigAsync(art) {
+    return new Promise(resolve => {
+      let total = 0;
+      for (const v of art.grid) if (v >= 0) total++;
+      if (total < 4) { resolve(null); return; }
+      const key = stageContentHash(art.grid, art.W, art.H);
+      if (aiBestCache.has(key)) { resolve(aiBestCache.get(key)); return; }
+      const t0 = Date.now(), limit = Math.min(1600, 600 + total * 1.2);
+      let idx = 0, best = null;
+      const step = () => {
+        const ts = Date.now();
+        for (;;) {
+          const cfg = genCustomConfig(art, idx);
+          const c = construct(art, cfg.Q, mulberry32(cfg.seed));
+          const L = { W: art.W, H: art.H, grid: art.grid, cols: c.cols, total: cfg.total };
+          const m = evaluate(L, cfg.P, hashInt(cfg.total, idx + 1007));
+          if (!best || m.score < best.m.score) best = { idx, cfg, c, L, m };
+          idx++;
+          if (idx >= 14 || Date.now() - t0 > limit || (best.m.ok && best.m.outer === 0 && best.m.random === 0)) {
+            const runs = cfg.total > 1200 ? 6 : 10;
+            const rng = mulberry32(hashInt(cfg.total, 1007 + best.idx));
+            const o = winRate(best.L, polOuter, rng, runs, runs);
+            const r = winRate(best.L, polRandom, rng, runs, runs);
+            const outerPct = Math.round(o.rate * 100), randPct = Math.round(r.rate * 100);
+            let diff = 2;
+            if (best.m.naive > 0) diff = 1;
+            else if (outerPct === 0 && randPct === 0) diff = 4;
+            else if (best.m.ok || (outerPct <= 25 && randPct <= 20)) diff = 3;
+            else if (outerPct <= 55) diff = 2;
+            else diff = 1;
+            const boxCnt = best.c.cols.reduce((a, col) => a + col.length, 0);
+            const res = {
+              diff,
+              genIdx: best.idx,
+              naive: best.m.naive,
+              outerPct,
+              randPct,
+              boxCnt,
+              colCnt: best.c.cols.length
+            };
+            aiBestCache.set(key, res);
+            resolve(res);
+            return;
+          }
+          if (Date.now() - ts > 25) break;
+        }
+        setTimeout(step, 0);
+      };
+      setTimeout(step, 12);
+    });
   }
   function loadCustomLevel(art) {
     const built = buildCustomPuzzle(art);
     if (!built) { toast('キャンディを4マス以上おいてね！'); return; }
-    const { total, diff, di, c } = built;
+    const { total, diff, di, c, genIdx } = built;
     const baseUrl = location.origin + location.pathname + '?stage=';
     const talk = normalizeCustomTalk(art.talk);
     const bgmToken = art.bgmToken || '';
     const customBgm = art.bgm || (bgmToken && window.AF_bgmTools ? window.AF_bgmTools.decodeBgm(bgmToken) : null);
-    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix, diff));
+    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix, diff, genIdx));
     const L = {
-      id: 0, custom: true, art: Object.assign({}, art, { diff }), shareUrl,
+      id: 0, custom: true, art: Object.assign({}, art, { diff, genIdx }), shareUrl,
       name: art.name || 'オリジナル', theme: 'オリジナル',
       customTalk: talk, customBgm,
       W: art.W, H: art.H, grid: art.grid, cols: c.cols, solution: c.solution, total,
       metrics: { stars: di.stars }
     };
     if (!art.token) {
-      stageShareUrl(art.name, art.grid, art.W, art.H, null, talk, bgmToken, art.allowRemix, diff).then(u => {
+      stageShareUrl(art.name, art.grid, art.W, art.H, null, talk, bgmToken, art.allowRemix, diff, genIdx).then(u => {
         L.shareUrl = u;
         if (G.lastShare && G.lastShare.custom) G.lastShare.url = u;
       });
@@ -629,9 +692,9 @@
   function loadMyStages() {
     try { return JSON.parse(localStorage.getItem(MY_KEY) || '[]'); } catch (e) { return []; }
   }
-  async function saveMyStage(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff) {
+  async function saveMyStage(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff, genIdx) {
     const list = loadMyStages();
-    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff);
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx);
     const filtered = list.filter(x => x.token !== token);
     filtered.unshift({ name, w, h, token, at: Date.now() });
     if (filtered.length > 20) filtered.length = 20;
@@ -653,10 +716,10 @@
       if (v >= 0) { g.fillStyle = HEX[v]; g.fillRect(2 + x * c, 2 + y * c, c + 0.3, c + 0.3); }
     }
   }
-  async function shareStageArt(name, grid, w, h, talk, preToken, bgmToken, allowRemix, diff) {
-    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff);
-    await saveMyStage(name, grid, w, h, token, talk, bgmToken, allowRemix, diff);
-    const url = await stageShareUrl(name, grid, w, h, token, talk, bgmToken, allowRemix, diff);
+  async function shareStageArt(name, grid, w, h, talk, preToken, bgmToken, allowRemix, diff, genIdx) {
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx);
+    await saveMyStage(name, grid, w, h, token, talk, bgmToken, allowRemix, diff, genIdx);
+    const url = await stageShareUrl(name, grid, w, h, token, talk, bgmToken, allowRemix, diff, genIdx);
     const text = 'アントフローでオリジナルステージ「' + name + '」を作ったよ！遊んでみてね🐜🍬\n#アントフロー';
     if (navigator.share) {
       try {
@@ -872,7 +935,7 @@
           e.stopPropagation();
           e.preventDefault();
           Sound.tap();
-          await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token, art.bgmToken, art.allowRemix, art.diff);
+          await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token, art.bgmToken, art.allowRemix, art.diff, art.genIdx);
         });
         acts.appendChild(sh);
       }
@@ -1190,14 +1253,8 @@
       '</div>' +
       '</div>' +
       '<div class="mkdiff">' +
-      '<div class="mkdiff-h"><span>🎯 むずかしさ</span><button type="button" class="mkai-btn" id="bMkEval">🤖 AIでむずかしさ測定</button></div>' +
-      '<div class="mkdiff-btns">' +
-      '<button type="button" class="mkd" data-d="1">🌱 かんたん</button>' +
-      '<button type="button" class="mkd on" data-d="2">⭐ ふつう</button>' +
-      '<button type="button" class="mkd" data-d="3">🔥 むずかしい</button>' +
-      '<button type="button" class="mkd" data-d="4">💀 げきむず</button>' +
-      '</div>' +
-      '<div id="mkDiffHint" style="font-size:9.5px;color:#8a6578;font-weight:700;margin-top:4px">3列・標準のバランスだよ</div>' +
+      '<div class="mkdiff-h"><span>🤖 むずかしさ（AI自動設定）</span><button type="button" class="mkai-btn" id="bMkEval">🤖 AIで測定する</button></div>' +
+      '<div id="mkDiffHint" style="font-size:10px;color:#8a6578;font-weight:700;line-height:1.45">あそぶ・シェア・投稿のときに、AIがこの絵で作れる一番難しい箱配置を自動で選び、むずかしさ表記をつけます。</div>' +
       '<div class="mkai-res" id="mkAiRes" style="display:none"></div>' +
       '</div>' +
       '<label class="mkperm"><input type="checkbox" id="mkAllowRemix"> ✏️ 他の人がこのステージをアレンジしてOK</label>' +
@@ -1556,60 +1613,35 @@
       if (save.settings.bgm) Sound.startBgm();
       showOv('maker');
     });
-    function clearAiRes() {
-      const r = $('#mkAiRes');
-      if (r) { r.style.display = 'none'; r.innerHTML = ''; }
+    function showAiRes(res) {
+      const resEl = $('#mkAiRes');
+      if (!resEl || !res) return;
+      const di = STAGE_DIFFS[clampDiff(res.diff)];
+      const tip = res.diff <= 2 ? '<div style="margin-top:3px;color:#8a6578">💡 もっと難しくしたいときは、色を3〜4色以上に増やすか、外と内で別の色を混ぜてみてね！</div>' : '';
+      resEl.style.display = 'block';
+      resEl.innerHTML =
+        '<b>' + di.short + '（AI自動判定）</b>' +
+        '<span>クリア可能 ✅（' + res.boxCnt + '箱・' + res.colCnt + '列）｜外側AI勝率 ' + res.outerPct + '%｜適当AI勝率 ' + res.randPct + '%</span>' + tip;
     }
-    function refreshDiffUI() {
-      const di = STAGE_DIFFS[clampDiff(mkDiff)];
-      document.querySelectorAll('.mkd').forEach(b => b.classList.toggle('on', Number(b.dataset.d) === clampDiff(mkDiff)));
-      if ($('#mkDiffHint')) $('#mkDiffHint').textContent = di.hint;
+    async function ensureAiBest(name) {
+      const art = { W: mkW, H: mkH, grid: mkGrid.slice(), name: name || 'オリジナル' };
+      const res = await findHardestConfigAsync(art);
+      if (!res) return null;
+      mkDiff = res.diff;
+      mkGenIdx = res.genIdx;
+      showAiRes(res);
+      return res;
     }
-    document.querySelectorAll('.mkd').forEach(b => b.addEventListener('click', () => {
-      Sound.tap();
-      mkDiff = clampDiff(b.dataset.d);
-      refreshDiffUI();
-      clearAiRes();
-    }));
-    refreshDiffUI();
-    $('#bMkEval').addEventListener('click', () => {
+    $('#bMkEval').addEventListener('click', async () => {
       Sound.tap(); commitSel(); drawMaker();
-      const name = ($('#mkName').value || '').trim() || 'オリジナル';
-      const art = { W: mkW, H: mkH, grid: mkGrid.slice(), name, diff: mkDiff };
-      const built = buildCustomPuzzle(art);
-      if (!built) { toast('キャンディを4マス以上おいてね！'); return; }
       const btn = $('#bMkEval'), resEl = $('#mkAiRes');
+      const name = ($('#mkName').value || '').trim() || 'オリジナル';
       btn.disabled = true;
       resEl.style.display = 'block';
-      resEl.innerHTML = '<b>🤖 AIがテストプレイ中…</b><span>すこし待ってね</span>';
-      setTimeout(() => {
-        try {
-          const { total, P, c } = built;
-          const L = { W: art.W, H: art.H, grid: art.grid, cols: c.cols, total };
-          let naive = 0;
-          for (const f of [polLeft, polRight, polComplete, polMost]) if (playout(L, f, null)) naive++;
-          const runs = total > 1200 ? 6 : 10;
-          const rng = mulberry32(hashInt(total, name.length + 1007));
-          const o = winRate(L, polOuter, rng, runs, runs);
-          const r = winRate(L, polRandom, rng, runs, runs);
-          const outerPct = Math.round(o.rate * 100), randPct = Math.round(r.rate * 100);
-          const m = evaluate(L, P, hashInt(total, name.length + 1007));
-          let rank = '';
-          if (naive > 0) rank = '🌱 かんたん（単純タップでクリア可）';
-          else if (outerPct === 0 && randPct === 0) rank = '💀 激ムズ認定！（AI勝率 0%・要先読み）';
-          else if (m.ok || (outerPct <= 25 && randPct <= 20)) rank = '🔥 むずかしい！（考えないと解けない！）';
-          else if (outerPct <= 50) rank = '⭐ ふつう（ちょうどいい手応え！）';
-          else rank = '🌱 やさしめ（さくさく遊べる！）';
-          const boxCnt = c.cols.reduce((a, col) => a + col.length, 0);
-          resEl.innerHTML =
-            '<b>' + rank + '</b>' +
-            '<span>クリア可能 ✅（' + boxCnt + '箱・' + c.cols.length + '列）｜外側AI勝率 ' + outerPct + '%｜適当AI勝率 ' + randPct + '%</span>';
-        } catch (e) {
-          resEl.innerHTML = '<b>測定できませんでした</b>';
-        } finally {
-          btn.disabled = false;
-        }
-      }, 24);
+      resEl.innerHTML = '<b>🤖 AIが一番難しい配置を探して測定中…</b><span>すこし待ってね</span>';
+      const res = await ensureAiBest(name);
+      btn.disabled = false;
+      if (!res) { resEl.style.display = 'none'; toast('キャンディを4マス以上おいてね！'); }
     });
     $('#mkAllowRemix').addEventListener('change', e => { mkAllowRemix = !!e.target.checked; });
 
@@ -1625,7 +1657,8 @@
       for (const [k, sel] of talkIds) $(sel).value = (t && t[k] && t[k].length) ? t[k].join(' / ') : '';
       updateTalkBadge();
       mkDiff = clampDiff(art.diff);
-      refreshDiffUI();
+      mkGenIdx = Math.max(0, Number(art.genIdx) | 0);
+      if ($('#mkAiRes')) $('#mkAiRes').style.display = 'none';
       if (isMine) {
         mkBgmToken = art.bgmToken || '';
         mkAllowRemix = !!art.allowRemix;
@@ -1643,12 +1676,17 @@
       toast(mkBaseAuthor ? '✏️「' + art.name + '」（' + mkBaseAuthor + ' 作）を土台にアレンジしよう！' : '✏️「' + art.name + '」を土台にアレンジしよう！');
     };
 
-    $('#bMkPlay').addEventListener('click', () => {
+    $('#bMkPlay').addEventListener('click', async () => {
       Sound.tap(); commitSel(); drawMaker();
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
+      const btn = $('#bMkPlay');
+      btn.disabled = true;
+      const res = await ensureAiBest(name);
+      btn.disabled = false;
+      if (!res) { toast('キャンディを4マス以上おいてね！'); return; }
       const talk = readTalkFromUI();
-      saveMyStage(name, mkGrid, mkW, mkH, null, talk, mkBgmToken, mkAllowRemix, mkDiff);
-      loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル', talk, bgmToken: mkBgmToken, allowRemix: mkAllowRemix, diff: mkDiff });
+      saveMyStage(name, mkGrid, mkW, mkH, null, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
+      loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル', talk, bgmToken: mkBgmToken, allowRemix: mkAllowRemix, diff: mkDiff, genIdx: mkGenIdx });
     });
     $('#bMkShare').addEventListener('click', async () => {
       Sound.tap(); commitSel(); drawMaker();
@@ -1665,7 +1703,11 @@
           if (tng) { toast('セリフ：' + tng); return; }
         }
       }
-      await shareStageArt(name, mkGrid, mkW, mkH, talk, null, mkBgmToken, mkAllowRemix, mkDiff);
+      const btn = $('#bMkShare');
+      btn.disabled = true;
+      await ensureAiBest(name);
+      btn.disabled = false;
+      await shareStageArt(name, mkGrid, mkW, mkH, talk, null, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
     });
     let pendingPost = null;
     $('#bMkPost').addEventListener('click', async () => {
@@ -1683,11 +1725,15 @@
           if (tng) { toast('セリフ：' + tng); return; }
         }
       }
-      const token = await encodeCustomStage(name, mkGrid, mkW, mkH, talk, mkBgmToken, mkAllowRemix, mkDiff);
+      const btn = $('#bMkPost');
+      btn.disabled = true;
+      await ensureAiBest(name);
+      btn.disabled = false;
+      const token = await encodeCustomStage(name, mkGrid, mkW, mkH, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
       const cd = checkPostLimit(token);
       if (cd) { toast(cd); return; }
-      await saveMyStage(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff);
-      const url = await stageShareUrl(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff);
+      await saveMyStage(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
+      const url = await stageShareUrl(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
       const tCnt = countTalkLines(talk);
       const bgmObj = (mkBgmToken && window.AF_bgmTools) ? window.AF_bgmTools.decodeBgm(mkBgmToken) : null;
