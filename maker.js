@@ -54,16 +54,16 @@
   let mkCol = 0, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
   let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '';
   const UID_KEY = 'antflow-anon-name-v1';
-  const ANON_ADJ = ['あまい','きらり','ふわ','ぴょん','もこ','ぽか','そよ','ほし','にじ','いちご','さくら','みるく','みつ','そら','みんと','ちょこ','れもん','もも','りんご','めろん','ばにら','はーと','おひさ','つき','みず','のんびり','げんき','わくわく','るんるん','すたー','ぴこ','ぷち'];
-  const ANON_NOUN = ['あり','ありんこ','ねこ','うさぎ','くま','りす','ひよこ','ぱんだ','ぺんぎん','こあら','かえる','いるか','きつね','たぬき','わんこ','にゃんこ','あめ','どーなつ','ぷりん','けーき','まかろん','くっきー','ぱふぇ','もち','だんご','たいやき','たると','わっふる','べりー','ほいっぷ','しゅがー','みっくす'];
+  const ANON_ADJ = ['Sweet','Star','Sunny','Happy','Fluffy','Cozy','Mint','Choco','Berry','Peach','Lemon','Apple','Melon','Honey','Milk','Sugar','Moon','Sky','Cloud','Rain','Snow','Sakura','Mochi','Magic','Lucky','Cute','Tiny','Bouncy','Dreamy','Spark','Ruby','Pearl'];
+  const ANON_NOUN = ['Ant','Cat','Bear','Fox','Bunny','Panda','Koala','Frog','Duck','Owl','Seal','Puppy','Kitty','Candy','Donut','Cake','Cookie','Tart','Waffle','Puff','Macaron','Mochi','Berry','Melon','Cloud','Star','Heart','Ribbon','Bell','Leaf','Drop','Pony'];
   function getClientUid() {
     try {
       let u = localStorage.getItem(UID_KEY);
-      if (u && /^[\u3040-\u309F\u30A0-\u30FFー]{4,8}#\d{2}$/.test(u)) return u;
+      if (u && /^[A-Za-z]{4,13}#\d{2}$/.test(u)) return u;
       u = ANON_ADJ[Math.floor(Math.random() * ANON_ADJ.length)] + ANON_NOUN[Math.floor(Math.random() * ANON_NOUN.length)] + '#' + Math.floor(10 + Math.random() * 90);
       localStorage.setItem(UID_KEY, u);
       return u;
-    } catch (e) { return 'いちごあり#42'; }
+    } catch (e) { return 'BerryAnt#42'; }
   }
   function stageContentHash(grid, w, h) {
     let h1 = 2166136261 >>> 0;

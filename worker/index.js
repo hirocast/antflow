@@ -70,11 +70,11 @@ async function recordRateLimit(ip, token) {
   }));
 }
 
-const ANON_ADJ = ['あまい','きらり','ふわ','ぴょん','もこ','ぽか','そよ','ほし','にじ','いちご','さくら','みるく','みつ','そら','みんと','ちょこ','れもん','もも','りんご','めろん','ばにら','はーと','おひさ','つき','みず','のんびり','げんき','わくわく','るんるん','すたー','ぴこ','ぷち'];
-const ANON_NOUN = ['あり','ありんこ','ねこ','うさぎ','くま','りす','ひよこ','ぱんだ','ぺんぎん','こあら','かえる','いるか','きつね','たぬき','わんこ','にゃんこ','あめ','どーなつ','ぷりん','けーき','まかろん','くっきー','ぱふぇ','もち','だんご','たいやき','たると','わっふる','べりー','ほいっぷ','しゅがー','みっくす'];
+const ANON_ADJ = ['Sweet','Star','Sunny','Happy','Fluffy','Cozy','Mint','Choco','Berry','Peach','Lemon','Apple','Melon','Honey','Milk','Sugar','Moon','Sky','Cloud','Rain','Snow','Sakura','Mochi','Magic','Lucky','Cute','Tiny','Bouncy','Dreamy','Spark','Ruby','Pearl'];
+const ANON_NOUN = ['Ant','Cat','Bear','Fox','Bunny','Panda','Koala','Frog','Duck','Owl','Seal','Puppy','Kitty','Candy','Donut','Cake','Cookie','Tart','Waffle','Puff','Macaron','Mochi','Berry','Melon','Cloud','Star','Heart','Ribbon','Bell','Leaf','Drop','Pony'];
 async function makeAnonName(ip, clientAnon) {
   const ca = String(clientAnon || '').trim().slice(0, 16);
-  if (/^[\u3040-\u309F\u30A0-\u30FFー]{4,8}#\d{2}$/.test(ca) && !hasNgWord(ca)) return ca;
+  if (/^[A-Za-z]{4,13}#\d{2}$/.test(ca) && !hasNgWord(ca)) return ca;
   const data = new TextEncoder().encode('antflow-anon:' + String(ip || 'unknown'));
   const digest = await crypto.subtle.digest('SHA-256', data);
   const arr = new Uint8Array(digest);
