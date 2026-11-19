@@ -281,6 +281,36 @@ body.wide .fb{max-width:none}
 })();
 
 /* ================= 画面の部品を追加（index.html は変更不要） ================= */
+const TALK_LIKE_KEY = 'antflow-talk-likes-v1';
+const TALK_LIKE_API = 'https://antflow.hiroshi-artcast.workers.dev/like-talk';
+function loadTalkLikes() {
+  try { return new Set(JSON.parse(localStorage.getItem(TALK_LIKE_KEY) || '[]')); } catch (e) { return new Set(); }
+}
+function saveTalkLike(text) {
+  const s = loadTalkLikes();
+  if (s.has(text)) return false;
+  s.add(text);
+  try { localStorage.setItem(TALK_LIKE_KEY, JSON.stringify([...s].slice(-500))); } catch (e) {}
+  return true;
+}
+function handleTalkLikeClick(e) {
+  const lb = e.target.closest('.restalk-like');
+  if (!lb || !lb.dataset.talk) return false;
+  Sound.tap();
+  const t = lb.dataset.talk;
+  if (lb.classList.contains('on')) { toast('♥ もういいね！済みだよ'); return true; }
+  lb.classList.add('on');
+  lb.textContent = '♥ いいね';
+  if (saveTalkLike(t)) {
+    toast('♥ セリフにいいね！したよ');
+    fetch(TALK_LIKE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ talk: t })
+    }).catch(() => {});
+  }
+  return true;
+}
 (function buildMetaUI() {
   $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b>'; return d; })(), $('#bAlbum'));
   $('header').insertBefore((() => { const b = document.createElement('button'); b.className = 'ib'; b.id = 'bHome'; b.setAttribute('aria-label', 'ホーム'); b.textContent = '🏠'; return b; })(), $('#bAlbum'));
@@ -320,36 +350,6 @@ body.wide .fb{max-width:none}
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
   $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div><div class="restalk" id="resTalkBox"></div>');
-  const TALK_LIKE_KEY = 'antflow-talk-likes-v1';
-  const TALK_LIKE_API = 'https://antflow.hiroshi-artcast.workers.dev/like-talk';
-  function loadTalkLikes() {
-    try { return new Set(JSON.parse(localStorage.getItem(TALK_LIKE_KEY) || '[]')); } catch (e) { return new Set(); }
-  }
-  function saveTalkLike(text) {
-    const s = loadTalkLikes();
-    if (s.has(text)) return false;
-    s.add(text);
-    try { localStorage.setItem(TALK_LIKE_KEY, JSON.stringify([...s].slice(-500))); } catch (e) {}
-    return true;
-  }
-  function handleTalkLikeClick(e) {
-    const lb = e.target.closest('.restalk-like');
-    if (!lb || !lb.dataset.talk) return false;
-    Sound.tap();
-    const t = lb.dataset.talk;
-    if (lb.classList.contains('on')) { toast('♥ もういいね！済みだよ'); return true; }
-    lb.classList.add('on');
-    lb.textContent = '♥ いいね';
-    if (saveTalkLike(t)) {
-      toast('♥ セリフにいいね！したよ');
-      fetch(TALK_LIKE_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ talk: t })
-      }).catch(() => {});
-    }
-    return true;
-  }
   $('#resTalkBox').addEventListener('click', e => {
     if (e.target.closest('[data-bingo-go]')) { Sound.tap(); openBingo('clear'); return; }
     handleTalkLikeClick(e);
