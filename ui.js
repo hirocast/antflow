@@ -28,12 +28,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-eve
  radial-gradient(ellipse 110px 34px at 82% 18%,#fff 60%,transparent 62%),radial-gradient(ellipse 66px 26px at 89% 14%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%);animation:cloud 30s ease-in-out infinite alternate}
 @keyframes cloud{to{transform:translateX(26px)}}
-header{flex-basis:64px}
-.lv{min-width:84px;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
+header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
+.lv{min-width:84px;margin-right:auto;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
 .ib{border:3px solid #fff;background:linear-gradient(#fff,#ffeef5);box-shadow:0 4px 0 rgba(90,61,92,.22)}
-.bar{height:16px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
+.prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:8px;padding-top:1px}
+.bar{flex:1;min-width:44px;height:12px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
 .bar i{background:repeating-linear-gradient(-45deg,#ff7fae 0 8px,#ffa6c8 8px 16px);box-shadow:inset 0 3px 0 rgba(255,255,255,.45)}
-#leftTxt,#timeTxt{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 0 #fff}
+#leftTxt,#timeTxt{flex:0 0 auto;font-size:11px;font-weight:800;white-space:nowrap;text-shadow:0 1px 0 #fff}
 #timeTxt b{color:#ffa000}
 #timeTxt b.s1{color:#b99aa8}
 .coin{display:flex;align-items:center;gap:3px;height:38px;padding:0 10px 0 6px;border-radius:19px;background:linear-gradient(#fffbe6,#ffe39a);border:3px solid #fff;box-shadow:0 4px 0 #d9a520;font-weight:900;font-size:15px;color:#8a5a00;flex:0 0 auto;cursor:pointer}
@@ -188,8 +189,9 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  .fb small{font-size:10px}
 }
 @media (max-height:480px){
- header{flex-basis:46px}
- .lv{flex-direction:row;align-items:baseline;gap:6px}
+ header{flex-basis:46px;flex-wrap:nowrap;padding:0 8px}
+ .lv{flex-direction:row;align-items:baseline;gap:6px;margin-right:0}
+ .prog{order:0;flex:1;flex-direction:column;align-items:stretch;gap:3px;padding-top:0}
  .lv .st,#leftTxt{display:none}
  .ib{width:34px;height:34px;font-size:16px;border-radius:12px}
  .coin{height:32px;font-size:13px}
@@ -198,7 +200,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  .fb span{font-size:16px}
 }
 @media (max-width:420px){
- header{gap:4px;padding:0 6px}
+ header{gap:4px;padding:4px 6px 3px}
  .lv{min-width:78px;padding:4px 8px}
  .lv b{font-size:15px}
  .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
