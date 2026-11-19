@@ -7,6 +7,9 @@
   const ACTIVE_BGM_KEY = 'antflow-active-bgm-v1';
   const BGM_POST_CD_KEY = 'antflow-bgm-post-cd-v1';
   const BGM_REPORT_KEY = 'antflow-bgm-reported-v1';
+  const NICK_KEY = 'antflow-nick-v1';
+  const POST_API_URL = ''; // Cloudflare Workers デプロイ後に 'https://xxx.workers.dev/post' を設定
+  function getPostApiUrl() { return (window.AF_POST_API || POST_API_URL || '').trim(); }
   const POST_COOLDOWN_MS = 60 * 1000;
   const REPO_URL = 'https://github.com/hirocast/antflow';
   const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
@@ -797,13 +800,20 @@
     pov.innerHTML =
       '<div class="card">' +
       '<h2>📮 BGMを投稿する</h2>' +
+      '<div id="bgmPostApiBox" style="display:none">' +
+      '<p class="fine">登録不要・ボタン1つで「🎶 みんなのBGM」に公開されるよ！</p>' +
+      '<input id="bgmPostNick" type="text" maxlength="16" placeholder="ニックネーム（空欄なら「名無しのありんこ」）" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:800 13px var(--rf);color:var(--ink);margin:8px 0;text-align:center;background:#fff">' +
+      '<p class="fine" id="bgmPostSummary" style="margin:4px 0 8px"></p>' +
+      '</div>' +
+      '<div id="bgmPostGhBox">' +
       '<p class="fine">※ 投稿には GitHub アカウントが必要です（聴く・使う・URLシェアは不要）</p>' +
       '<div class="poststeps">' +
       '<div><b>①</b> 下のボタンで投稿ページが開きます</div>' +
       '<div><b>②</b> 内容は自動入力されているので、そのまま緑色の <b>「Create」</b>（または「Submit new issue」）ボタンを押すだけ！</div>' +
       '<div><b>③</b> <b>「🟢 Open」</b> の画面が出たら投稿完了！このアプリに戻って「🎶 みんなのBGM」を見てね</div>' +
       '</div>' +
-      '<button class="big" id="bBgmPostGo">📮 投稿ページをひらく</button>' +
+      '</div>' +
+      '<button class="big" id="bBgmPostGo">📮 投稿する</button>' +
       '<button class="big sec" id="bBgmPostBack">もどる</button>' +
       '</div>';
     document.body.appendChild(pov);
@@ -1002,20 +1012,69 @@
       if (!arr.some(x => x.name === name)) { arr.unshift(cloneSong(song)); saveMyBgms(arr); renderSavedList(); }
       const url = location.origin + location.pathname + '?bgm=' + tok;
       const title = '[BGM投稿] ' + name + ' (BPM' + song.bpm + ')';
-      const body =
-        '### オリジナルBGM投稿\n' +
-        '- 曲名: ' + name + '\n' +
-        '- BPM: ' + song.bpm + ' / ' + song.bars.length + '小節\n' +
-        '- ステージ利用: ' + (song.allowUse ? 'OK' : '不可') + '\n' +
-        '- アレンジ: ' + (song.allowRemix ? 'OK' : '不可') + '\n' +
-        '- 試聴・プレイURL: ' + url + '\n\n' +
-        '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🎶 みんなのBGM」に表示されます）';
-      pendingBgmPost = { tok, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
+      const apiUrl = getPostApiUrl();
+      if (apiUrl) {
+        $('#bgmPostApiBox').style.display = 'block';
+        $('#bgmPostGhBox').style.display = 'none';
+        try { $('#bgmPostNick').value = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
+        $('#bgmPostSummary').textContent = '「' + name + '」（BPM' + song.bpm + '・' + song.bars.length + '小節）';
+        $('#bBgmPostGo').textContent = '📮 登録なしで投稿する';
+        $('#bBgmPostGo').disabled = false;
+        pendingBgmPost = {
+          mode: 'api', apiUrl, tok, name,
+          meta: { bpm: song.bpm, bars: song.bars.length, allowUse: !!song.allowUse, allowRemix: !!song.allowRemix }
+        };
+      } else {
+        $('#bgmPostApiBox').style.display = 'none';
+        $('#bgmPostGhBox').style.display = 'block';
+        $('#bBgmPostGo').textContent = '📮 投稿ページをひらく';
+        $('#bBgmPostGo').disabled = false;
+        const body =
+          '### オリジナルBGM投稿\n' +
+          '- 曲名: ' + name + '\n' +
+          '- BPM: ' + song.bpm + ' / ' + song.bars.length + '小節\n' +
+          '- ステージ利用: ' + (song.allowUse ? 'OK' : '不可') + '\n' +
+          '- アレンジ: ' + (song.allowRemix ? 'OK' : '不可') + '\n' +
+          '- 試聴・プレイURL: ' + url + '\n\n' +
+          '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🎶 みんなのBGM」に表示されます）';
+        pendingBgmPost = { mode: 'gh', tok, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
+      }
       showOv('bgm-posthelp');
     });
-    $('#bBgmPostGo').addEventListener('click', () => {
+    $('#bBgmPostGo').addEventListener('click', async () => {
       Sound.tap();
       if (!pendingBgmPost) { showOv('bgm'); return; }
+      if (pendingBgmPost.mode === 'api') {
+        const nick = ($('#bgmPostNick').value || '').trim().slice(0, 16);
+        if (nick && validateBgmName(nick)) { toast('ニックネームに使えない言葉・URLが入っています'); return; }
+        try { localStorage.setItem(NICK_KEY, nick); } catch (e) {}
+        const btn = $('#bBgmPostGo');
+        btn.disabled = true; btn.textContent = '投稿中…';
+        try {
+          const res = await fetch(pendingBgmPost.apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              kind: 'bgm',
+              name: pendingBgmPost.name,
+              author: nick,
+              token: pendingBgmPost.tok,
+              siteUrl: location.origin + location.pathname,
+              meta: pendingBgmPost.meta
+            })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+          recordBgmPost(pendingBgmPost.tok);
+          pendingBgmPost = null;
+          toast('🎉 みんなにBGMを投稿したよ！');
+          openBgmGallery();
+        } catch (e) {
+          btn.disabled = false; btn.textContent = '📮 登録なしで投稿する';
+          toast('投稿に失敗しました：' + (e && e.message ? e.message : '通信エラー'));
+        }
+        return;
+      }
       recordBgmPost(pendingBgmPost.tok);
       window.open(pendingBgmPost.issueUrl, '_blank', 'noopener');
       pendingBgmPost = null;
@@ -1136,7 +1195,8 @@
           if (reported.has(id) || reported.has(m[1])) continue;
           const s = decodeBgm(m[1]);
           if (!s || validateBgmName(s.name) || s.bars.some(b => b.lyric && validateBgmName(b.lyric))) continue;
-          const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM';
+          const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
+          const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM');
           const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
           const card = document.createElement('div');
           card.className = 'bgm-gcard';
@@ -1339,7 +1399,8 @@
         if (reported.has(id) || reported.has(m[1])) continue;
         const s = decodeBgm(m[1]);
         if (!s || !s.allowUse || validateBgmName(s.name) || s.bars.some(b => b.lyric && validateBgmName(b.lyric))) continue;
-        const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM';
+        const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
+        const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM');
         const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
         out.push({ song: s, token: m[1], author, instLabel: instInfo.label });
       }

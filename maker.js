@@ -6,6 +6,9 @@
   const MY_KEY = 'antflow-my-stages-v1';
   const POST_CD_KEY = 'antflow-post-cd-v1';
   const REPORT_KEY = 'antflow-reported-v1';
+  const NICK_KEY = 'antflow-nick-v1';
+  const POST_API_URL = ''; // Cloudflare Workers デプロイ後に 'https://xxx.workers.dev/post' を設定
+  function getPostApiUrl() { return (window.AF_POST_API || POST_API_URL || '').trim(); }
   const POST_COOLDOWN_MS = 60 * 1000; // 連続投稿制限（60秒）
   const REPO_URL = 'https://github.com/hirocast/antflow';
   const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
@@ -589,7 +592,8 @@
         if (reported.has(id) || reported.has(m[1])) continue;
         const art = await decodeCustomStage(m[1]);
         if (!art || validateStageName(art.name)) continue;
-        const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品';
+        const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
+        const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品');
         pub.appendChild(makeGalCard(art, author, id, false));
         cnt++;
       }
@@ -725,13 +729,20 @@
     pov.innerHTML =
       '<div class="card">' +
       '<h2>📮 みんなに投稿する</h2>' +
+      '<div id="postApiBox" style="display:none">' +
+      '<p class="fine">登録不要・ボタン1つで「🌟 みんなの絵」に公開されるよ！</p>' +
+      '<input id="postNick" type="text" maxlength="16" placeholder="ニックネーム（空欄なら「名無しのありんこ」）" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:800 13px var(--rf);color:var(--ink);margin:8px 0;text-align:center;background:#fff">' +
+      '<p class="fine" id="postSummary" style="margin:4px 0 8px"></p>' +
+      '</div>' +
+      '<div id="postGhBox">' +
       '<p class="fine">※ 投稿には GitHub アカウントが必要です（見る・遊ぶ・URLシェアは不要）</p>' +
       '<div class="poststeps">' +
       '<div><b>①</b> 下のボタンで投稿ページが開きます</div>' +
       '<div><b>②</b> 内容は自動入力されているので、そのまま緑色の <b>「Create」</b>（または「Submit new issue」）ボタンを押すだけ！</div>' +
       '<div><b>③</b> <b>「🟢 Open」</b> の画面が出たら投稿完了！このアプリに戻って「🌟 みんなの絵」を見てね</div>' +
       '</div>' +
-      '<button class="big" id="bPostGo">📮 投稿ページをひらく</button>' +
+      '</div>' +
+      '<button class="big" id="bPostGo">📮 投稿する</button>' +
       '<button class="big sec" id="bPostBack">もどる</button>' +
       '</div>';
     document.body.appendChild(pov);
@@ -1216,21 +1227,71 @@
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
       const tCnt = countTalkLines(talk);
       const bgmObj = (mkBgmToken && window.AF_bgmTools) ? window.AF_bgmTools.decodeBgm(mkBgmToken) : null;
-      const body =
-        '### オリジナルステージ投稿\n' +
-        '- ステージ名: ' + name + '\n' +
-        '- サイズ: ' + mkW + '×' + mkH + '\n' +
-        (bgmObj ? '- BGM: ' + bgmObj.name + '\n' : '') +
-        (tCnt ? '- セリフ: あり（' + tCnt + 'こ）\n' : '') +
-        '- アレンジ: ' + (mkAllowRemix ? 'OK' : '不可') + '\n' +
-        '- プレイURL: ' + url + '\n\n' +
-        '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🌟 みんなの絵」に表示されます）';
-      pendingPost = { token, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
+      const bgmName = bgmObj ? bgmObj.name : '';
+      const apiUrl = getPostApiUrl();
+      if (apiUrl) {
+        $('#postApiBox').style.display = 'block';
+        $('#postGhBox').style.display = 'none';
+        try { $('#postNick').value = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
+        $('#postSummary').textContent = '「' + name + '」（' + mkW + '×' + mkH + (bgmName ? '・🎵' + bgmName : '') + '）';
+        $('#bPostGo').textContent = '📮 登録なしで投稿する';
+        $('#bPostGo').disabled = false;
+        pendingPost = {
+          mode: 'api', apiUrl, token, name,
+          meta: { w: mkW, h: mkH, talkCount: tCnt, bgmName, allowRemix: mkAllowRemix }
+        };
+      } else {
+        $('#postApiBox').style.display = 'none';
+        $('#postGhBox').style.display = 'block';
+        $('#bPostGo').textContent = '📮 投稿ページをひらく';
+        $('#bPostGo').disabled = false;
+        const body =
+          '### オリジナルステージ投稿\n' +
+          '- ステージ名: ' + name + '\n' +
+          '- サイズ: ' + mkW + '×' + mkH + '\n' +
+          (bgmName ? '- BGM: ' + bgmName + '\n' : '') +
+          (tCnt ? '- セリフ: あり（' + tCnt + 'こ）\n' : '') +
+          '- アレンジ: ' + (mkAllowRemix ? 'OK' : '不可') + '\n' +
+          '- プレイURL: ' + url + '\n\n' +
+          '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🌟 みんなの絵」に表示されます）';
+        pendingPost = { mode: 'gh', token, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
+      }
       showOv('posthelp');
     });
-    $('#bPostGo').addEventListener('click', () => {
+    $('#bPostGo').addEventListener('click', async () => {
       Sound.tap();
       if (!pendingPost) { showOv('maker'); return; }
+      if (pendingPost.mode === 'api') {
+        const nick = ($('#postNick').value || '').trim().slice(0, 16);
+        if (nick && validateStageName(nick)) { toast('ニックネームに使えない言葉・URLが入っています'); return; }
+        try { localStorage.setItem(NICK_KEY, nick); } catch (e) {}
+        const btn = $('#bPostGo');
+        btn.disabled = true; btn.textContent = '投稿中…';
+        try {
+          const res = await fetch(pendingPost.apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              kind: 'stage',
+              name: pendingPost.name,
+              author: nick,
+              token: pendingPost.token,
+              siteUrl: location.origin + location.pathname,
+              meta: pendingPost.meta
+            })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+          recordPost(pendingPost.token);
+          pendingPost = null;
+          toast('🎉 みんなに投稿したよ！');
+          openGallery();
+        } catch (e) {
+          btn.disabled = false; btn.textContent = '📮 登録なしで投稿する';
+          toast('投稿に失敗しました：' + (e && e.message ? e.message : '通信エラー'));
+        }
+        return;
+      }
       recordPost(pendingPost.token);
       window.open(pendingPost.issueUrl, '_blank', 'noopener');
       pendingPost = null;
