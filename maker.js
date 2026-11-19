@@ -40,7 +40,7 @@
       kind: 'news',
       badge: '📢 おしらせ',
       title: '🏆 第1回 ステージコンテスト開催中！',
-      body: '11/29（日）まで第1回ステージコンテストを開催しています！\nテーマは自由！応募してくれた全員に参加賞（🪙100＋🎟️1）、優秀作品には豪華報酬をプレゼント！\n「🎨 つくる」→「📮 みんなに投稿」から応募してね！',
+      body: '11/29（日）まで第1回ステージコンテストを開催しています！\nテーマは自由！応募してくれた全員に参加賞（🪙100＋🎟️1）、優秀作品には豪華報酬をプレゼント！\n\n【参加方法】\n①「🎨 つくる」でステージをかいて名前をつける\n② 下の「📮 投稿・🏆応募」ボタンを押す\n③「🏆 コンテスト応募」ONのまま投稿で完了！',
       at: Date.UTC(2026, 10, 19)
     }
   ];
@@ -931,7 +931,16 @@
       '.contest-bar b{display:block;font-size:12px;color:#b86200}' +
       '.contest-bar small{display:block;font-size:10px;color:#7a5368;margin-top:2px}' +
       '.contest-home{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 2px}' +
-      '.contest-home span{flex:0 0 auto;background:#ff8fb3;color:#fff;border-radius:10px;padding:4px 9px;font:900 11px var(--rf);box-shadow:0 2px 0 #d4507c}' +
+      '.contest-home span{flex:0 0 auto;background:#ff8fb3;color:#fff;border-radius:10px;padding:5px 9px;font:900 11px var(--rf);box-shadow:0 2px 0 #d4507c;white-space:nowrap}' +
+      '.contest-maker{display:flex;align-items:center;justify-content:space-between;gap:8px}' +
+      '.contest-q{flex:0 0 auto;border:none;border-radius:10px;padding:4px 8px;background:#fff;color:#b86200;font:900 10.5px var(--rf);box-shadow:0 2px 0 #e8cfa0;cursor:pointer;white-space:nowrap}' +
+      '.contest-steps{display:flex;flex-direction:column;gap:6px;margin:8px 0;text-align:left}' +
+      '.contest-step{display:flex;align-items:flex-start;gap:8px;background:#fff;border:2px solid #ffd3e2;border-radius:13px;padding:8px 10px;font-size:11.5px;line-height:1.45}' +
+      '.contest-step-num{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;font:900 12px/22px var(--rf);text-align:center;box-shadow:0 2px 0 #d4507c}' +
+      '.contest-step b{display:block;font-size:12px;color:#c0507a;margin-bottom:1px}' +
+      '.contest-prizes{background:#fffdf2;border:2px solid #ffd166;border-radius:13px;padding:8px 10px;margin:6px 0;text-align:left;font-size:11px;line-height:1.6}' +
+      '.contest-prizes h3{margin:0 0 3px;font-size:12px;color:#b86200}' +
+      '.contest-note{font-size:10.5px;color:#7a5368;line-height:1.5;margin:6px 0 8px;text-align:left;background:#fff7fb;border-radius:11px;padding:7px 9px}' +
       '.galcard.awarded{border-color:#ffc94d;background:linear-gradient(#fffdf2,#fff5d6)}' +
       '.galaward{background:linear-gradient(#ffcf4d,#ff9f1c);color:#fff;font:900 9px var(--rf);padding:2px 6px;border-radius:8px;text-shadow:0 1px 0 rgba(0,0,0,.2)}' +
       '.awbox{background:#fff9e6;border:2px solid #ffd166;border-radius:14px;padding:10px 12px;margin:8px 0;font:900 18px var(--rf);color:#c26a00}' +
@@ -949,6 +958,42 @@
       '.inbox-det .rw{margin-top:6px;padding:5px 8px;background:#fff9e6;border:1.5px solid #ffd166;border-radius:10px;font:900 12px var(--rf);color:#c26a00}' +
       '.inbox-btn-home{position:relative;width:100%;margin:6px 0 2px;padding:7px 12px;border:2px solid #fff;border-radius:14px;background:linear-gradient(#fff7fb,#ffe5f0);box-shadow:0 3px 0 #e6bfd0;font:900 12px var(--rf);color:#c0507a;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}';
     document.head.appendChild(style);
+
+    let contestBackOv = 'title';
+    const cov = document.createElement('div');
+    cov.className = 'ov';
+    cov.id = 'ov-contest';
+    cov.innerHTML =
+      '<div class="card">' +
+      '<h2>🏆 コンテスト参加ガイド</h2>' +
+      '<p class="fine" style="margin:2px 0 6px"><b>' + CONTEST.title + '</b><br>' + CONTEST.period + '</p>' +
+      '<div class="contest-steps">' +
+      '<div class="contest-step"><span class="contest-step-num">1</span><div><b>ステージをつくる</b>「🎨 つくる」で好きなドット絵をかいて、ステージ名をつけよう！（ハートやネコの見本や、他の人の作品のアレンジでもOK）</div></div>' +
+      '<div class="contest-step"><span class="contest-step-num">2</span><div><b>「📮 投稿・🏆応募」をおす</b>つくる画面の「📮 投稿・🏆応募」ボタンをおそう！（投稿前のテストクリアは不要・マイ作品からも投稿できるよ）</div></div>' +
+      '<div class="contest-step"><span class="contest-step-num">3</span><div><b>応募チェックONで投稿して完了！</b>「🏆 コンテスト応募・公式ステージ採用OK」にチェックが入ったまま投稿すれば応募完了！</div></div>' +
+      '</div>' +
+      '<div class="contest-prizes">' +
+      '<h3>🎁 賞品（もれなく参加賞！）</h3>' +
+      '<div>🎁 <b>参加賞</b>（応募者全員）：🪙100 ＋ 🎟️1</div>' +
+      '<div>🥈 <b>特別賞</b>：🪙300 ＋ 🎟️2 ＋ 💡1</div>' +
+      '<div>🏆 <b>最優秀賞</b>：🪙500 ＋ 🎟️3 ＋ 💡2 ＋ 🔍2</div>' +
+      '</div>' +
+      '<div class="contest-note">📬 <b>結果と賞品の受け取り方：</b><br>発表・賞品はホームの「📬 おしらせ・受賞メール」に届き、コインやチケットが自動でもらえます！（ひとり何作品でも応募OK）</div>' +
+      '<div class="cfrow">' +
+      '<button class="big" id="bCtMake">🎨 さっそくつくる</button>' +
+      '<button class="big mint" id="bCtGal">💾 マイ作品から投稿</button>' +
+      '</div>' +
+      '<button class="big sec" id="bCtClose">もどる</button>' +
+      '</div>';
+    document.body.appendChild(cov);
+
+    function openContestGuide(fromOv) {
+      contestBackOv = fromOv || 'title';
+      showOv('contest');
+    }
+    $('#bCtMake').addEventListener('click', () => { Sound.tap(); openMaker(); });
+    $('#bCtGal').addEventListener('click', () => { Sound.tap(); openGallery(); });
+    $('#bCtClose').addEventListener('click', () => { Sound.tap(); showOv(contestBackOv); });
 
     const aov = document.createElement('div');
     aov.className = 'ov';
@@ -1041,7 +1086,7 @@
       '<p class="fine">ニックネームを決めて「🌟 みんなの絵」に公開しよう！</p>' +
       '<input id="postNick" type="text" maxlength="16" placeholder="ニックネーム（空欄なら「名無しのありんこ」）" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:800 13px var(--rf);color:var(--ink);margin:8px 0;text-align:center;background:#fff">' +
       '<label class="mkperm" style="margin:6px 0"><input type="checkbox" id="postAllowOfficial" checked> 🏆 コンテスト応募・公式ステージ採用OK</label>' +
-      '<p class="fine" style="font-size:10px;margin:0 0 6px;line-height:1.4">※ 許可した作品の中から、素敵なステージが「公式ステージ」やコンテスト受賞作（報酬つき！）に選ばれることがあります。</p>' +
+      '<p class="fine" style="font-size:10px;margin:0 0 6px;line-height:1.4">' + (CONTEST.active ? '※ ONのまま投稿すると「第1回ステージコンテスト」に応募されます！（応募者全員に参加賞 🪙100＋🎟️1）' : '※ 許可した作品の中から、素敵なステージが「公式ステージ」やコンテスト受賞作（報酬つき！）に選ばれることがあります。') + '</p>' +
       '<p class="fine" id="postSummary" style="margin:4px 0 8px"></p>' +
       '</div>' +
       '<div id="postGhBox">' +
@@ -1064,7 +1109,7 @@
       '<div class="card">' +
       '<div class="mktabs"><button type="button" class="mktab on">🎨 ステージをつくる</button><button type="button" class="mktab" id="bMkToBgm">🎵 BGMをつくる</button></div>' +
       '<h2>🎨 ステージをつくる</h2>' +
-      (CONTEST.active ? '<div class="contest-bar"><b>' + CONTEST.title + '（' + CONTEST.period + '）</b><small>' + CONTEST.note + '</small></div>' : '') +
+      (CONTEST.active ? '<div class="contest-bar contest-maker"><div><b>' + CONTEST.title + '（' + CONTEST.period + '）</b><small>①絵と名前をつくる → ②下の「📮 投稿・🏆応募」で完了！</small></div><button type="button" class="contest-q" id="bMkContestInfo">参加方法</button></div>' : '') +
       '<div class="mktop"><button id="bMkGalTop">💾 マイ作品・みんなの絵</button><button id="bMkCloseTop">✕ とじる</button></div>' +
       '<input id="mkName" type="text" maxlength="14" placeholder="ステージ名（例：わたしのハート）">' +
       '<div class="mktools">' +
@@ -1112,7 +1157,7 @@
       '<button class="big mint" id="bMkShare">🔗 URLシェア</button>' +
       '</div>' +
       '<div class="cfrow">' +
-      '<button class="big sec" id="bMkPost">📮 みんなに投稿</button>' +
+      '<button class="big sec" id="bMkPost">' + (CONTEST.active ? '📮 投稿・🏆応募' : '📮 みんなに投稿') + '</button>' +
       '<button class="big sec" id="bMkGal">🌟 みんなの絵</button>' +
       '</div>' +
       '<button class="big sec" id="bMkClose">とじる</button>' +
@@ -1620,6 +1665,7 @@
       toast('投稿ページを開いたよ！緑の「Create」を押してね');
     });
     $('#bPostBack').addEventListener('click', () => { Sound.tap(); showOv('maker'); });
+    if ($('#bMkContestInfo')) $('#bMkContestInfo').addEventListener('click', () => { Sound.tap(); openContestGuide('maker'); });
     $('#bMkToBgm').addEventListener('click', () => { Sound.tap(); if (window.AF_openBgmMaker) window.AF_openBgmMaker(); });
     $('#bMkGal').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkGalTop').addEventListener('click', () => { Sound.tap(); openGallery(); });
@@ -1735,8 +1781,8 @@
     if (CONTEST.active) {
       const cb = document.createElement('div');
       cb.className = 'contest-bar contest-home';
-      cb.innerHTML = '<div><b>' + CONTEST.title + '</b><small>' + CONTEST.period + ' · ' + CONTEST.note + '</small></div><span>参加する</span>';
-      cb.addEventListener('click', () => { Sound.tap(); openMaker(); });
+      cb.innerHTML = '<div><b>' + CONTEST.title + '</b><small>' + CONTEST.period + ' · 参加賞 🪙100＋🎟️1</small><small>①つくる → ②「📮 投稿・🏆応募」でかんたん応募！</small></div><span>参加方法</span>';
+      cb.addEventListener('click', () => { Sound.tap(); openContestGuide('title'); });
       mrow.insertAdjacentElement('beforebegin', cb);
     }
 
