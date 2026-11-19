@@ -286,29 +286,33 @@ const TALK_LIKE_API = 'https://antflow.hiroshi-artcast.workers.dev/like-talk';
 function loadTalkLikes() {
   try { return new Set(JSON.parse(localStorage.getItem(TALK_LIKE_KEY) || '[]')); } catch (e) { return new Set(); }
 }
-function saveTalkLike(text) {
+function toggleTalkLike(text) {
   const s = loadTalkLikes();
-  if (s.has(text)) return false;
-  s.add(text);
+  let liked = false;
+  if (s.has(text)) {
+    s.delete(text);
+    liked = false;
+  } else {
+    s.add(text);
+    liked = true;
+  }
   try { localStorage.setItem(TALK_LIKE_KEY, JSON.stringify([...s].slice(-500))); } catch (e) {}
-  return true;
+  return liked;
 }
 function handleTalkLikeClick(e) {
   const lb = e.target.closest('.restalk-like');
   if (!lb || !lb.dataset.talk) return false;
   Sound.tap();
   const t = lb.dataset.talk;
-  if (lb.classList.contains('on')) { toast('♥ もういいね！済みだよ'); return true; }
-  lb.classList.add('on');
-  lb.textContent = '♥ いいね';
-  if (saveTalkLike(t)) {
-    toast('♥ セリフにいいね！したよ');
-    fetch(TALK_LIKE_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ talk: t })
-    }).catch(() => {});
-  }
+  const liked = toggleTalkLike(t);
+  lb.classList.toggle('on', liked);
+  lb.textContent = liked ? '♥ いいね' : '♡';
+  toast(liked ? '♥ セリフにいいね！したよ' : 'いいねを取り消したよ');
+  fetch(TALK_LIKE_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ talk: t, delta: liked ? 1 : -1 })
+  }).catch(() => {});
   return true;
 }
 (function buildMetaUI() {

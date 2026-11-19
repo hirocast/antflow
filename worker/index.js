@@ -119,15 +119,25 @@ async function handleTalkLike(request, env, cors) {
   let body;
   try { body = await request.json(); } catch { return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors); }
   const talk = String(body.talk || '').trim().replace(/[\r\n|<>`]/g, '').slice(0, 60);
+  const delta = body.delta === -1 ? -1 : 1;
   if (!talk || hasNgWord(talk)) return jsonRes({ ok: false, error: 'Invalid talk' }, 400, cors);
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const cache = caches.default;
   const lkKey = new Request('https://antflow-rl.internal/like/' + encodeURIComponent(ip + ':' + talk));
-  if (await cache.match(lkKey)) {
-    return jsonRes({ ok: true, skipped: true }, 200, cors);
+  if (delta === 1) {
+    if (await cache.match(lkKey)) {
+      return jsonRes({ ok: true, skipped: true }, 200, cors);
+    }
+    await cache.put(lkKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=86400' } }));
+  } else {
+    const ulKey = new Request('https://antflow-rl.internal/unlike/' + encodeURIComponent(ip + ':' + talk));
+    if (await cache.match(ulKey)) {
+      return jsonRes({ ok: true, skipped: true }, 200, cors);
+    }
+    await cache.delete(lkKey);
+    await cache.put(ulKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=10' } }));
   }
-  await cache.put(lkKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=86400' } }));
 
   const ghHeaders = {
     'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
@@ -147,8 +157,11 @@ async function handleTalkLike(request, env, cors) {
       try { counts = JSON.parse(m[1]) || {}; } catch {}
     }
   }
-  counts[talk] = (Number(counts[talk]) || 0) + 1;
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 200);
+  const next = Math.max(0, (Number(counts[talk]) || 0) + delta);
+  if (next > 0) counts[talk] = next;
+  else delete counts[talk];
+
+  const sorted = Object.entries(counts).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 200);
   const compact = Object.fromEntries(sorted);
 
   let md = '### 💬 人気のセリフ ランキング（自動集計）\n';
@@ -162,14 +175,14 @@ async function handleTalkLike(request, env, cors) {
       headers: ghHeaders,
       body: JSON.stringify({ body: md })
     });
-  } else {
+  } else if (delta > 0) {
     await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
       method: 'POST',
       headers: ghHeaders,
       body: JSON.stringify({ title: '[集計] 人気のセリフ ランキング', labels: ['talk-likes'], body: md })
     });
   }
-  return jsonRes({ ok: true, count: counts[talk] }, 200, cors);
+  return jsonRes({ ok: true, count: next }, 200, cors);
 }
 
 export default {
