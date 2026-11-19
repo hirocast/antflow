@@ -76,14 +76,16 @@
     return {
       notes: Array.from({ length: 16 }, () => []),
       kick: new Array(16).fill(0),
-      clap: new Array(16).fill(0)
+      clap: new Array(16).fill(0),
+      lyric: ''
     };
   }
   function cloneBar(b) {
     return {
       notes: b.notes.map(a => a.slice()),
       kick: b.kick.slice(),
-      clap: b.clap.slice()
+      clap: b.clap.slice(),
+      lyric: String(b.lyric || '').slice(0, 24)
     };
   }
   function cloneSong(s) {
@@ -118,7 +120,8 @@
     const bSteps = src.barSteps || 16;
     const calm = src.style === 'sakura' || src.style === 'bell' || src.style === 'waltz';
     const inst = src.style === 'bell' ? 'bell' : (src.style === 'sakura' || src.style === 'waltz') ? 'flute' : 'mallet';
-    const bars = rawBars.map(rb => {
+    const lyrArr = (Sound.LYRICS && Sound.LYRICS[key]) || [];
+    const bars = rawBars.map((rb, bi) => {
       const bar = emptyBar();
       for (const m of (rb.m || [])) {
         const st = bSteps === 16 ? (m[0] & 15) : clamp(Math.round(m[0] * 16 / bSteps), 0, 15);
@@ -131,6 +134,9 @@
         bar.kick[0] = 1; bar.kick[8] = 1;
         bar.clap[4] = 1; bar.clap[12] = 1;
       }
+      const le = lyrArr[bi];
+      if (typeof le === 'string') bar.lyric = le.replace(/^♪\s*/, '').slice(0, 24);
+      else if (Array.isArray(le) && le.length) bar.lyric = String(le[0][1] || '').replace(/^♪\s*/, '').slice(0, 24);
       return bar;
     });
     return cloneSong({
@@ -257,7 +263,8 @@
       r: s.bars.map(bar => ({
         n: bar.notes,
         k: bar.kick.join(''),
-        c: bar.clap.join('')
+        c: bar.clap.join(''),
+        l: bar.lyric || ''
       }))
     };
     const json = JSON.stringify(min);
@@ -283,7 +290,8 @@
         bars: min.r.map(rb => ({
           notes: Array.from({ length: 16 }, (_, idx) => Array.isArray(rb.n && rb.n[idx]) ? rb.n[idx].filter(v => Number.isFinite(v)) : []),
           kick: Array.from({ length: 16 }, (_, idx) => (rb.k && rb.k[idx] === '1') ? 1 : 0),
-          clap: Array.from({ length: 16 }, (_, idx) => (rb.c && rb.c[idx] === '1') ? 1 : 0)
+          clap: Array.from({ length: 16 }, (_, idx) => (rb.c && rb.c[idx] === '1') ? 1 : 0),
+          lyric: rb.l ? String(rb.l).slice(0, 24) : ''
         }))
       });
     } catch (e) {
@@ -417,6 +425,8 @@
       html += '<button type="button" class="bgm-cell clap' + beat + (on ? ' on' : '') + '" data-kind="clap" data-st="' + st + '"></button>';
     }
     grid.innerHTML = html;
+    const lyr = $('#bgmLyric');
+    if (lyr) lyr.value = bar.lyric || '';
   }
 
   function renderBarTabs() {
@@ -508,6 +518,8 @@
 .bgm-top select{height:36px;border-radius:12px;border:2px solid #ffd3e2;background:#fff;padding:0 6px;font:700 12px var(--rf);color:var(--ink)}
 .bgm-bpm{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;margin-bottom:8px}
 .bgm-bpm input{flex:1}
+.bgm-lyric{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;font-weight:800}
+.bgm-lyric input{flex:1;min-width:0;height:32px;border-radius:10px;border:2px solid #ffd3e2;padding:0 8px;font:700 12px var(--rf);color:var(--ink)}
 .bgm-bars{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
 .bgm-bar{border:none;border-radius:10px;padding:5px 10px;background:#fff1d6;color:var(--ink);font:800 11px var(--rf);cursor:pointer}
 .bgm-bar.on{background:var(--pink);color:#fff}
@@ -555,6 +567,7 @@
         '</div>' +
         '<div class="bgm-bpm"><span>はやさ (BPM)</span><input id="bgmBpm" type="range" min="70" max="170" step="2"><b id="bgmBpmVal">116</b></div>' +
         '<div class="bgm-bars" id="bgmBars"></div>' +
+        '<div class="bgm-lyric"><span>🎤 歌詞</span><input id="bgmLyric" maxlength="24" placeholder="アリシンガーの歌詞（空でもOK）"></div>' +
         '<div class="bgm-grid" id="bgmGrid"></div>' +
         '<div class="bgm-btns">' +
           '<button type="button" class="go" id="bgmPlayBtn">▶ さいせい</button>' +
@@ -638,6 +651,7 @@
     window.addEventListener('pointercancel', () => { paintVal = null; });
 
     $('#bgmName').addEventListener('input', e => { song.name = e.target.value.slice(0, 20); syncActiveIfUsed(); });
+    $('#bgmLyric').addEventListener('input', e => { song.bars[curBar].lyric = e.target.value.slice(0, 24); syncActiveIfUsed(); });
     $('#bgmInst').addEventListener('change', e => { song.inst = e.target.value; syncActiveIfUsed(); });
     $('#bgmBpm').addEventListener('input', e => {
       song.bpm = +e.target.value;
@@ -752,6 +766,9 @@
       const name = ($('#bgmName').value || '').trim() || 'わたしのBGM';
       const ng = validateBgmName(name);
       if (ng) { toast(ng); return; }
+      for (const b of song.bars) {
+        if (b.lyric && validateBgmName(b.lyric)) { toast('歌詞に使えない言葉・URLが入っています'); return; }
+      }
       song.name = name;
       const tok = encodeBgm(song);
       const cd = checkBgmPostLimit(tok);
@@ -805,7 +822,7 @@
           const id = 'gh_bgm_' + iss.number;
           if (reported.has(id) || reported.has(m[1])) continue;
           const s = decodeBgm(m[1]);
-          if (!s || validateBgmName(s.name)) continue;
+          if (!s || validateBgmName(s.name) || s.bars.some(b => b.lyric && validateBgmName(b.lyric))) continue;
           const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM';
           const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
           const card = document.createElement('div');

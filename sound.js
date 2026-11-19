@@ -663,11 +663,12 @@ const Sound = {
     ]
   },
   singerState() {
-    const lyr = this.LYRICS[this.bgmKey];
-    if (!lyr) return null;
+    const isCustom = !!(this.useCustomBgm && this.customBgm);
+    const lyr = isCustom ? null : this.LYRICS[this.bgmKey];
+    if (!isCustom && !lyr) return null;
     const c = this.ctx, playing = !!(c && c.state === 'running' && save.settings.bgm && this.bgmTimer);
     if (!playing) {
-      return { key: this.bgmKey, text: save.settings.bgm ? '♪ タップで うたうよ！' : '♪ 〜', singing: false, pulse: 0 };
+      return { key: isCustom ? 'custom' : this.bgmKey, text: save.settings.bgm ? '♪ タップで うたうよ！' : '♪ 〜', singing: false, pulse: 0 };
     }
     const now = c.currentTime;
     let cur = null, lastNote = -9;
@@ -676,7 +677,10 @@ const Sound = {
       if (q.t <= now) { cur = q; if (q.note) lastNote = q.t; }
     }
     const pulse = lastNote > 0 ? Math.max(0, 1 - (now - lastNote) * 4.5) : 0;
-    return { key: this.bgmKey, text: cur ? cur.text : lyr[0], singing: true, pulse };
+    const defTxt = isCustom
+      ? ((this.customBgm.bars[0] && this.customBgm.bars[0].lyric) ? '♪ ' + this.customBgm.bars[0].lyric.replace(/^♪\s*/, '') : '♪ ' + (this.customBgm.name || 'オリジナルBGM'))
+      : lyr[0];
+    return { key: isCustom ? 'custom' : this.bgmKey, text: cur ? cur.text : defTxt, singing: true, pulse };
   },
   EXTRA_SONGS: {
     tulip: {
@@ -1282,9 +1286,12 @@ const Sound = {
       const idx = this.step % totalSteps;
       const bar = B.bars[Math.floor(idx / 16)], st = idx % 16;
       const w = Math.max(0, this.nextT - c.currentTime);
+      const lyrTxt = (bar.lyric && bar.lyric.trim()) ? '♪ ' + bar.lyric.trim().replace(/^♪\s*/, '') : ('♪ ' + (B.name || 'オリジナルBGM'));
+      if (st === 0) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: false });
       const notes = bar.notes && bar.notes[st];
       if (Array.isArray(notes)) {
         for (let i = 0; i < notes.length; i++) this.playCustomNote(B.inst, notes[i], w, s16 * 1.4);
+        if (notes.length) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: true });
       }
       if (bar.kick && bar.kick[st]) this.playCustomDrum(1, w, Array.isArray(notes) && notes.length ? notes[0] : 0);
       if (bar.clap && bar.clap[st]) this.playCustomDrum(2, w);
