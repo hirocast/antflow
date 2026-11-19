@@ -1491,7 +1491,7 @@ function renderMissions() {
   $('#misBonus').textContent = '3つぜんぶ達成で 🪙100＋🎟️1' + (save.mis.bonus ? '（うけとりずみ！）' : '') + '　ミッションは毎日かわるよ';
   const ts = totalStars(), base = save.road * 10, nxt = base + 10;
   $('#roadBox').innerHTML = '<p>いまの★ <b>' + ts + '</b> こ ／ つぎのごほうび ' + nxt + '★（🪙100' + ((save.road + 1) % 3 === 0 ? '＋🎟️' : '') + '）</p>' +
-    '<div class="abar"><i style="width:' + clamp(100 * (ts - base) / 10, 0, 100) + '%"></i></div><p class="fine">ステージごとの最高★の合計。★1や★2のステージで高い★をとるとふえるよ</p>';
+    '<div class="abar"><i style="width:' + clamp(100 * (ts - base) / 10, 0, 100) + '%"></i></div><p class="fine">ステージごとの最高★の合計</p>';
 }
 function openSkins(from) { G.metaFrom = from; G.skPrev = null; renderSkins(); showOv('skins'); }
 function renderSkins() {
