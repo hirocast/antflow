@@ -12,6 +12,26 @@
   const POST_COOLDOWN_MS = 60 * 1000; // 連続投稿制限（60秒）
   const REPO_URL = 'https://github.com/hirocast/antflow';
   const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
+  const CLAIMED_KEY = 'antflow-contest-claimed-v1';
+  const CONTEST = {
+    active: true,
+    title: '🏆 第1回 ステージコンテスト開催中！',
+    period: '11/29（日）まで · テーマ自由！',
+    note: '参加賞：🪙100＋🎟️1 ／ 特別賞：🪙300＋🎟️2＋💡1 ／ 最優秀賞：🪙500＋🎟️3＋💡2＋🔍2',
+    awards: {
+      'award-gold': { key: 'gold', badge: '🏆 最優秀賞', rank: 1, coins: 500, tickets: 3, hintT: 2, scanT: 2 },
+      'award-silver': { key: 'silver', badge: '🥈 特別賞', rank: 2, coins: 300, tickets: 2, hintT: 1, scanT: 0 },
+      'award-join': { key: 'join', badge: '🎁 参加賞', rank: 3, coins: 100, tickets: 1, hintT: 0, scanT: 0 }
+    }
+  };
+  function loadClaimedAwards() {
+    try { return JSON.parse(localStorage.getItem(CLAIMED_KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function saveClaimedAward(k) {
+    const o = loadClaimedAwards();
+    o[String(k)] = Date.now();
+    try { localStorage.setItem(CLAIMED_KEY, JSON.stringify(o)); } catch (e) {}
+  }
 
   const NG_WORDS = [
     '死ね', 'しね', '殺す', 'ころす', 'バカ', 'ばか', 'アホ', 'あほ', 'クズ', 'くず',
@@ -582,6 +602,64 @@
       prompt('このURLをコピーしてシェアしてね：', url);
     }
   }
+  function detectIssueAward(iss) {
+    const labels = Array.isArray(iss.labels) ? iss.labels : [];
+    let best = null;
+    for (const lb of labels) {
+      const n = String(lb && lb.name ? lb.name : lb || '').toLowerCase();
+      const aw = CONTEST.awards[n];
+      if (aw && (!best || aw.rank < best.rank)) best = aw;
+    }
+    return best;
+  }
+  function fmtAwardItems(aw) {
+    const p = [];
+    if (aw.coins) p.push('🪙+' + aw.coins);
+    if (aw.tickets) p.push('🎟️+' + aw.tickets);
+    if (aw.hintT) p.push('💡+' + aw.hintT);
+    if (aw.scanT) p.push('🔍+' + aw.scanT);
+    return p.join('  ');
+  }
+  function checkContestAwards(issues) {
+    if (!Array.isArray(issues) || !issues.length) return;
+    const myTokens = new Set(loadMyStages().map(x => x.token));
+    if (!myTokens.size) return;
+    const claimed = loadClaimedAwards();
+    const pending = [];
+    for (const iss of issues) {
+      const aw = detectIssueAward(iss);
+      if (!aw) continue;
+      const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
+      if (!m || !myTokens.has(m[1])) continue;
+      const cKey = iss.number + ':' + aw.key;
+      if (claimed[cKey]) continue;
+      const nm = (iss.body || '').match(/^- ステージ名:\s*(.+)$/m);
+      const artName = nm ? nm[1].trim() : 'あなたの作品';
+      saveClaimedAward(cKey);
+      save.coins += aw.coins || 0;
+      save.tickets += aw.tickets || 0;
+      save.hintT += aw.hintT || 0;
+      save.scanT += aw.scanT || 0;
+      pending.push({ artName, aw });
+    }
+    if (!pending.length) return;
+    persist();
+    if (typeof updateCoins === 'function') updateCoins(true);
+    if (typeof refreshPrices === 'function') refreshPrices();
+    if (typeof renderTitle === 'function') renderTitle();
+    const first = pending[0];
+    const extra = pending.length > 1 ? '（ほか ' + (pending.length - 1) + '件も受け取りました！）' : '';
+    const ttl = $('#awTitle'), desc = $('#awDesc'), rw = $('#awReward');
+    if (ttl && desc && rw) {
+      ttl.textContent = first.aw.badge + ' おめでとう！';
+      desc.textContent = '投稿作品「' + first.artName + '」がコンテストで受賞したよ！' + extra;
+      rw.textContent = pending.map(p => fmtAwardItems(p.aw)).join(' / ');
+      Sound.fanfare();
+      showOv('award');
+    } else {
+      toast('🏆 コンテスト受賞！' + fmtAwardItems(first.aw), 4500);
+    }
+  }
   async function openGallery() {
     showOv('gallery');
     const mine = $('#galMine'), pub = $('#galPub');
@@ -602,8 +680,9 @@
       const res = await fetch(ISSUES_API);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const issues = await res.json();
+      checkContestAwards(issues);
       pub.innerHTML = '';
-      let cnt = 0;
+      const entries = [];
       for (const iss of issues) {
         const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
         if (!m) continue;
@@ -616,17 +695,19 @@
         const bm = (iss.body || '').match(/^- 元作者:\s*(.+)$/m);
         art.author = author;
         art.baseAuthor = bm ? bm[1].trim().slice(0, 16) : '';
-        pub.appendChild(makeGalCard(art, author, id, false));
-        cnt++;
+        art.award = detectIssueAward(iss);
+        entries.push({ art, author, id });
       }
-      if (!cnt) pub.innerHTML = '<p class="fine">表示できる投稿作品がありません。最初の1作を投稿してみよう！</p>';
+      entries.sort((a, b) => (a.art.award ? a.art.award.rank : 99) - (b.art.award ? b.art.award.rank : 99));
+      for (const e of entries) pub.appendChild(makeGalCard(e.art, e.author, e.id, false));
+      if (!entries.length) pub.innerHTML = '<p class="fine">表示できる投稿作品がありません。最初の1作を投稿してみよう！</p>';
     } catch (e) {
       pub.innerHTML = '<p class="fine">投稿一覧を読み込めませんでした（オフラインまたはアクセス集中）</p>';
     }
   }
   function makeGalCard(art, sub, reportId, isMine) {
     const btn = document.createElement('button');
-    btn.className = 'galcard';
+    btn.className = 'galcard' + (art.award ? ' awarded' : '');
     if (reportId) {
       const rep = document.createElement('span');
       rep.className = 'galrep';
@@ -642,6 +723,12 @@
         toast('一覧から非表示にしました');
       });
       btn.appendChild(rep);
+    }
+    if (art.award) {
+      const aw = document.createElement('span');
+      aw.className = 'galaward';
+      aw.textContent = art.award.badge;
+      btn.appendChild(aw);
     }
     const cv = document.createElement('canvas');
     drawArtToCanvas(cv, art, 68);
@@ -743,8 +830,31 @@
       '.stbgm-card button.pick{background:var(--mint);color:#fff}' +
       '.poststeps{background:#fff;border-radius:14px;padding:10px 12px;margin:8px 0;text-align:left;font-size:12px;line-height:1.65;border:2px solid #ffd3e2}' +
       '.poststeps b{color:#e46a92}' +
-      '#ov-posthelp h2,#ov-bgm-posthelp h2{display:block;background:none;box-shadow:none;border:none;border-bottom:2px dashed #ffd3e2;border-radius:0;text-shadow:none;color:#c0507a;font-size:19px;padding:0 0 8px;margin:0 0 10px}';
+      '#ov-posthelp h2,#ov-bgm-posthelp h2{display:block;background:none;box-shadow:none;border:none;border-bottom:2px dashed #ffd3e2;border-radius:0;text-shadow:none;color:#c0507a;font-size:19px;padding:0 0 8px;margin:0 0 10px}' +
+      '.contest-bar{background:linear-gradient(135deg,#fff7d6,#ffe5f0);border:2px solid #ffc966;border-radius:14px;padding:7px 10px;margin:6px 0;text-align:left;font-size:11px;line-height:1.45;color:var(--ink)}' +
+      '.contest-bar b{display:block;font-size:12px;color:#b86200}' +
+      '.contest-bar small{display:block;font-size:10px;color:#7a5368;margin-top:2px}' +
+      '.contest-home{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 2px}' +
+      '.contest-home span{flex:0 0 auto;background:#ff8fb3;color:#fff;border-radius:10px;padding:4px 9px;font:900 11px var(--rf);box-shadow:0 2px 0 #d4507c}' +
+      '.galcard.awarded{border-color:#ffc94d;background:linear-gradient(#fffdf2,#fff5d6)}' +
+      '.galaward{background:linear-gradient(#ffcf4d,#ff9f1c);color:#fff;font:900 9px var(--rf);padding:2px 6px;border-radius:8px;text-shadow:0 1px 0 rgba(0,0,0,.2)}' +
+      '.awbox{background:#fff9e6;border:2px solid #ffd166;border-radius:14px;padding:10px 12px;margin:8px 0;font:900 18px var(--rf);color:#c26a00}';
     document.head.appendChild(style);
+
+    const aov = document.createElement('div');
+    aov.className = 'ov';
+    aov.id = 'ov-award';
+    aov.innerHTML =
+      '<div class="card">' +
+      '<div style="font-size:44px;line-height:1.1">🏆</div>' +
+      '<h2 id="awTitle">コンテスト受賞！</h2>' +
+      '<p id="awDesc" style="font-weight:800;font-size:13px"></p>' +
+      '<div class="awbox" id="awReward"></div>' +
+      '<p class="fine">コインとアイテムが自動で追加されたよ！</p>' +
+      '<button class="big" id="bAwClose">やったー！</button>' +
+      '</div>';
+    document.body.appendChild(aov);
+    $('#bAwClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
 
     const pov = document.createElement('div');
     pov.className = 'ov';
@@ -755,6 +865,8 @@
       '<div id="postApiBox" style="display:none">' +
       '<p class="fine">ニックネームを決めて「🌟 みんなの絵」に公開しよう！</p>' +
       '<input id="postNick" type="text" maxlength="16" placeholder="ニックネーム（空欄なら「名無しのありんこ」）" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:800 13px var(--rf);color:var(--ink);margin:8px 0;text-align:center;background:#fff">' +
+      '<label class="mkperm" style="margin:6px 0"><input type="checkbox" id="postAllowOfficial" checked> 🏆 コンテスト応募・公式ステージ採用OK</label>' +
+      '<p class="fine" style="font-size:10px;margin:0 0 6px;line-height:1.4">※ 許可した作品の中から、素敵なステージが「公式ステージ」やコンテスト受賞作（報酬つき！）に選ばれることがあります。</p>' +
       '<p class="fine" id="postSummary" style="margin:4px 0 8px"></p>' +
       '</div>' +
       '<div id="postGhBox">' +
@@ -777,6 +889,7 @@
       '<div class="card">' +
       '<div class="mktabs"><button type="button" class="mktab on">🎨 ステージをつくる</button><button type="button" class="mktab" id="bMkToBgm">🎵 BGMをつくる</button></div>' +
       '<h2>🎨 ステージをつくる</h2>' +
+      (CONTEST.active ? '<div class="contest-bar"><b>' + CONTEST.title + '（' + CONTEST.period + '）</b><small>' + CONTEST.note + '</small></div>' : '') +
       '<div class="mktop"><button id="bMkGalTop">💾 マイ作品・みんなの絵</button><button id="bMkCloseTop">✕ とじる</button></div>' +
       '<input id="mkName" type="text" maxlength="14" placeholder="ステージ名（例：わたしのハート）">' +
       '<div class="mktools">' +
@@ -1310,7 +1423,7 @@
               contentHash: pendingPost.contentHash,
               token: pendingPost.token,
               siteUrl: location.origin + location.pathname,
-              meta: pendingPost.meta
+              meta: { ...pendingPost.meta, allowOfficial: !!($('#postAllowOfficial') && $('#postAllowOfficial').checked) }
             })
           });
           const data = await res.json().catch(() => ({}));
@@ -1443,6 +1556,24 @@
     gbtn.innerHTML = '<i>💾</i>マイ作品';
     gbtn.addEventListener('click', () => { Sound.tap(); openGallery(); });
     mrow.appendChild(gbtn);
+
+    if (CONTEST.active) {
+      const cb = document.createElement('div');
+      cb.className = 'contest-bar contest-home';
+      cb.innerHTML = '<div><b>' + CONTEST.title + '</b><small>' + CONTEST.period + ' · ' + CONTEST.note + '</small></div><span>参加する</span>';
+      cb.addEventListener('click', () => { Sound.tap(); openMaker(); });
+      mrow.insertAdjacentElement('beforebegin', cb);
+    }
+  }
+
+  // 起動時にコンテスト受賞チェック（自分の投稿作品がある場合のみ）
+  if (loadMyStages().length) {
+    setTimeout(async () => {
+      try {
+        const res = await fetch(ISSUES_API);
+        if (res.ok) checkContestAwards(await res.json());
+      } catch (e) {}
+    }, 1200);
   }
 
   // URL に ?stage=... があればそのオリジナルステージを起動

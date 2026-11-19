@@ -179,6 +179,7 @@ export default {
       const talkCount = Number(meta.talkCount) || 0;
       const bgmName = meta.bgmName ? String(meta.bgmName).slice(0, 20) : '';
       const allowRemix = !!meta.allowRemix;
+      const allowOfficial = !!meta.allowOfficial;
       const playUrl = siteUrl + '?stage=' + token;
       title = `[作品投稿] ${name} (${w}x${h})`;
       issueBody =
@@ -190,6 +191,7 @@ export default {
         (bgmName ? `- BGM: ${bgmName}\n` : '') +
         (talkCount ? `- セリフ: あり（${talkCount}こ）\n` : '') +
         `- アレンジ: ${allowRemix ? 'OK' : '不可'}\n` +
+        `- コンテスト・公式採用: ${allowOfficial ? 'OK' : '不可'}\n` +
         (contentHash ? `- 内容ID: ${contentHash}\n` : '') +
         `- プレイURL: ${playUrl}\n`;
     } else {
