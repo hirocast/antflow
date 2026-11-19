@@ -38,6 +38,9 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 #timeTxt{flex:0 0 auto;font-size:11px;font-weight:800;white-space:nowrap;text-shadow:0 1px 0 #fff}
 #timeTxt b{color:#ffa000}
 #timeTxt b.s1{color:#b99aa8}
+#coinPill{margin-left:auto}
+#lvTalk{display:none;flex-direction:column;align-items:center;line-height:1.15;background:linear-gradient(#fff,#fff2f7);border:2px solid #fff;border-radius:12px;padding:3px 7px;font-size:9.5px;font-weight:900;color:#c0507a;box-shadow:0 3px 0 rgba(90,61,92,.18);white-space:nowrap}
+#lvTalk small{font-size:8.5px;opacity:.85}
 .coin{display:flex;align-items:center;gap:3px;height:38px;padding:0 10px 0 6px;border-radius:19px;background:linear-gradient(#fffbe6,#ffe39a);border:3px solid #fff;box-shadow:0 4px 0 #d9a520;font-weight:900;font-size:15px;color:#8a5a00;flex:0 0 auto;cursor:pointer}
 .coin i{font-style:normal;font-size:17px}
 .coin.bump{animation:cbump .45s}
@@ -319,7 +322,7 @@ function handleTalkLikeClick(e) {
   $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b>'; return d; })(), $('#bAlbum'));
   $('header').insertBefore((() => { const b = document.createElement('button'); b.className = 'ib'; b.id = 'bHome'; b.setAttribute('aria-label', 'ホーム'); b.textContent = '🏠'; return b; })(), $('#bAlbum'));
   const tt = document.createElement('span'); tt.id = 'timeTxt'; $('.prog').appendChild(tt);
-  const lt = document.createElement('span'); lt.id = 'lvTalk'; lt.style.cssText = 'font-size:9.5px;font-weight:900;color:#c0507a;display:none'; $('.lv').appendChild(lt);
+  const lt = document.createElement('div'); lt.id = 'lvTalk'; $('header').insertBefore(lt, $('#coinPill'));
   document.body.appendChild($('#toast'));
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
@@ -1775,8 +1778,8 @@ function updateStageTalkHud() {
   let seen = 0;
   for (const s of all) if (seenTalkSet.has(s)) seen++;
   const pct = Math.round(100 * seen / all.length);
-  el.style.display = '';
-  el.textContent = '💬 ' + seen + '/' + all.length + ' (' + pct + '%)' + (seen === all.length ? '🎉' : '');
+  el.style.display = 'flex';
+  el.innerHTML = '<span>💬 ' + seen + '/' + all.length + '</span><small>' + pct + '%' + (seen === all.length ? '🎉' : '') + '</small>';
 }
 function stageTalkList(name) {
   const o = (typeof TALK_STAGE !== 'undefined' && TALK_STAGE[name]) || null;
