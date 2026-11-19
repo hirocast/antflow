@@ -16,7 +16,7 @@
   const INBOX_KEY = 'antflow-inbox-v1';
   const CONTEST = {
     active: true,
-    title: '🏆 第1回 ステージコンテスト開催中！',
+    title: '🏆 第1回 みんなに投稿ステージコンテスト開催中！',
     period: '11/29（日）まで · テーマ自由！',
     note: '参加賞：🪙100＋🎟️1 ／ 特別賞：🪙300＋🎟️2＋💡1 ／ 最優秀賞：🪙500＋🎟️3＋💡2＋🔍2',
     awards: {
@@ -39,8 +39,8 @@
       id: 'news_c1_open',
       kind: 'news',
       badge: '📢 おしらせ',
-      title: '🏆 第1回 ステージコンテスト開催中！',
-      body: '11/29（日）まで第1回ステージコンテストを開催しています！\nテーマは自由！応募してくれた全員に参加賞（🪙100＋🎟️1）、優秀作品には豪華報酬をプレゼント！\n\n【参加方法】\n①「🎨 つくる」でステージをかいて名前をつける\n② 下の「📮 投稿・🏆応募」ボタンを押す\n③「🏆 コンテスト応募」ONのまま投稿で完了！',
+      title: '🏆 第1回 みんなに投稿ステージコンテスト開催中！',
+      body: '11/29（日）まで第1回みんなに投稿ステージコンテストを開催しています！\nテーマは自由！応募してくれた全員に参加賞（🪙100＋🎟️1）、優秀作品には豪華報酬をプレゼント！\n\n【参加方法】\n①「🎨 つくる」でステージをかいて名前をつける\n② 下の「📮 投稿・🏆応募」ボタンを押す\n③「🏆 コンテスト応募」ONのまま投稿で完了！',
       at: Date.UTC(2026, 10, 19)
     }
   ];
@@ -1086,7 +1086,7 @@
       '<p class="fine">ニックネームを決めて「🌟 みんなの絵」に公開しよう！</p>' +
       '<input id="postNick" type="text" maxlength="16" placeholder="ニックネーム（空欄なら「名無しのありんこ」）" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:800 13px var(--rf);color:var(--ink);margin:8px 0;text-align:center;background:#fff">' +
       '<label class="mkperm" style="margin:6px 0"><input type="checkbox" id="postAllowOfficial" checked> 🏆 コンテスト応募・公式ステージ採用OK</label>' +
-      '<p class="fine" style="font-size:10px;margin:0 0 6px;line-height:1.4">' + (CONTEST.active ? '※ ONのまま投稿すると「第1回ステージコンテスト」に応募されます！（応募者全員に参加賞 🪙100＋🎟️1）' : '※ 許可した作品の中から、素敵なステージが「公式ステージ」やコンテスト受賞作（報酬つき！）に選ばれることがあります。') + '</p>' +
+      '<p class="fine" style="font-size:10px;margin:0 0 6px;line-height:1.4">' + (CONTEST.active ? '※ ONのまま投稿すると「第1回みんなに投稿ステージコンテスト」に応募されます！（応募者全員に参加賞 🪙100＋🎟️1）' : '※ 許可した作品の中から、素敵なステージが「公式ステージ」やコンテスト受賞作（報酬つき！）に選ばれることがあります。') + '</p>' +
       '<p class="fine" id="postSummary" style="margin:4px 0 8px"></p>' +
       '</div>' +
       '<div id="postGhBox">' +
