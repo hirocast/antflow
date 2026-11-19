@@ -5,6 +5,56 @@
 (function () {
   const MY_BGM_KEY = 'antflow-my-bgms-v1';
   const ACTIVE_BGM_KEY = 'antflow-active-bgm-v1';
+  const BGM_POST_CD_KEY = 'antflow-bgm-post-cd-v1';
+  const BGM_REPORT_KEY = 'antflow-bgm-reported-v1';
+  const POST_COOLDOWN_MS = 60 * 1000;
+  const REPO_URL = 'https://github.com/hirocast/antflow';
+  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
+  const NG_WORDS = [
+    '死ね', 'しね', '殺す', 'ころす', 'バカ', 'ばか', 'アホ', 'あほ', 'クズ', 'くず',
+    'キモ', 'きも', 'うざ', 'ウザ', 'ちん', 'まん', 'せっくす', 'セックス', 'エロ', 'えろ',
+    'アダルト', '暴力', '薬物', '大麻', 'fuck', 'shit', 'bitch', 'porn', 'sex', 'nude'
+  ];
+  function validateBgmName(name) {
+    const s = String(name || '');
+    if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|@/i.test(s)) return '曲名にURLや@は使えません';
+    const norm = s.toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
+    for (let i = 0; i < NG_WORDS.length; i++) {
+      if (norm.indexOf(NG_WORDS[i]) >= 0) return '曲名に使えない言葉が入っています';
+    }
+    return '';
+  }
+  function checkBgmPostLimit(token) {
+    try {
+      const d = JSON.parse(localStorage.getItem(BGM_POST_CD_KEY) || '{}');
+      const left = Math.ceil(((d.at || 0) + POST_COOLDOWN_MS - Date.now()) / 1000);
+      if (left > 0) return '連続投稿制限：あと ' + left + ' 秒まってね';
+      if (d.token && d.token === token) return '同じBGMは連続で投稿できません';
+    } catch (e) {}
+    return '';
+  }
+  function recordBgmPost(token) {
+    try { localStorage.setItem(BGM_POST_CD_KEY, JSON.stringify({ at: Date.now(), token })); } catch (e) {}
+  }
+  function loadBgmReported() {
+    try { return new Set(JSON.parse(localStorage.getItem(BGM_REPORT_KEY) || '[]')); } catch (e) { return new Set(); }
+  }
+  function addBgmReported(key) {
+    const set = loadBgmReported();
+    set.add(String(key));
+    try { localStorage.setItem(BGM_REPORT_KEY, JSON.stringify([...set].slice(-100))); } catch (e) {}
+  }
+  function countSongNotes(s) {
+    let n = 0;
+    for (const b of (s.bars || [])) {
+      for (let i = 0; i < 16; i++) {
+        if (b.notes[i] && b.notes[i].length) n += b.notes[i].length;
+        if (b.kick[i]) n++;
+        if (b.clap[i]) n++;
+      }
+    }
+    return n;
+  }
   const NOTES = [
     { label: 'ド↑', semi: 12, col: '#ff7aa6' },
     { label: 'シ', semi: 11, col: '#ff9a5c' },
@@ -430,6 +480,13 @@
 .bgm-mini{border:none;border-radius:8px;padding:4px 8px;background:#fff1d6;color:var(--ink);font:800 11px var(--rf);cursor:pointer}
 .bgm-mini.use{background:var(--mint);color:#fff}
 .bgm-mini.del{background:#ffe3e8;color:#c03858}
+#ov-bgm-gal .card{width:min(96vw,460px);padding:14px}
+.bgm-gal{max-height:46vh;overflow:auto;text-align:left;margin:6px 0}
+.bgm-gcard{position:relative;display:flex;align-items:center;gap:6px;padding:8px 10px;background:#fff;border:2px solid #ffd3e2;border-radius:14px;margin-bottom:6px}
+.bgm-gcard .info{flex:1;min-width:0}
+.bgm-gcard .info b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bgm-gcard .info small{display:block;font-size:10px;color:#8a6a7a}
+.bgm-gcard .rep{border:none;background:none;font-size:13px;padding:2px 4px;cursor:pointer;opacity:.7}
 `;
     document.head.appendChild(st);
 
@@ -458,10 +515,43 @@
           '<button type="button" class="big sec" id="bgmSaveBtn">💾 ほぞん</button>' +
           '<button type="button" class="big sec" id="bgmShareBtn">🔗 URLコピー</button>' +
         '</div>' +
+        '<div class="bgm-row2">' +
+          '<button type="button" class="big sec" id="bgmPostBtn">📮 みんなに投稿</button>' +
+          '<button type="button" class="big sec" id="bgmGalBtn">🎶 みんなのBGM</button>' +
+        '</div>' +
         '<div class="bgm-saved" id="bgmSavedList"></div>' +
         '<button type="button" class="big sec" id="bgmCloseBtn" style="margin-top:8px">とじる</button>' +
       '</div>';
     document.body.appendChild(ov);
+
+    const pov = document.createElement('div');
+    pov.className = 'ov';
+    pov.id = 'ov-bgm-posthelp';
+    pov.innerHTML =
+      '<div class="card">' +
+      '<h2>📮 BGMを投稿する</h2>' +
+      '<p class="fine">※ 投稿には GitHub アカウントが必要です（聴く・使う・URLシェアは不要）</p>' +
+      '<div class="poststeps">' +
+      '<div><b>①</b> 下のボタンで投稿ページが開きます</div>' +
+      '<div><b>②</b> 内容は自動入力されているので、そのまま緑色の <b>「Create」</b>（または「Submit new issue」）ボタンを押すだけ！</div>' +
+      '<div><b>③</b> <b>「🟢 Open」</b> の画面が出たら投稿完了！このアプリに戻って「🎶 みんなのBGM」を見てね</div>' +
+      '</div>' +
+      '<button class="big" id="bBgmPostGo">📮 投稿ページをひらく</button>' +
+      '<button class="big sec" id="bBgmPostBack">もどる</button>' +
+      '</div>';
+    document.body.appendChild(pov);
+
+    const gov = document.createElement('div');
+    gov.className = 'ov';
+    gov.id = 'ov-bgm-gal';
+    gov.innerHTML =
+      '<div class="card">' +
+      '<h2>🎶 みんなのBGM</h2>' +
+      '<div class="bgm-gal" id="bgmGalList"></div>' +
+      '<button class="big" id="bBgmGalBack">🎵 つくるにもどる</button>' +
+      '<button class="big sec" id="bBgmGalClose">ホームへ</button>' +
+      '</div>';
+    document.body.appendChild(gov);
 
     const grid = $('#bgmGrid');
     grid.addEventListener('pointerdown', e => {
@@ -581,6 +671,132 @@
       } else if (act === 'del') {
         arr.splice(i, 1); saveMyBgms(arr); renderSavedList();
       }
+    });
+    let pendingBgmPost = null;
+    $('#bgmPostBtn').addEventListener('click', () => {
+      Sound.tap();
+      if (countSongNotes(song) < 4) { toast('音やリズムを4つ以上おいてね！'); return; }
+      const name = ($('#bgmName').value || '').trim() || 'わたしのBGM';
+      const ng = validateBgmName(name);
+      if (ng) { toast(ng); return; }
+      song.name = name;
+      const tok = encodeBgm(song);
+      const cd = checkBgmPostLimit(tok);
+      if (cd) { toast(cd); return; }
+      const arr = loadMyBgms();
+      if (!arr.some(x => x.name === name)) { arr.unshift(cloneSong(song)); saveMyBgms(arr); renderSavedList(); }
+      const url = location.origin + location.pathname + '?bgm=' + tok;
+      const title = '[BGM投稿] ' + name + ' (BPM' + song.bpm + ')';
+      const body =
+        '### オリジナルBGM投稿\n' +
+        '- 曲名: ' + name + '\n' +
+        '- BPM: ' + song.bpm + ' / ' + song.bars.length + '小節\n' +
+        '- 試聴・プレイURL: ' + url + '\n\n' +
+        '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🎶 みんなのBGM」に表示されます）';
+      pendingBgmPost = { tok, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
+      showOv('bgm-posthelp');
+    });
+    $('#bBgmPostGo').addEventListener('click', () => {
+      Sound.tap();
+      if (!pendingBgmPost) { showOv('bgm'); return; }
+      recordBgmPost(pendingBgmPost.tok);
+      window.open(pendingBgmPost.issueUrl, '_blank', 'noopener');
+      pendingBgmPost = null;
+      showOv('bgm');
+      toast('投稿ページを開いたよ！緑の「Create」を押してね');
+    });
+    $('#bBgmPostBack').addEventListener('click', () => { Sound.tap(); showOv('bgm'); });
+
+    let galTimer = null;
+    function stopGalPreview() {
+      clearInterval(galTimer);
+      galTimer = null;
+      document.querySelectorAll('#bgmGalList .bgm-mini.play').forEach(b => { b.textContent = '▶'; b.classList.remove('play'); });
+    }
+    async function openBgmGallery() {
+      stopPreview();
+      stopGalPreview();
+      showOv('bgm-gal');
+      const box = $('#bgmGalList');
+      box.innerHTML = '<p class="fine">読み込み中…</p>';
+      const reported = loadBgmReported();
+      try {
+        const res = await fetch(ISSUES_API);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const issues = await res.json();
+        box.innerHTML = '';
+        let cnt = 0;
+        for (const iss of issues) {
+          const m = (iss.body || '').match(/[?&]bgm=([A-Za-z0-9_-]+)/);
+          if (!m) continue;
+          const id = 'gh_bgm_' + iss.number;
+          if (reported.has(id) || reported.has(m[1])) continue;
+          const s = decodeBgm(m[1]);
+          if (!s || validateBgmName(s.name)) continue;
+          const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM';
+          const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
+          const card = document.createElement('div');
+          card.className = 'bgm-gcard';
+          card.innerHTML =
+            '<div class="info"><b></b><small></small></div>' +
+            '<button type="button" class="bgm-mini">▶</button>' +
+            '<button type="button" class="bgm-mini use">使う</button>' +
+            '<button type="button" class="bgm-mini">ひらく</button>' +
+            '<button type="button" class="rep" title="不適切なBGMを非表示・通報">⚠️</button>';
+          card.querySelector('b').textContent = s.name;
+          card.querySelector('small').textContent = instInfo.label + ' · BPM' + s.bpm + ' · ' + s.bars.length + '小節 · ' + author;
+          const [pBtn, uBtn, lBtn] = card.querySelectorAll('.bgm-mini');
+          pBtn.addEventListener('click', () => {
+            const was = pBtn.classList.contains('play');
+            stopGalPreview();
+            if (was) return;
+            Sound.init(); Sound.stopBgm();
+            pBtn.textContent = '⏹'; pBtn.classList.add('play');
+            let st = 0;
+            const total = s.bars.length * 16;
+            const stepFn = () => {
+              const idx = st % total, b = s.bars[Math.floor(idx / 16)], k = idx % 16;
+              for (const n of b.notes[k]) Sound.playCustomNote(s.inst, n, 0, 0.22);
+              if (b.kick[k]) Sound.playCustomDrum(1, 0, b.notes[k].length ? b.notes[k][0] : 0);
+              if (b.clap[k]) Sound.playCustomDrum(2, 0);
+              st++;
+            };
+            stepFn();
+            galTimer = setInterval(stepFn, Math.round(60000 / s.bpm / 4));
+          });
+          uBtn.addEventListener('click', () => {
+            Sound.init(); stopGalPreview();
+            song = cloneSong(s); curBar = 0;
+            applyActiveBgm(song, true);
+            toast('🎧「' + song.name + '」をゲームのBGMにしたよ！');
+          });
+          lBtn.addEventListener('click', () => {
+            Sound.tap(); stopGalPreview();
+            song = cloneSong(s); curBar = 0; syncUI();
+            showOv('bgm');
+            toast('🎵「' + song.name + '」をひらいたよ');
+          });
+          card.querySelector('.rep').addEventListener('click', () => {
+            if (!confirm('「' + s.name + '」を不適切なBGMとして一覧から非表示にしますか？')) return;
+            addBgmReported(id); addBgmReported(m[1]);
+            card.remove();
+            toast('一覧から非表示にしました');
+          });
+          box.appendChild(card);
+          cnt++;
+        }
+        if (!cnt) box.innerHTML = '<p class="fine">表示できる投稿BGMがありません。最初の1曲を投稿してみよう！</p>';
+      } catch (e) {
+        box.innerHTML = '<p class="fine">投稿一覧を読み込めませんでした（オフラインまたはアクセス集中）</p>';
+      }
+    }
+
+    $('#bgmGalBtn').addEventListener('click', () => { Sound.tap(); openBgmGallery(); });
+    $('#bBgmGalBack').addEventListener('click', () => { Sound.tap(); stopGalPreview(); openBgmMaker(); });
+    $('#bBgmGalClose').addEventListener('click', () => {
+      Sound.tap(); stopGalPreview();
+      if (save.settings.bgm) Sound.startBgm();
+      showOv('title');
     });
     $('#bgmCloseBtn').addEventListener('click', () => {
       stopPreview();
