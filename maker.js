@@ -154,7 +154,7 @@
   }
   let mkZoom = 1, mkPanX = 0, mkPanY = 0;
   const mkPtrs = new Map();
-  let mkPinch = null, mkLastPan = null, mkSel = null, mkSelDrag = null;
+  let mkPinch = null, mkLastPan = null, mkSel = null, mkSelDrag = null, mkClip = null;
   function commitSel() {
     if (!mkSel) return;
     if (mkSel.buf) {
@@ -1239,6 +1239,8 @@
       '<button id="mkDrop">💉 スポイト</button>' +
       '<button id="mkBrush">🖌️ 1×1</button>' +
       '<button id="mkSelBtn">🔲 選択移動</button>' +
+      '<button id="mkCopy">📋 コピー</button>' +
+      '<button id="mkPaste" disabled>📋 はりつけ</button>' +
       '<button id="mkMir">🪞 左右対称</button>' +
       '<button id="mkMirV">↕️ 上下対称</button>' +
       '<button id="mkHeart">❤️ ハート</button>' +
@@ -1618,6 +1620,43 @@
         setTool('pen');
       }
       $('#mkSelBtn').classList.toggle('on', mkSelMode);
+    });
+    $('#mkCopy').addEventListener('click', () => {
+      Sound.tap();
+      if (mkSel) {
+        let buf;
+        if (mkSel.buf) {
+          buf = mkSel.buf.slice();
+        } else {
+          buf = new Int8Array(mkSel.w * mkSel.h).fill(-1);
+          for (let dy = 0; dy < mkSel.h; dy++) for (let dx = 0; dx < mkSel.w; dx++) {
+            const gx = mkSel.x + dx, gy = mkSel.y + dy;
+            if (gx >= 0 && gx < mkW && gy >= 0 && gy < mkH) buf[dy * mkSel.w + dx] = mkGrid[gy * mkW + gx];
+          }
+        }
+        mkClip = { w: mkSel.w, h: mkSel.h, buf };
+        $('#mkPaste').disabled = false;
+        toast('📋 選択範囲（' + mkSel.w + '×' + mkSel.h + '）をコピーしたよ！');
+      } else {
+        mkClip = { w: mkW, h: mkH, buf: mkGrid.slice() };
+        $('#mkPaste').disabled = false;
+        toast('📋 全体をコピーしたよ！（一部だけコピーは「🔲 選択移動」でかこんでね）');
+      }
+    });
+    $('#mkPaste').addEventListener('click', () => {
+      if (!mkClip) return;
+      Sound.tap();
+      commitSel();
+      pushMkUndo();
+      if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
+      setTool('pen');
+      mkSelMode = true;
+      $('#mkSelBtn').classList.add('on');
+      const px = Math.max(0, Math.floor((mkW - mkClip.w) / 2));
+      const py = Math.max(0, Math.floor((mkH - mkClip.h) / 2));
+      mkSel = { x: px, y: py, w: mkClip.w, h: mkClip.h, buf: mkClip.buf.slice() };
+      drawMaker();
+      toast('📋 貼り付けたよ！ドラッグして位置を動かしてね');
     });
     $('#mkMir').addEventListener('click', () => { Sound.tap(); mkMirror = !mkMirror; $('#mkMir').classList.toggle('on', mkMirror); drawMaker(); });
     $('#mkMirV').addEventListener('click', () => { Sound.tap(); mkMirrorV = !mkMirrorV; $('#mkMirV').classList.toggle('on', mkMirrorV); drawMaker(); });
