@@ -18,8 +18,9 @@ const Sound = {
         const comp = c.createDynamicsCompressor();
         comp.threshold.value = -18; comp.knee.value = 20; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.2;
         this.master.connect(comp); comp.connect(c.destination);
-        // 短く温かい残響
-        this.verb = c.createConvolver(); this.verb.buffer = this.impulse(1.8, 3);
+        // 短く温かい残響（モバイルや低スペック端末では短いインパルスで負荷を約1/3に抑える）
+        const liteAudio = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        this.verb = c.createConvolver(); this.verb.buffer = this.impulse(liteAudio ? 0.65 : 1.8, 3);
         const wet = c.createGain(); wet.gain.value = 0.18;
         this.verb.connect(wet); wet.connect(this.master);
         // 効果音：高音域を丸める

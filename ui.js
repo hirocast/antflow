@@ -26,8 +26,7 @@ body{background:linear-gradient(180deg,#86d6ff 0%,#c4ecff 40%,#eefbff 60%,#cdeea
 body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;opacity:.9;
  background:radial-gradient(ellipse 90px 30px at 14% 10%,#fff 60%,transparent 62%),radial-gradient(ellipse 56px 24px at 21% 7%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 110px 34px at 82% 18%,#fff 60%,transparent 62%),radial-gradient(ellipse 66px 26px at 89% 14%,#fff 60%,transparent 62%),
- radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%);animation:cloud 30s ease-in-out infinite alternate}
-@keyframes cloud{to{transform:translateX(26px)}}
+ radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%)}
 header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 .lv{min-width:84px;margin-right:auto;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
 .ib{border:3px solid #fff;background:linear-gradient(#fff,#ffeef5);box-shadow:0 4px 0 rgba(90,61,92,.22)}
@@ -52,13 +51,13 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 #bScan{background:#a66be0;box-shadow:0 4px 0 #7f4ab8}
 #bScan.on{background:var(--mint);box-shadow:0 4px 0 var(--mintd)}
 #bScan.on em.price{background:linear-gradient(#d4ffe9,#5fcf9f);color:#145a38;box-shadow:0 2px 0 #3fae7f}
-.ov{background:rgba(50,30,80,.45);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
-.card{border:none;background:linear-gradient(#fffdf6,#fff3df);box-shadow:0 0 0 4px #fff,0 0 0 8px #ffb6cd,0 18px 44px rgba(60,30,70,.4)}
+.ov{background:rgba(50,30,80,.56)}
+.card{border:4px solid #ffb6cd;background:linear-gradient(#fffdf6,#fff3df);box-shadow:0 0 0 3px #fff,0 10px 24px rgba(60,30,70,.3)}
 .card h2{display:inline-block;padding:6px 24px;border-radius:16px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;box-shadow:0 4px 0 #d4507c;text-shadow:0 2px 0 rgba(0,0,0,.15);margin:0 0 10px}
 .card h3{margin:14px 0 6px;font-size:15px;color:#c0507a}
 #toast{position:fixed;bottom:110px;z-index:50}
-body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;border-radius:22px;box-shadow:inset 0 0 36px rgba(255,110,200,.6);animation:fvg .45s ease-in-out infinite alternate}
-@keyframes fvg{to{box-shadow:inset 0 0 56px rgba(255,214,70,.8)}}
+body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;border-radius:22px;box-shadow:inset 0 0 42px rgba(255,160,130,.75);animation:fvg .45s ease-in-out infinite alternate}
+@keyframes fvg{from{opacity:.5}to{opacity:1}}
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
 .tinfo span{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
 .mrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
@@ -141,7 +140,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 #tut.on{display:block}
 #tut .tblk{position:fixed;pointer-events:auto;display:none}
 #tut .tblk.all{left:0;top:0;right:0;bottom:0}
-#tut .thole{position:fixed;left:50%;top:45%;width:0;height:0;border-radius:18px;pointer-events:none;box-shadow:0 0 0 200vmax rgba(40,20,70,.58);transition:left .25s,top .25s,width .25s,height .25s,opacity .2s}
+#tut .thole{position:fixed;left:50%;top:45%;width:0;height:0;border-radius:18px;pointer-events:none;box-shadow:0 0 0 110vmax rgba(40,20,70,.58);transition:left .25s,top .25s,width .25s,height .25s,opacity .2s}
 #tut .thole::after{content:'';position:absolute;left:-5px;top:-5px;right:-5px;bottom:-5px;border:3px solid #ffd23f;border-radius:22px;box-shadow:0 0 14px rgba(255,210,63,.85);animation:tring .8s ease-in-out infinite alternate}
 #tut .thole.none::after{display:none}
 @keyframes tring{to{transform:scale(1.04);opacity:.55}}
@@ -812,7 +811,8 @@ function showJam() {
 }
 // タイトル画面と読み込み画面のアリさん
 function drawMascot(cv, t) {
-  if (cv.width !== 170 * dpr) { cv.width = 170 * dpr; cv.height = 130 * dpr; }
+  const W = Math.round(170 * dpr), H = Math.round(130 * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
   const g = cv.getContext('2d'), u = 30, bob = -Math.abs(Math.sin(t * 4)) * 5;
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, 170, 130);
   g.fillStyle = 'rgba(120,60,90,.15)'; ell(g, 85, 120, 46, 6); g.fill();
@@ -2187,7 +2187,7 @@ if (window.ResizeObserver) new ResizeObserver(() => layout()).observe(stage); el
 if (/[?&]dev\b/.test(location.search)) { save.settings.dev = true; persist(); }
 
 /* ================= メインループ ================= */
-let lastT = performance.now(), lastDrawT = 0;
+let lastT = performance.now(), lastDrawT = 0, lastOvDrawT = 0;
 function frame(now) {
   const rdt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
   lastT = now;
@@ -2226,11 +2226,14 @@ function frame(now) {
       }
     }
     if (G.reveal && G.overlay === 'clear') drawReveal(rdt);
-    if (G.overlay === 'title') drawMascot($('#mascot'), G.rt);
-    if (G.overlay === 'load') drawMascot($('#loadCv'), G.rt * 1.6);
-    if (G.overlay === 'colony') drawColony($('#qCv'), G.rt);
-    if (G.overlay === 'skins') drawSkinPrev($('#skCv'), G.rt);
-    if (G.overlay === 'help') drawHelp($('#hCv'), HELP_PAGES[G.helpPage || 0].k, G.rt - (G.helpT || 0));
+    if (G.overlay && now - lastOvDrawT >= 32) {
+      lastOvDrawT = now;
+      if (G.overlay === 'title') drawMascot($('#mascot'), G.rt);
+      else if (G.overlay === 'load') drawMascot($('#loadCv'), G.rt * 1.6);
+      else if (G.overlay === 'colony') drawColony($('#qCv'), G.rt);
+      else if (G.overlay === 'skins') drawSkinPrev($('#skCv'), G.rt);
+      else if (G.overlay === 'help') drawHelp($('#hCv'), HELP_PAGES[G.helpPage || 0].k, G.rt - (G.helpT || 0));
+    }
     // 女王さまをタップ・ごはんをあげたときの「はずみ」を少しずつ戻す
     if (G.qBounce > 0) G.qBounce = Math.max(0, G.qBounce - rdt * 3);
     Fx.update(rdt); Fx.draw();

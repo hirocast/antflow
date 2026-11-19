@@ -179,7 +179,8 @@ let slotSize = 50, slotGap = 10, slotY = 0, trayTop = 0, trayHeadY = 0, trayGap 
 // boardSide：横長の画面で「絵を左・スロットとトレイを右」にしているか
 let framePad = 10, slotCX = 0, trayCX = 0, panelL = 8, panelR = 0, boardSide = false;
 let cubeSpr = [], cubeRes = [], candySpr = [];
-const antCache = new Map(), boardCv = document.createElement('canvas'), boardG = boardCv.getContext('2d');
+const antCache = new Map(), boxCache = new Map(), boardCv = document.createElement('canvas'), boardG = boardCv.getContext('2d');
+let trayGrad = null, trayGradKey = '';
 
 /* ---- レイアウト：絵をできるだけ大きく ----
    たて長：上から「絵」「スロット＋巣穴（横ならび）」「トレイ」。絵が横幅いっぱいになったら、余った高さで箱を大きくする
@@ -243,7 +244,8 @@ function planWide(W, H, n) {
 function layout() {
   const r = stage.getBoundingClientRect();
   CW = r.width; CH = r.height;
-  dpr = Math.min(innerWidth <= 640 ? 1.5 : 2, window.devicePixelRatio || 1);
+  const maxDpr = (navigator.deviceMemory && navigator.deviceMemory <= 2) ? 1.25 : (innerWidth <= 640 ? 1.5 : 2);
+  dpr = Math.min(maxDpr, window.devicePixelRatio || 1);
   canvas.width = Math.max(1, Math.round(CW * dpr)); canvas.height = Math.max(1, Math.round(CH * dpr));
   Fx.resize();
   if (!G.s) return;
@@ -261,6 +263,8 @@ function layout() {
   document.body.classList.toggle('wide', boardSide);
   document.body.style.setProperty('--pw', P.pw + 'px');
   antCache.clear();
+  boxCache.clear();
+  trayGrad = null;
   buildSprites();
   G.boardDirty = true;
 }
@@ -725,11 +729,41 @@ function drawSlots() {
     }
   }
 }
+function boxSprite(ci, sz, peek) {
+  const px = Math.max(8, Math.round(sz)), cb = save.settings.cb ? 1 : 0;
+  const k = ci + '|' + px + '|' + (peek ? 1 : 0) + '|' + cb;
+  let ent = boxCache.get(k);
+  if (!ent) {
+    const sh = SHADE[ci], pad = Math.ceil(px * 0.14), cw = px + pad * 2, ch = px + pad * 2;
+    const cv = document.createElement('canvas');
+    cv.width = Math.ceil(cw * dpr); cv.height = Math.ceil(ch * dpr);
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, cw * dpr / 2, ch * dpr / 2);
+    const w = px, h = px * 0.82, r = px * 0.24;
+    g.fillStyle = 'rgba(120,60,90,.16)'; ell(g, 0, h * 0.52, w * 0.46, px * 0.07); g.fill();
+    g.fillStyle = sh.d; roundRect(g, -w / 2, -h / 2, w, h, r); g.fill();
+    const gr = g.createLinearGradient(0, -h / 2, 0, h * 0.35);
+    gr.addColorStop(0, sh.l2); gr.addColorStop(1, HEX[ci]);
+    g.fillStyle = gr; roundRect(g, -w / 2, -h / 2, w, h * 0.88, r); g.fill();
+    g.fillStyle = peek ? 'rgba(60,30,50,.35)' : 'rgba(255,255,255,.35)';
+    roundRect(g, -w * 0.38, -h * 0.42, w * 0.76, h * 0.16, h * 0.08); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.75)'; ell(g, -w * 0.3, -h * 0.1, w * 0.06, w * 0.06); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = Math.max(1.5, px * 0.04);
+    roundRect(g, -w / 2 + 1, -h / 2 + 1, w - 2, h - 2, r); g.stroke();
+    if (cb) {
+      g.font = '700 ' + Math.round(px * 0.22) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#fff'; g.fillText(SYM[ci], w * 0.3, -h * 0.24);
+    }
+    if (boxCache.size > 200) boxCache.clear();
+    ent = { cv, cw, ch, px };
+    boxCache.set(k, ent);
+  }
+  return ent;
+}
 function drawBox(x, y, sz, ci, num, o) {
   o = o || {};
-  const sh = SHADE[ci], al = o.alpha == null ? 1 : o.alpha, w = sz, h = sz * 0.82, r = sz * 0.24;
+  const sh = SHADE[ci], al = o.alpha == null ? 1 : o.alpha, h = sz * 0.82;
   ctx.save(); ctx.translate(x, y); ctx.scale(o.sx || 1, o.sy || 1); ctx.globalAlpha = al;
-  ctx.fillStyle = 'rgba(120,60,90,.16)'; ell(ctx, 0, h * 0.52, w * 0.46, sz * 0.07); ctx.fill();
   if (o.peek) {
     const hr = sz * 0.17, bob = Math.sin(G.rt * 6 + x) * hr * 0.15, hy = -h / 2 - hr * 0.45 + bob;
     ctx.strokeStyle = sh.ol; ctx.lineWidth = Math.max(1, sz * 0.03);
@@ -740,24 +774,13 @@ function drawBox(x, y, sz, ci, num, o) {
     ctx.fillStyle = '#2a2030';
     for (const s of [-1, 1]) { ell(ctx, s * hr * 0.38, hy, hr * 0.15, hr * 0.2); ctx.fill(); }
   }
-  ctx.fillStyle = sh.d; roundRect(ctx, -w / 2, -h / 2, w, h, r); ctx.fill();
-  const gr = ctx.createLinearGradient(0, -h / 2, 0, h * 0.35);
-  gr.addColorStop(0, sh.l2); gr.addColorStop(1, HEX[ci]);
-  ctx.fillStyle = gr; roundRect(ctx, -w / 2, -h / 2, w, h * 0.88, r); ctx.fill();
-  ctx.fillStyle = o.peek ? 'rgba(60,30,50,.35)' : 'rgba(255,255,255,.35)';
-  roundRect(ctx, -w * 0.38, -h * 0.42, w * 0.76, h * 0.16, h * 0.08); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.75)'; ell(ctx, -w * 0.3, -h * 0.1, w * 0.06, w * 0.06); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = Math.max(1.5, sz * 0.04);
-  roundRect(ctx, -w / 2 + 1, -h / 2 + 1, w - 2, h - 2, r); ctx.stroke();
+  const spr = boxSprite(ci, sz, o.peek), sc = sz / spr.px, dw = spr.cw * sc, dh = spr.ch * sc;
+  ctx.drawImage(spr.cv, -dw / 2, -dh / 2, dw, dh);
   if (num != null) {
     const fs = sz * (String(num).length > 2 ? 0.3 : 0.38), ny = h * (o.numY == null ? 0.1 : o.numY);
     ctx.font = fnt(900, fs); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineWidth = Math.max(2.5, fs * 0.2); ctx.strokeStyle = sh.ol; ctx.strokeText(String(num), 0, ny);
     ctx.fillStyle = '#fff'; ctx.fillText(String(num), 0, ny);
-  }
-  if (save.settings.cb) {
-    ctx.font = '700 ' + Math.round(sz * 0.22) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff'; ctx.fillText(SYM[ci], w * 0.3, -h * 0.24);
   }
   ctx.restore();
 }
@@ -767,10 +790,14 @@ function drawZz(x, y, sz) {
   ctx.fillStyle = '#a08ab0'; ctx.font = fnt(900, r * 1.1); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('z', x, y + bob);
 }
 function drawTray() {
-  const L = panelL, TW = panelR - panelL, tg = ctx.createLinearGradient(0, trayTop, 0, CH);
-  tg.addColorStop(0, '#fff1d0'); tg.addColorStop(1, '#ffd99a');
+  const L = panelL, TW = panelR - panelL, gk = trayTop + '|' + CH;
+  if (!trayGrad || trayGradKey !== gk) {
+    trayGradKey = gk;
+    trayGrad = ctx.createLinearGradient(0, trayTop, 0, CH);
+    trayGrad.addColorStop(0, '#fff1d0'); trayGrad.addColorStop(1, '#ffd99a');
+  }
   ctx.fillStyle = 'rgba(160,100,40,.2)'; roundRect(ctx, L, trayTop + 5, TW, CH - trayTop - 6, 22); ctx.fill();
-  ctx.fillStyle = tg; roundRect(ctx, L, trayTop, TW, CH - trayTop - 8, 22); ctx.fill();
+  ctx.fillStyle = trayGrad; roundRect(ctx, L, trayTop, TW, CH - trayTop - 8, 22); ctx.fill();
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
   for (let j = 0; j < G.s.cols.length; j++) {
     const col = G.s.cols[j], h = G.s.heads[j], rest = col.length - h;
@@ -1574,7 +1601,7 @@ function draw() {
 const Fx = {
   p: [], w: 0, h: 0, had: false,
   resize() { this.w = innerWidth; this.h = innerHeight; fxCv.width = Math.round(this.w * dpr); fxCv.height = Math.round(this.h * dpr); this.had = false; },
-  add(o) { if (this.p.length < 700) this.p.push(o); },
+  add(o) { if (this.p.length < (innerWidth <= 640 ? 220 : 700)) this.p.push(o); },
   burst(x, y, n, sp, kinds) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, v = sp * (0.35 + Math.random() * 0.8);
