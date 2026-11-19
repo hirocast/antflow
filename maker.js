@@ -82,13 +82,27 @@
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
   function fromB64Url(str) {
-    let s = str.replace(/-/g, '+').replace(/_/g, '/');
+    let s = String(str || '').trim().replace(/-/g, '+').replace(/_/g, '/');
     while (s.length % 4) s += '=';
     const bin = atob(s), out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   }
-  function encodeCustomStage(name, grid, w, h) {
+  async function deflateRawBytes(bytes) {
+    const cs = new CompressionStream('deflate-raw');
+    const w = cs.writable.getWriter();
+    w.write(bytes);
+    w.close();
+    return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+  }
+  async function inflateRawBytes(bytes) {
+    const ds = new DecompressionStream('deflate-raw');
+    const w = ds.writable.getWriter();
+    w.write(bytes);
+    w.close();
+    return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+  }
+  function encodeCustomStageV1(name, grid, w, h) {
     const W = w || mkW, H = h || mkH;
     const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
     const runs = [];
@@ -109,29 +123,84 @@
     bytes.set(runs, 4 + nb.length);
     return toB64Url(bytes);
   }
-  function decodeCustomStage(token) {
+  async function encodeCustomStage(name, grid, w, h) {
+    const v1 = encodeCustomStageV1(name, grid, w, h);
+    if (typeof CompressionStream !== 'function') return v1;
+    try {
+      const W = w || mkW, H = h || mkH;
+      const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
+      const raw = new Uint8Array(3 + nb.length + grid.length);
+      raw[0] = W;
+      raw[1] = H;
+      raw[2] = nb.length;
+      raw.set(nb, 3);
+      for (let i = 0; i < grid.length; i++) raw[3 + nb.length + i] = grid[i] + 1;
+      const comp = await deflateRawBytes(raw);
+      const out = new Uint8Array(1 + comp.length);
+      out[0] = 2;
+      out.set(comp, 1);
+      const v2 = toB64Url(out);
+      return v2.length < v1.length ? v2 : v1;
+    } catch (e) {
+      return v1;
+    }
+  }
+  async function decodeCustomStage(token) {
     try {
       const bytes = fromB64Url(token);
-      if (bytes.length < 6 || bytes[0] !== 1) return null;
-      const W = bytes[1], H = bytes[2], nLen = bytes[3];
-      if (W < 8 || W > 32 || H < 8 || H > 32 || 4 + nLen >= bytes.length) return null;
-      const name = new TextDecoder().decode(bytes.slice(4, 4 + nLen)) || 'オリジナル';
-      const grid = new Int8Array(W * H).fill(-1);
-      let idx = 0;
-      for (let p = 4 + nLen; p + 1 < bytes.length && idx < grid.length; p += 2) {
-        const val = bytes[p] - 1, cnt = bytes[p + 1];
-        if (val < -1 || val >= HEX.length || cnt < 1) return null;
-        for (let k = 0; k < cnt && idx < grid.length; k++) grid[idx++] = val;
+      if (bytes.length < 6) return null;
+      const ver = bytes[0];
+      if (ver === 1) {
+        const W = bytes[1], H = bytes[2], nLen = bytes[3];
+        if (W < 8 || W > 32 || H < 8 || H > 32 || 4 + nLen >= bytes.length) return null;
+        const name = new TextDecoder().decode(bytes.slice(4, 4 + nLen)) || 'オリジナル';
+        const grid = new Int8Array(W * H).fill(-1);
+        let idx = 0, p = 4 + nLen;
+        for (; p + 1 < bytes.length && idx < grid.length; p += 2) {
+          const val = bytes[p] - 1, cnt = bytes[p + 1];
+          if (val < -1 || val >= HEX.length || cnt < 1) return null;
+          for (let k = 0; k < cnt && idx < grid.length; k++) grid[idx++] = val;
+        }
+        // 途中で切れたトークンを弾くため、全マス分が復元されたことを厳密に検証
+        if (idx !== grid.length || p !== bytes.length) return null;
+        let total = 0;
+        for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
+        if (total < 4) return null;
+        return { W, H, grid, name, theme: 'オリジナル', token };
       }
-      let total = 0;
-      for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
-      if (total < 4) return null;
-      return { W, H, grid, name, theme: 'オリジナル', token };
+      if (ver === 2) {
+        if (typeof DecompressionStream !== 'function') return null;
+        const raw = await inflateRawBytes(bytes.slice(1));
+        if (raw.length < 4) return null;
+        const W = raw[0], H = raw[1], nLen = raw[2];
+        if (W < 8 || W > 32 || H < 8 || H > 32 || raw.length !== 3 + nLen + W * H) return null;
+        const name = new TextDecoder().decode(raw.slice(3, 3 + nLen)) || 'オリジナル';
+        const grid = new Int8Array(W * H);
+        let total = 0;
+        const off = 3 + nLen;
+        for (let i = 0; i < grid.length; i++) {
+          const val = raw[off + i] - 1;
+          if (val < -1 || val >= HEX.length) return null;
+          grid[i] = val;
+          if (val >= 0) total++;
+        }
+        if (total < 4) return null;
+        return { W, H, grid, name, theme: 'オリジナル', token };
+      }
+      return null;
     } catch (e) { return null; }
   }
-  function stageShareUrl(name, grid, w, h) {
-    const token = encodeCustomStage(name, grid, w, h);
+  async function stageShareUrl(name, grid, w, h, preToken) {
+    const token = preToken || await encodeCustomStage(name, grid, w, h);
     return location.origin + location.pathname + '?stage=' + token;
+  }
+  function extractStageToken(input) {
+    const s = String(input || '').trim();
+    const m = s.match(/[?&]stage=([A-Za-z0-9_-]+)/);
+    if (m) return m[1];
+    const compact = s.replace(/\s+/g, '');
+    if (/^[A-Za-z0-9_-]{8,}$/.test(compact)) return compact;
+    return '';
   }
 
   /* ---- パズル生成してプレイ開始 ---- */
@@ -139,7 +208,8 @@
     let total = 0;
     for (const v of art.grid) if (v >= 0) total++;
     if (total < 4) { toast('キャンディを4マス以上おいてね！'); return; }
-    const shareUrl = stageShareUrl(art.name, art.grid, art.W, art.H);
+    const baseUrl = location.origin + location.pathname + '?stage=';
+    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H));
     const P = params(5, total);
     const rng = mulberry32(hashInt(total, art.name.length + 77));
     const c = construct(art, P, rng);
@@ -149,6 +219,12 @@
       W: art.W, H: art.H, grid: art.grid, cols: c.cols, solution: c.solution, total,
       metrics: { stars: 2 }
     };
+    if (!art.token) {
+      stageShareUrl(art.name, art.grid, art.W, art.H).then(u => {
+        L.shareUrl = u;
+        if (G.lastShare && G.lastShare.custom) G.lastShare.url = u;
+      });
+    }
     G.customArt = art;
     G.loading = false; G.rewindTok++; G.clearShown = true; G.pendingWin = false; G.pendingJam = false;
     hideOv();
@@ -298,13 +374,14 @@
   function loadMyStages() {
     try { return JSON.parse(localStorage.getItem(MY_KEY) || '[]'); } catch (e) { return []; }
   }
-  function saveMyStage(name, grid, w, h) {
+  async function saveMyStage(name, grid, w, h, preToken) {
     const list = loadMyStages();
-    const token = encodeCustomStage(name, grid, w, h);
+    const token = preToken || await encodeCustomStage(name, grid, w, h);
     const filtered = list.filter(x => x.token !== token);
     filtered.unshift({ name, w, h, token, at: Date.now() });
     if (filtered.length > 20) filtered.length = 20;
     try { localStorage.setItem(MY_KEY, JSON.stringify(filtered)); } catch (e) {}
+    return token;
   }
 
   /* ---- みんなのステージ一覧（GitHub Issues + マイ作品） ---- */
@@ -321,6 +398,27 @@
       if (v >= 0) { g.fillStyle = HEX[v]; g.fillRect(2 + x * c, 2 + y * c, c + 0.3, c + 0.3); }
     }
   }
+  async function shareStageArt(name, grid, w, h) {
+    const token = await encodeCustomStage(name, grid, w, h);
+    await saveMyStage(name, grid, w, h, token);
+    const url = await stageShareUrl(name, grid, w, h, token);
+    const text = 'アントフローでオリジナルステージ「' + name + '」を作ったよ！遊んでみてね🐜🍬\n#アントフロー';
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'アントフロー｜' + name, text, url });
+        if (url.length > 190) toast('※ URLが長いため、LINEではリンクが途中で切れることがあります（メッセージ全体のコピーで遊べます）', 4500);
+        return;
+      }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        toast(url.length > 190 ? 'URLをコピーしたよ（LINEでは長すぎて切れることがあります）' : 'ステージURLをコピーしたよ！');
+      }).catch(() => prompt('このURLをコピーしてシェアしてね：', url));
+    } else {
+      prompt('このURLをコピーしてシェアしてね：', url);
+    }
+  }
   async function openGallery() {
     showOv('gallery');
     const mine = $('#galMine'), pub = $('#galPub');
@@ -329,11 +427,11 @@
     if (!myList.length) {
       mine.innerHTML = '<p class="fine">まだ保存した作品がありません（「▶ あそぶ」「🔗 シェア」で残るよ）</p>';
     } else {
-      myList.forEach(item => {
-        const art = decodeCustomStage(item.token);
-        if (!art) return;
-        mine.appendChild(makeGalCard(art, 'マイ作品', null));
-      });
+      for (const item of myList) {
+        const art = await decodeCustomStage(item.token);
+        if (!art) continue;
+        mine.appendChild(makeGalCard(art, 'マイ作品', null, true));
+      }
     }
     pub.innerHTML = '<p class="fine">読み込み中…</p>';
     const reported = loadReported();
@@ -348,10 +446,10 @@
         if (!m) continue;
         const id = 'gh_' + iss.number;
         if (reported.has(id) || reported.has(m[1])) continue;
-        const art = decodeCustomStage(m[1]);
+        const art = await decodeCustomStage(m[1]);
         if (!art || validateStageName(art.name)) continue;
         const author = iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品';
-        pub.appendChild(makeGalCard(art, author, id));
+        pub.appendChild(makeGalCard(art, author, id, false));
         cnt++;
       }
       if (!cnt) pub.innerHTML = '<p class="fine">表示できる投稿作品がありません。最初の1作を投稿してみよう！</p>';
@@ -359,7 +457,7 @@
       pub.innerHTML = '<p class="fine">投稿一覧を読み込めませんでした（オフラインまたはアクセス集中）</p>';
     }
   }
-  function makeGalCard(art, sub, reportId) {
+  function makeGalCard(art, sub, reportId, isMine) {
     const btn = document.createElement('button');
     btn.className = 'galcard';
     if (reportId) {
@@ -385,6 +483,18 @@
     const sm = document.createElement('small');
     sm.textContent = art.W + '×' + art.H + ' · ' + sub;
     btn.appendChild(cv); btn.appendChild(b); btn.appendChild(sm);
+    if (isMine) {
+      const sh = document.createElement('span');
+      sh.className = 'galshare';
+      sh.textContent = '🔗 シェア';
+      sh.addEventListener('click', async e => {
+        e.stopPropagation();
+        e.preventDefault();
+        Sound.tap();
+        await shareStageArt(art.name, art.grid, art.W, art.H);
+      });
+      btn.appendChild(sh);
+    }
     btn.addEventListener('click', () => { Sound.tap(); loadCustomLevel(art); });
     return btn;
   }
@@ -395,9 +505,12 @@
     mkBuilt = true;
     const style = document.createElement('style');
     style.textContent =
-      '.mrow{grid-template-columns:repeat(4,1fr)!important;gap:6px!important}' +
+      '.mrow{grid-template-columns:repeat(3,1fr)!important;gap:6px!important}' +
       '.mrow button{font-size:11px!important;padding:8px 1px!important}' +
       '#ov-maker .card,#ov-gallery .card{padding:12px 14px}' +
+      '.mktop{display:flex;gap:6px;justify-content:center;margin:4px 0 6px}' +
+      '.mktop button{border:2px solid #ffd3e2;border-radius:14px;padding:6px 12px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
+      '.mktop button:active{transform:translateY(2px);box-shadow:none}' +
       '#mkCv{display:block;width:100%;max-width:272px;aspect-ratio:1;margin:6px auto;border-radius:14px;border:3px solid #fff;box-shadow:0 4px 0 #f0c6d6;background:#fff3dc;touch-action:none;cursor:crosshair}' +
       '.mkpal{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:6px 0}' +
       '.mksw{width:24px;height:24px;border-radius:8px;border:2px solid #fff;box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;padding:0;font-size:12px;line-height:20px;background:#fff}' +
@@ -408,13 +521,15 @@
       '.mktools button.on{background:#ffe0ed;border-color:#ff8fb3}' +
       '.mkz{font:900 11px var(--rf);color:#c0507a;min-width:26px;text-align:center}' +
       '#mkName{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:7px 10px;font:800 13px var(--rf);color:var(--ink);margin:4px 0;text-align:center;background:#fff}' +
-      '.galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:210px;overflow:auto;padding:4px 2px}' +
+      '.galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:190px;overflow:auto;padding:4px 2px}' +
       '.galcard{position:relative;border:2px solid #fff;border-radius:14px;padding:6px 4px;background:#fff;box-shadow:0 3px 0 #f0c6d6;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-family:var(--rf);color:var(--ink)}' +
       '.galcard canvas{border-radius:8px}' +
       '.galcard b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}' +
       '.galcard small{font-size:9px;color:#9a7b8c}' +
       '.galrep{position:absolute;top:2px;right:3px;font-size:12px;line-height:1;padding:3px;border-radius:8px;opacity:.75}' +
       '.galrep:hover{opacity:1;background:#ffe0ed}' +
+      '.galshare{margin-top:2px;padding:3px 8px;border-radius:10px;background:#e6f9f1;border:1.5px solid #9ee6c7;color:#1b7a53;font:800 10px var(--rf);line-height:1.2}' +
+      '.galshare:hover{background:#cff3e4}' +
       '.poststeps{background:#fff;border-radius:14px;padding:10px 12px;margin:8px 0;text-align:left;font-size:12px;line-height:1.65;border:2px solid #ffd3e2}' +
       '.poststeps b{color:#e46a92}';
     document.head.appendChild(style);
@@ -442,6 +557,7 @@
     ov.innerHTML =
       '<div class="card">' +
       '<h2>🎨 ステージをつくる</h2>' +
+      '<div class="mktop"><button id="bMkGalTop">💾 マイ作品・みんなの絵</button><button id="bMkCloseTop">✕ とじる</button></div>' +
       '<input id="mkName" type="text" maxlength="14" placeholder="ステージ名（例：わたしのハート）">' +
       '<div class="mktools">' +
       '<button class="mksz on" data-sz="16">16×16</button>' +
@@ -481,15 +597,29 @@
     gov.id = 'ov-gallery';
     gov.innerHTML =
       '<div class="card">' +
-      '<h2>🌟 みんなのステージ</h2>' +
-      '<h3>📮 投稿されたステージ</h3>' +
-      '<div class="galgrid" id="galPub"></div>' +
+      '<h2>💾 マイ作品・みんなの絵</h2>' +
       '<h3>💾 マイ作品</h3>' +
       '<div class="galgrid" id="galMine"></div>' +
+      '<h3>📮 みんなの絵（投稿作品）</h3>' +
+      '<div class="galgrid" id="galPub"></div>' +
       '<button class="big" id="bGalBack">🎨 つくるにもどる</button>' +
+      '<button class="big sec" id="bGalImport">📥 URL・メッセージから読み込む</button>' +
       '<button class="big sec" id="bGalClose">ホームへ</button>' +
       '</div>';
     document.body.appendChild(gov);
+
+    const iov = document.createElement('div');
+    iov.className = 'ov';
+    iov.id = 'ov-stageerr';
+    iov.innerHTML =
+      '<div class="card">' +
+      '<h2 id="stImpTitle">🔗 ステージURLを読み込む</h2>' +
+      '<p class="fine" id="stImpDesc">LINEなどで長いURLが途中で切れたときは、送信された<b>メッセージ全体</b>（またはURL全体）をコピーして下に貼り付けると遊べます。</p>' +
+      '<textarea id="stImpTxt" rows="4" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:600 12px var(--rf);color:var(--ink);margin:6px 0;background:#fff;resize:vertical" placeholder="ここにメッセージやURLを貼り付け…"></textarea>' +
+      '<button class="big" id="bStImpGo">▶ このステージであそぶ</button>' +
+      '<button class="big sec" id="bStImpClose">とじる</button>' +
+      '</div>';
+    document.body.appendChild(iov);
 
     const pal = $('#mkPal');
     const er = document.createElement('button');
@@ -688,21 +818,10 @@
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
       const ng = validateStageName(name);
       if (ng) { toast(ng); return; }
-      saveMyStage(name, mkGrid, mkW, mkH);
-      const url = stageShareUrl(name, mkGrid, mkW, mkH);
-      const text = 'アントフローでオリジナルステージ「' + name + '」を作ったよ！遊んでみてね🐜🍬\n#アントフロー';
-      if (navigator.share) {
-        try { await navigator.share({ title: 'アントフロー｜' + name, text, url }); return; }
-        catch (e) { if (e && e.name === 'AbortError') return; }
-      }
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(() => toast('ステージURLをコピーしたよ！')).catch(() => prompt('このURLをコピーしてシェアしてね：', url));
-      } else {
-        prompt('このURLをコピーしてシェアしてね：', url);
-      }
+      await shareStageArt(name, mkGrid, mkW, mkH);
     });
     let pendingPost = null;
-    $('#bMkPost').addEventListener('click', () => {
+    $('#bMkPost').addEventListener('click', async () => {
       Sound.tap(); commitSel(); drawMaker();
       let total = 0;
       for (const v of mkGrid) if (v >= 0) total++;
@@ -710,11 +829,11 @@
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
       const ng = validateStageName(name);
       if (ng) { toast(ng); return; }
-      const token = encodeCustomStage(name, mkGrid, mkW, mkH);
+      const token = await encodeCustomStage(name, mkGrid, mkW, mkH);
       const cd = checkPostLimit(token);
       if (cd) { toast(cd); return; }
-      saveMyStage(name, mkGrid, mkW, mkH);
-      const url = stageShareUrl(name, mkGrid, mkW, mkH);
+      await saveMyStage(name, mkGrid, mkW, mkH, token);
+      const url = await stageShareUrl(name, mkGrid, mkW, mkH, token);
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
       const body =
         '### オリジナルステージ投稿\n' +
@@ -736,9 +855,27 @@
     });
     $('#bPostBack').addEventListener('click', () => { Sound.tap(); showOv('maker'); });
     $('#bMkGal').addEventListener('click', () => { Sound.tap(); openGallery(); });
+    $('#bMkGalTop').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
+    $('#bMkCloseTop').addEventListener('click', () => { Sound.tap(); showOv('title'); });
     $('#bGalBack').addEventListener('click', () => { Sound.tap(); openMaker(); });
+    $('#bGalImport').addEventListener('click', () => {
+      Sound.tap();
+      $('#stImpTitle').textContent = '🔗 ステージURLを読み込む';
+      $('#stImpDesc').innerHTML = 'LINEなどで長いURLが途中で切れたときは、送信された<b>メッセージ全体</b>（またはURL全体）をコピーして下に貼り付けると遊べます。';
+      $('#stImpTxt').value = '';
+      showOv('stageerr');
+    });
     $('#bGalClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
+    $('#bStImpGo').addEventListener('click', async () => {
+      Sound.tap();
+      const tok = extractStageToken($('#stImpTxt').value);
+      if (!tok) { toast('ステージURLが見つかりませんでした'); return; }
+      const art = await decodeCustomStage(tok);
+      if (!art) { toast('ステージデータが途中で切れているか、正しくありません'); return; }
+      loadCustomLevel(art);
+    });
+    $('#bStImpClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
 
     // 初期状態は可愛いハートを入れておく
     applyTemplate('heart');
@@ -810,7 +947,7 @@
   }
   window.AF_openMaker = openMaker;
 
-  // ホーム画面に「🎨 つくる」ボタンを追加
+  // ホーム画面に「🎨 つくる」「💾 マイ作品」ボタンを追加
   buildMakerUI();
   const mrow = document.querySelector('.mrow');
   if (mrow) {
@@ -819,15 +956,30 @@
     btn.innerHTML = '<i>🎨</i>つくる';
     btn.addEventListener('click', () => { Sound.tap(); openMaker(); });
     mrow.appendChild(btn);
+
+    const gbtn = document.createElement('button');
+    gbtn.id = 'bMGal';
+    gbtn.innerHTML = '<i>💾</i>マイ作品';
+    gbtn.addEventListener('click', () => { Sound.tap(); openGallery(); });
+    mrow.appendChild(gbtn);
   }
 
   // URL に ?stage=... があればそのオリジナルステージを起動
   const stParam = new URLSearchParams(location.search).get('stage');
   if (stParam) {
-    const art = decodeCustomStage(stParam);
-    if (art) {
-      setTimeout(() => loadCustomLevel(art), 50);
-    }
+    (async () => {
+      const art = await decodeCustomStage(stParam);
+      if (art) {
+        setTimeout(() => loadCustomLevel(art), 50);
+      } else {
+        setTimeout(() => {
+          $('#stImpTitle').textContent = '⚠️ ステージURLが途中で切れています';
+          $('#stImpDesc').innerHTML = 'LINEなどでは長いURLが途中で切れてしまい、ステージを正しく開けないことがあります。<br>送信された<b>メッセージ全体</b>（またはURL全体）をコピーして下に貼り付けると遊べます！';
+          $('#stImpTxt').value = '';
+          showOv('stageerr');
+        }, 80);
+      }
+    })();
   }
 })();
 

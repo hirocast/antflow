@@ -238,7 +238,7 @@ body.wide .fb{max-width:none}
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
   const titleFine = $('#ov-title .fine');
-  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
+  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button><button class="big sec" id="bTitleUpdate" style="margin-top:8px">🔄 アプリを最新に更新</button>');
   // あそびかた：ページめくり式に作りかえる
   $('#ov-help .help').innerHTML =
     '<div class="hpic" id="hPic"><canvas id="hCv"></canvas><b class="hnum" id="hNum"></b></div>' +
@@ -2111,21 +2111,24 @@ on('#bJamRewind', () => {
     toast('⏪ ' + n + '手もどしたよ。ここからなら解ける！', 2600);
   });
 });
-on('#bAppUpdate', () => {
+function runAppUpdate() {
   confirmSpend({
     title: '🔄 アプリを最新に更新',
     desc: 'サーバーから最新のプログラムやステージデータを取得しなおして、アプリを再読み込みします。プレイ中の盤面はリセットされますが、クリア状況・コイン・アルバム・女王さまなどのセーブデータは消えません。',
     costText: 'セーブデータはそのまま保持されます（通信が発生します）',
     okLabel: '更新する！'
   }, async () => {
-    const b = $('#bAppUpdate');
+    const b = $('#bAppUpdate'), bt = $('#bTitleUpdate');
     if (b) { b.disabled = true; b.textContent = '🔄 更新中…'; }
+    if (bt) { bt.disabled = true; bt.textContent = '🔄 更新中…'; }
     toast('🔄 最新版を取得しています…', 5000);
     const files = [location.pathname, 'index.html', 'style.css', ...(window.AF_FILES || [])];
     await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
     location.reload();
   });
-});
+}
+on('#bAppUpdate', runAppUpdate);
+on('#bTitleUpdate', runAppUpdate);
 on('#bReset', () => {
   if (!confirm('クリア状況・アルバム・コイン・女王さま・きせかえをすべてリセットしますか？')) return;
   save.level = idAt(1); save.maxLevel = 1; save.cleared = {}; save.newArts = [];
