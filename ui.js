@@ -319,6 +319,7 @@ function handleTalkLikeClick(e) {
   $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b>'; return d; })(), $('#bAlbum'));
   $('header').insertBefore((() => { const b = document.createElement('button'); b.className = 'ib'; b.id = 'bHome'; b.setAttribute('aria-label', 'ホーム'); b.textContent = '🏠'; return b; })(), $('#bAlbum'));
   const tt = document.createElement('span'); tt.id = 'timeTxt'; $('.prog').appendChild(tt);
+  const lt = document.createElement('span'); lt.id = 'lvTalk'; lt.style.cssText = 'font-size:9.5px;font-weight:900;color:#c0507a;display:none'; $('.lv').appendChild(lt);
   document.body.appendChild($('#toast'));
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
@@ -629,6 +630,7 @@ window.onTalkShown = text => {
   let hasAny = false;
   for (const card of BINGO_CARDS) if (bingoCardStatus(card).hasReward) { hasAny = true; break; }
   if (dot) dot.classList.toggle('on', hasAny);
+  updateStageTalkHud();
   persist();
 };
 let bingoSelCell = null;
@@ -879,7 +881,7 @@ function applyLevel(id, L) {
   Sound.setBgm(L.name, L.theme);
   G.bgmBanner = save.settings.music !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   if (!L.custom) Tut.levelStart(id);
-  updateTip(); refreshPrices();
+  updateTip(); refreshPrices(); updateStageTalkHud();
   if (!L.custom) $('#bPlay').textContent = 'あそぶ（Lv.' + posOf(id) + '）';
 }
 function headCounts(s) {
@@ -1763,6 +1765,18 @@ function openAlbum(fromTitle) {
   $('#albumSumBar').style.width = (100 * got / TOTAL) + '%';
   save.newArts = []; persist(); updateBadge();
   showOv('album');
+}
+function updateStageTalkHud() {
+  const el = $('#lvTalk');
+  if (!el) return;
+  if (!G.level || G.level.custom) { el.style.display = 'none'; return; }
+  const all = stageTalkList(G.level.name);
+  if (!all.length) { el.style.display = 'none'; return; }
+  let seen = 0;
+  for (const s of all) if (seenTalkSet.has(s)) seen++;
+  const pct = Math.round(100 * seen / all.length);
+  el.style.display = '';
+  el.textContent = '💬 ' + seen + '/' + all.length + ' (' + pct + '%)' + (seen === all.length ? '🎉' : '');
 }
 function stageTalkList(name) {
   const o = (typeof TALK_STAGE !== 'undefined' && TALK_STAGE[name]) || null;
