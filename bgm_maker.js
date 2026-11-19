@@ -71,6 +71,37 @@
     { id: 'bell', label: '🔔 オルゴール' },
     { id: 'flute', label: '🎺 ほわほわ' }
   ];
+  const SINGERS = [
+    { id: 'custom', label: '🎤 アイドル' },
+    { id: 'katatsumuri', label: '🕶️ ロック' },
+    { id: 'sakura', label: '👘 演歌ふりそで' },
+    { id: 'kirakiraboshi', label: '🌟 プリンセス' },
+    { id: 'alps', label: '🍩 ポップ水玉' },
+    { id: 'usagi', label: '🐰 うさぎ' },
+    { id: 'kumasan', label: '🐻 くまさん' },
+    { id: 'birthday', label: '🎂 パーティー' },
+    { id: 'fujinoyama', label: '🗻 ふじさん' },
+    { id: 'kamome', label: '⚓ セーラー' },
+    { id: 'nekofunjatta', label: '🐱 ねこみみ' },
+    { id: 'minuet', label: '🏰 おしろドレス' },
+    { id: 'konpeitou', label: '🍬 こんぺいとう' },
+    { id: 'muramatsuri', label: '🏮 はっぴ' },
+    { id: 'harugakita', label: '🌻 ひまわり' },
+    { id: 'toysoldiers', label: '💂 兵隊さん' },
+    { id: 'jupiter', label: '🚀 宇宙スーツ' },
+    { id: 'kaeru', label: '🐸 かえる' },
+    { id: 'kisha', label: '🚂 しゃしょう' },
+    { id: 'yama', label: '🐨 コアラ' },
+    { id: 'kuri', label: '🦕 きょうりゅう' },
+    { id: 'shabondama', label: '🫧 しゃぼん玉' },
+    { id: 'gavotte', label: '🍰 ケーキ' },
+    { id: 'skaters', label: '❄️ 冬コート' },
+    { id: 'amefuri', label: '☔ てるてる' },
+    { id: 'kakkou', label: '🎡 ゆうえんち' },
+    { id: 'warewauminoko', label: '🐠 マーメイド' },
+    { id: 'momiji', label: '🍁 もみじ着物' },
+    { id: 'humoresque', label: '👑 女王さま風' }
+  ];
 
   function emptyBar() {
     return {
@@ -93,6 +124,7 @@
       name: String(s.name || 'わたしのBGM').slice(0, 20),
       bpm: clamp(Number(s.bpm) || 112, 70, 170),
       inst: INSTS.some(x => x.id === s.inst) ? s.inst : 'mallet',
+      singer: SINGERS.some(x => x.id === s.singer) ? s.singer : 'custom',
       bars: (s.bars && s.bars.length ? s.bars : [emptyBar()]).slice(0, 8).map(cloneBar)
     };
   }
@@ -143,6 +175,7 @@
       name: (title + 'アレンジ').slice(0, 20),
       bpm: src.bpm || 112,
       inst,
+      singer: SINGERS.some(x => x.id === key) ? key : 'custom',
       bars
     });
   }
@@ -260,6 +293,7 @@
       n: s.name,
       b: s.bpm,
       i: s.inst,
+      sg: s.singer || 'custom',
       r: s.bars.map(bar => ({
         n: bar.notes,
         k: bar.kick.join(''),
@@ -287,6 +321,7 @@
         name: min.n || 'おともだちのBGM',
         bpm: min.b || 116,
         inst: min.i || 'mallet',
+        singer: min.sg || 'custom',
         bars: min.r.map(rb => ({
           notes: Array.from({ length: 16 }, (_, idx) => Array.isArray(rb.n && rb.n[idx]) ? rb.n[idx].filter(v => Number.isFinite(v)) : []),
           kick: Array.from({ length: 16 }, (_, idx) => (rb.k && rb.k[idx] === '1') ? 1 : 0),
@@ -460,12 +495,27 @@
     ).join('');
   }
 
+  function drawSingerPreview() {
+    const cv = $('#bgmSingerCv');
+    if (!cv || typeof drawAntShape !== 'function' || typeof drawSingerCostume !== 'function') return;
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, cv.width, cv.height);
+    g.save();
+    g.translate(cv.width * 0.5, cv.height * 0.62);
+    const u = 11;
+    drawAntShape(g, u, 1, 0, 0, 'none');
+    drawSingerCostume(g, u, song.singer || 'custom', 0, false);
+    g.restore();
+  }
+
   function syncUI() {
-    const nm = $('#bgmName'), bpm = $('#bgmBpm'), bv = $('#bgmBpmVal'), inst = $('#bgmInst');
+    const nm = $('#bgmName'), bpm = $('#bgmBpm'), bv = $('#bgmBpmVal'), inst = $('#bgmInst'), sg = $('#bgmSinger');
     if (nm) nm.value = song.name;
     if (bpm) bpm.value = song.bpm;
     if (bv) bv.textContent = song.bpm;
     if (inst) inst.value = song.inst;
+    if (sg) sg.value = song.singer || 'custom';
+    drawSingerPreview();
     renderBarTabs();
     renderGrid();
     renderSavedList();
@@ -518,8 +568,10 @@
 .bgm-top select{height:36px;border-radius:12px;border:2px solid #ffd3e2;background:#fff;padding:0 6px;font:700 12px var(--rf);color:var(--ink)}
 .bgm-bpm{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;margin-bottom:8px}
 .bgm-bpm input{flex:1}
-.bgm-lyric{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;font-weight:800}
+.bgm-lyric{display:flex;align-items:center;gap:5px;margin-bottom:6px;font-size:12px;font-weight:800}
 .bgm-lyric input{flex:1;min-width:0;height:32px;border-radius:10px;border:2px solid #ffd3e2;padding:0 8px;font:700 12px var(--rf);color:var(--ink)}
+.bgm-lyric select{height:32px;max-width:118px;border-radius:10px;border:2px solid #ffd3e2;background:#fff;padding:0 4px;font:700 11px var(--rf);color:var(--ink)}
+#bgmSingerCv{flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:#fff;border:2px solid #ffd3e2}
 .bgm-bars{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
 .bgm-bar{border:none;border-radius:10px;padding:5px 10px;background:#fff1d6;color:var(--ink);font:800 11px var(--rf);cursor:pointer}
 .bgm-bar.on{background:var(--pink);color:#fff}
@@ -567,7 +619,7 @@
         '</div>' +
         '<div class="bgm-bpm"><span>はやさ (BPM)</span><input id="bgmBpm" type="range" min="70" max="170" step="2"><b id="bgmBpmVal">116</b></div>' +
         '<div class="bgm-bars" id="bgmBars"></div>' +
-        '<div class="bgm-lyric"><span>🎤 歌詞</span><input id="bgmLyric" maxlength="24" placeholder="アリシンガーの歌詞（空でもOK）"></div>' +
+        '<div class="bgm-lyric"><canvas id="bgmSingerCv" width="40" height="40"></canvas><input id="bgmLyric" maxlength="24" placeholder="🎤 この小節の歌詞（空でもOK）"><select id="bgmSinger" title="アリシンガーの衣装">' + SINGERS.map(x => '<option value="' + x.id + '">' + x.label + '</option>').join('') + '</select></div>' +
         '<div class="bgm-grid" id="bgmGrid"></div>' +
         '<div class="bgm-btns">' +
           '<button type="button" class="go" id="bgmPlayBtn">▶ さいせい</button>' +
@@ -652,6 +704,7 @@
 
     $('#bgmName').addEventListener('input', e => { song.name = e.target.value.slice(0, 20); syncActiveIfUsed(); });
     $('#bgmLyric').addEventListener('input', e => { song.bars[curBar].lyric = e.target.value.slice(0, 24); syncActiveIfUsed(); });
+    $('#bgmSinger').addEventListener('change', e => { song.singer = e.target.value; drawSingerPreview(); syncActiveIfUsed(); });
     $('#bgmInst').addEventListener('change', e => { song.inst = e.target.value; syncActiveIfUsed(); });
     $('#bgmBpm').addEventListener('input', e => {
       song.bpm = +e.target.value;

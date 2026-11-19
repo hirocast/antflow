@@ -666,9 +666,10 @@ const Sound = {
     const isCustom = !!(this.useCustomBgm && this.customBgm);
     const lyr = isCustom ? null : this.LYRICS[this.bgmKey];
     if (!isCustom && !lyr) return null;
+    const sKey = isCustom ? (this.customBgm.singer || 'custom') : this.bgmKey;
     const c = this.ctx, playing = !!(c && c.state === 'running' && save.settings.bgm && this.bgmTimer);
     if (!playing) {
-      return { key: isCustom ? 'custom' : this.bgmKey, text: save.settings.bgm ? '♪ タップで うたうよ！' : '♪ 〜', singing: false, pulse: 0 };
+      return { key: sKey, text: save.settings.bgm ? '♪ タップで うたうよ！' : '♪ 〜', singing: false, pulse: 0 };
     }
     const now = c.currentTime;
     let cur = null, lastNote = -9;
@@ -680,7 +681,7 @@ const Sound = {
     const defTxt = isCustom
       ? ((this.customBgm.bars[0] && this.customBgm.bars[0].lyric) ? '♪ ' + this.customBgm.bars[0].lyric.replace(/^♪\s*/, '') : '♪ ' + (this.customBgm.name || 'オリジナルBGM'))
       : lyr[0];
-    return { key: isCustom ? 'custom' : this.bgmKey, text: cur ? cur.text : defTxt, singing: true, pulse };
+    return { key: sKey, text: cur ? cur.text : defTxt, singing: true, pulse };
   },
   EXTRA_SONGS: {
     tulip: {
