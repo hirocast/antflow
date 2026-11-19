@@ -2249,7 +2249,7 @@ layout();
     '<div class="card">' +
     '<img src="apple-touch-icon.png" alt="アントフロー" style="width:68px;height:68px;border-radius:16px;box-shadow:0 4px 10px rgba(90,61,92,.2);margin:0 auto 6px;display:block">' +
     '<h2>📲 アプリとして保存しよう</h2>' +
-    '<p class="fine" style="margin-bottom:8px">ホーム画面に追加すると、ツールバーが消えて<b>広い画面</b>で遊べるよ！セーブも消えにくくなります。</p>' +
+    '<p class="fine" style="margin-bottom:8px">ホーム画面に追加すると、ツールバーが消えて<b>広い画面</b>で遊べるよ！<br><span style="color:#d4507c">※ いまのブラウザ（LINEやSafari等）のセーブデータはアプリ版には引き継がれないため、早めの追加がおすすめです。</span></p>' +
     '<div id="a2hsBody" style="background:#fff;border-radius:14px;padding:10px 12px;margin:6px 0;text-align:left;font-size:12px;line-height:1.7;border:2px solid #ffd3e2"></div>' +
     '<button class="big" id="bA2hsInstall" style="display:none">📲 ワンタップでアプリ化</button>' +
     '<button class="big sec" id="bA2hsCopy" style="display:none">📋 URLをコピーする</button>' +
