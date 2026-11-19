@@ -501,6 +501,8 @@
             else if (outerPct <= 55) diff = 2;
             else diff = 1;
             const boxCnt = best.c.cols.reduce((a, col) => a + col.length, 0);
+            const colsUsed = new Set();
+            for (const v of art.grid) if (v >= 0) colsUsed.add(v);
             const res = {
               diff,
               genIdx: best.idx,
@@ -508,7 +510,9 @@
               outerPct,
               randPct,
               boxCnt,
-              colCnt: best.c.cols.length
+              colCnt: best.c.cols.length,
+              total: cfg.total,
+              colorCnt: colsUsed.size
             };
             aiBestCache.set(key, res);
             resolve(res);
@@ -1617,7 +1621,13 @@
       const resEl = $('#mkAiRes');
       if (!resEl || !res) return;
       const di = STAGE_DIFFS[clampDiff(res.diff)];
-      const tip = res.diff <= 2 ? '<div style="margin-top:3px;color:#8a6578">💡 もっと難しくしたいときは、色を3〜4色以上に増やすか、外と内で別の色を混ぜてみてね！</div>' : '';
+      let tipText = '';
+      if (res.diff <= 2) {
+        if (res.colorCnt < 3) tipText = '💡 もっと難しくするには：色を3〜4色以上に増やすと先読みが必要になるよ！（いま ' + res.colorCnt + '色）';
+        else if (res.total < 45) tipText = '💡 もっと難しくするには：キャンディの数を増やして、外と内で別の色を混ぜてみてね！';
+        else tipText = '💡 もっと難しくするには：外と内で別の色を交互の層にすると、先読みが必要になって難しくなるよ！';
+      }
+      const tip = tipText ? '<div style="margin-top:4px;padding:4px 6px;border-radius:8px;background:#fff7fb;color:#9b4a6c;font-weight:800">' + tipText + '</div>' : '';
       resEl.style.display = 'block';
       resEl.innerHTML =
         '<b>' + di.short + '（AI自動判定）</b>' +
