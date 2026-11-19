@@ -209,6 +209,26 @@
     bars: [emptyBar(), emptyBar()]
   };
   let curBar = 0;
+  let bgmBaseAuthor = '';
+  const UID_KEY = 'antflow-uid-v1';
+  function getClientUid() {
+    try {
+      let u = localStorage.getItem(UID_KEY);
+      if (u && /^\d{4}$/.test(u)) return u;
+      u = String(Math.floor(1000 + Math.random() * 9000));
+      localStorage.setItem(UID_KEY, u);
+      return u;
+    } catch (e) { return '1000'; }
+  }
+  function bgmContentHash(s) {
+    const str = JSON.stringify({ b: s.bpm, i: s.inst, r: s.bars.map(x => [x.notes, x.ties, x.kick, x.clap]) });
+    let h1 = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h1 ^= str.charCodeAt(i);
+      h1 = Math.imul(h1, 16777619) >>> 0;
+    }
+    return ('00000000' + h1.toString(16)).slice(-8);
+  }
   let playing = false;
   let playTimer = null;
   let playStep = 0;
@@ -1012,16 +1032,19 @@
       if (!arr.some(x => x.name === name)) { arr.unshift(cloneSong(song)); saveMyBgms(arr); renderSavedList(); }
       const url = location.origin + location.pathname + '?bgm=' + tok;
       const title = '[BGM投稿] ' + name + ' (BPM' + song.bpm + ')';
+      const contentHash = bgmContentHash(song);
+      const uid = getClientUid();
       const apiUrl = getPostApiUrl();
       if (apiUrl) {
         $('#bgmPostApiBox').style.display = 'block';
         $('#bgmPostGhBox').style.display = 'none';
+        $('#bgmPostNick').placeholder = 'ニックネーム（空欄なら「名無しのありんこ#' + uid + '」）';
         try { $('#bgmPostNick').value = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
-        $('#bgmPostSummary').textContent = '「' + name + '」（BPM' + song.bpm + '・' + song.bars.length + '小節）';
+        $('#bgmPostSummary').textContent = '「' + name + '」（BPM' + song.bpm + '・' + song.bars.length + '小節' + (bgmBaseAuthor ? '・元:' + bgmBaseAuthor : '') + '）';
         $('#bBgmPostGo').textContent = '📮 みんなに公開する！';
         $('#bBgmPostGo').disabled = false;
         pendingBgmPost = {
-          mode: 'api', apiUrl, tok, name,
+          mode: 'api', apiUrl, tok, name, baseAuthor: bgmBaseAuthor, contentHash, clientId: uid,
           meta: { bpm: song.bpm, bars: song.bars.length, allowUse: !!song.allowUse, allowRemix: !!song.allowRemix }
         };
       } else {
@@ -1032,9 +1055,11 @@
         const body =
           '### オリジナルBGM投稿\n' +
           '- 曲名: ' + name + '\n' +
+          (bgmBaseAuthor ? '- 元作者: ' + bgmBaseAuthor + '\n' : '') +
           '- BPM: ' + song.bpm + ' / ' + song.bars.length + '小節\n' +
           '- ステージ利用: ' + (song.allowUse ? 'OK' : '不可') + '\n' +
           '- アレンジ: ' + (song.allowRemix ? 'OK' : '不可') + '\n' +
+          '- 内容ID: ' + contentHash + '\n' +
           '- 試聴・プレイURL: ' + url + '\n\n' +
           '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🎶 みんなのBGM」に表示されます）';
         pendingBgmPost = { mode: 'gh', tok, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
@@ -1058,6 +1083,9 @@
               kind: 'bgm',
               name: pendingBgmPost.name,
               author: nick,
+              clientId: pendingBgmPost.clientId,
+              baseAuthor: pendingBgmPost.baseAuthor,
+              contentHash: pendingBgmPost.contentHash,
               token: pendingBgmPost.tok,
               siteUrl: location.origin + location.pathname,
               meta: pendingBgmPost.meta
@@ -1197,6 +1225,8 @@
           if (!s || validateBgmName(s.name) || s.bars.some(b => b.lyric && validateBgmName(b.lyric))) continue;
           const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
           const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM');
+          const bm = (iss.body || '').match(/^- 元作者:\s*(.+)$/m);
+          const baseAuthor = bm ? bm[1].trim().slice(0, 16) : '';
           const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
           const card = document.createElement('div');
           card.className = 'bgm-gcard';
@@ -1208,7 +1238,7 @@
             '<button type="button" class="rep" title="不適切なBGMを非表示・通報">⚠️</button>';
           card.querySelector('b').textContent = s.name;
           const perms = (s.allowUse ? ' · 🎵使用OK' : '') + (s.allowRemix ? ' · ✏️アレンジOK' : '');
-          card.querySelector('small').textContent = instInfo.label + ' · BPM' + s.bpm + ' · ' + s.bars.length + '小節 · ' + author + perms;
+          card.querySelector('small').textContent = instInfo.label + ' · BPM' + s.bpm + ' · ' + s.bars.length + '小節 · ' + author + (baseAuthor ? ' (元:' + baseAuthor + ')' : '') + perms;
           const pBtn = card.querySelector('.bgm-mini');
           const uBtn = card.querySelector('.bgm-mini.use');
           const aBtn = card.querySelector('.bgm-mini.arr');
@@ -1238,9 +1268,10 @@
           });
           if (aBtn) aBtn.addEventListener('click', () => {
             Sound.tap(); stopGalPreview();
+            bgmBaseAuthor = author;
             song = cloneSong(s); song.name = makeArrangeName(s.name); song.allowUse = false; song.allowRemix = false; curBar = 0; syncUI();
             showOv('bgm');
-            toast('✏️「' + s.name + '」を土台にアレンジしよう！');
+            toast('✏️「' + s.name + '」（' + author + ' 作）を土台にアレンジしよう！');
           });
           card.querySelector('.rep').addEventListener('click', () => {
             if (!confirm('「' + s.name + '」を不適切なBGMとして一覧から非表示にしますか？')) return;

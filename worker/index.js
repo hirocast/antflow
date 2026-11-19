@@ -70,6 +70,46 @@ async function recordRateLimit(ip, token) {
   }));
 }
 
+async function makeAnonId(ip, clientId) {
+  if (/^\d{4}$/.test(String(clientId || ''))) return String(clientId);
+  const data = new TextEncoder().encode('antflow-anon:' + String(ip || 'unknown'));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const arr = new Uint8Array(digest);
+  const num = ((arr[0] << 8) | arr[1]) % 9000 + 1000;
+  return String(num);
+}
+
+async function checkDuplicateIssue(env, kind, token, contentHash) {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?state=open&per_page=100`, {
+      headers: {
+        'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'antflow-post-worker'
+      }
+    });
+    if (!res.ok) return '';
+    const issues = await res.json();
+    if (!Array.isArray(issues)) return '';
+    const pat = kind === 'bgm' ? /[?&]bgm=([A-Za-z0-9_-]+)/ : /[?&]stage=([A-Za-z0-9_-]+)/;
+    const kindHeader = kind === 'bgm' ? '### オリジナルBGM投稿' : '### オリジナルステージ投稿';
+    for (const iss of issues) {
+      const b = iss.body || '';
+      const tm = b.match(pat);
+      if (tm && tm[1] === token) {
+        return 'すでに同じ作品が投稿されています';
+      }
+      if (contentHash && b.includes(kindHeader)) {
+        const hm = b.match(/^- 内容ID:\s*([A-Za-z0-9_-]+)/m);
+        if (hm && hm[1] === contentHash) {
+          return 'まったく同じ内容の作品がすでに投稿されています（少しアレンジしてみてね！）';
+        }
+      }
+    }
+  } catch {}
+  return '';
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -97,9 +137,17 @@ export default {
       return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors);
     }
 
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const kind = body.kind === 'bgm' ? 'bgm' : (body.kind === 'stage' ? 'stage' : '');
     const name = String(body.name || '').trim().slice(0, 20);
-    const author = String(body.author || '').trim().slice(0, 16) || '名無しのありんこ';
+    let rawAuthor = String(body.author || '').trim().slice(0, 16);
+    if (!rawAuthor || rawAuthor === '名無しのありんこ' || rawAuthor === '名無し') {
+      const anonId = await makeAnonId(ip, body.clientId);
+      rawAuthor = '名無しのありんこ#' + anonId;
+    }
+    const author = rawAuthor;
+    const baseAuthor = String(body.baseAuthor || '').trim().slice(0, 16);
+    const contentHash = /^[A-Za-z0-9_-]{6,32}$/.test(String(body.contentHash || '')) ? String(body.contentHash) : '';
     const token = String(body.token || '').trim();
     const siteUrl = String(body.siteUrl || 'https://hirocast.github.io/antflow/').split('?')[0];
     const meta = body.meta && typeof body.meta === 'object' ? body.meta : {};
@@ -109,13 +157,15 @@ export default {
     if (!/^[A-Za-z0-9_-]{8,12000}$/.test(token)) {
       return jsonRes({ ok: false, error: '作品データが正しくありません' }, 400, cors);
     }
-    if (hasNgWord(name) || hasNgWord(author)) {
+    if (hasNgWord(name) || hasNgWord(author) || (baseAuthor && hasNgWord(baseAuthor))) {
       return jsonRes({ ok: false, error: '名前・作者名に使えない言葉やURLが入っています' }, 400, cors);
     }
 
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const rlErr = await checkRateLimit(ip, token);
     if (rlErr) return jsonRes({ ok: false, error: rlErr }, 429, cors);
+
+    const dupErr = await checkDuplicateIssue(env, kind, token, contentHash);
+    if (dupErr) return jsonRes({ ok: false, error: dupErr }, 409, cors);
 
     let title = '';
     let issueBody = '';
@@ -131,10 +181,12 @@ export default {
         '### オリジナルステージ投稿\n' +
         `- ステージ名: ${name}\n` +
         `- 作者: ${author}\n` +
+        (baseAuthor ? `- 元作者: ${baseAuthor}\n` : '') +
         `- サイズ: ${w}×${h}\n` +
         (bgmName ? `- BGM: ${bgmName}\n` : '') +
         (talkCount ? `- セリフ: あり（${talkCount}こ）\n` : '') +
         `- アレンジ: ${allowRemix ? 'OK' : '不可'}\n` +
+        (contentHash ? `- 内容ID: ${contentHash}\n` : '') +
         `- プレイURL: ${playUrl}\n`;
     } else {
       const bpm = Number(meta.bpm) || 116;
@@ -147,9 +199,11 @@ export default {
         '### オリジナルBGM投稿\n' +
         `- 曲名: ${name}\n` +
         `- 作者: ${author}\n` +
+        (baseAuthor ? `- 元作者: ${baseAuthor}\n` : '') +
         `- BPM: ${bpm} / ${bars}小節\n` +
         `- ステージ利用: ${allowUse ? 'OK' : '不可'}\n` +
         `- アレンジ: ${allowRemix ? 'OK' : '不可'}\n` +
+        (contentHash ? `- 内容ID: ${contentHash}\n` : '') +
         `- 試聴・プレイURL: ${playUrl}\n`;
     }
 
@@ -172,6 +226,6 @@ export default {
     const created = await ghRes.json();
     await recordRateLimit(ip, token);
 
-    return jsonRes({ ok: true, number: created.number, url: created.html_url }, 201, cors);
+    return jsonRes({ ok: true, number: created.number, url: created.html_url, author }, 201, cors);
   }
 };

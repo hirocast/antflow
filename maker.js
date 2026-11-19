@@ -52,7 +52,24 @@
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
   const mkHistory = [];
   let mkCol = 0, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
-  let mkBgmToken = '', mkAllowRemix = false;
+  let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '';
+  const UID_KEY = 'antflow-uid-v1';
+  function getClientUid() {
+    try {
+      let u = localStorage.getItem(UID_KEY);
+      if (u && /^\d{4}$/.test(u)) return u;
+      u = String(Math.floor(1000 + Math.random() * 9000));
+      localStorage.setItem(UID_KEY, u);
+      return u;
+    } catch (e) { return '1000'; }
+  }
+  function stageContentHash(grid, w, h) {
+    let h1 = 2166136261 >>> 0;
+    const mix = v => { h1 ^= (v & 255); h1 = Math.imul(h1, 16777619) >>> 0; };
+    mix(w); mix(h);
+    for (let i = 0; i < grid.length; i++) mix(grid[i] + 2);
+    return ('00000000' + h1.toString(16)).slice(-8);
+  }
   function makeStageArrangeName(name) {
     const base = String(name || 'オリジナル').trim() || 'オリジナル';
     if (base.endsWith('アレンジ')) return base.slice(0, 14);
@@ -594,6 +611,9 @@
         if (!art || validateStageName(art.name)) continue;
         const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
         const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品');
+        const bm = (iss.body || '').match(/^- 元作者:\s*(.+)$/m);
+        art.author = author;
+        art.baseAuthor = bm ? bm[1].trim().slice(0, 16) : '';
         pub.appendChild(makeGalCard(art, author, id, false));
         cnt++;
       }
@@ -626,7 +646,7 @@
     const b = document.createElement('b');
     b.textContent = art.name;
     const sm = document.createElement('small');
-    sm.textContent = art.W + '×' + art.H + ' · ' + sub + (art.bgmToken ? ' · 🎵' : '') + (!isMine && art.allowRemix ? ' · ✏️OK' : '');
+    sm.textContent = art.W + '×' + art.H + ' · ' + sub + (art.baseAuthor ? ' (元:' + art.baseAuthor + ')' : '') + (art.bgmToken ? ' · 🎵' : '') + (!isMine && art.allowRemix ? ' · ✏️OK' : '');
     btn.appendChild(cv); btn.appendChild(b); btn.appendChild(sm);
     if (isMine || art.allowRemix) {
       const acts = document.createElement('div');
@@ -1168,16 +1188,18 @@
       if (isMine) {
         mkBgmToken = art.bgmToken || '';
         mkAllowRemix = !!art.allowRemix;
+        mkBaseAuthor = art.baseAuthor || '';
       } else {
         const bgmAllowed = !!(art.bgmToken && art.bgm && art.bgm.allowUse);
         mkBgmToken = bgmAllowed ? art.bgmToken : '';
         mkAllowRemix = false;
+        mkBaseAuthor = art.author || '';
       }
       $('#mkAllowRemix').checked = mkAllowRemix;
       refreshBgmUI();
       showOv('maker');
       requestAnimationFrame(drawMaker);
-      toast('✏️「' + art.name + '」を土台にアレンジしよう！');
+      toast(mkBaseAuthor ? '✏️「' + art.name + '」（' + mkBaseAuthor + ' 作）を土台にアレンジしよう！' : '✏️「' + art.name + '」を土台にアレンジしよう！');
     };
 
     $('#bMkPlay').addEventListener('click', () => {
@@ -1229,16 +1251,19 @@
       const tCnt = countTalkLines(talk);
       const bgmObj = (mkBgmToken && window.AF_bgmTools) ? window.AF_bgmTools.decodeBgm(mkBgmToken) : null;
       const bgmName = bgmObj ? bgmObj.name : '';
+      const contentHash = stageContentHash(mkGrid, mkW, mkH);
+      const uid = getClientUid();
       const apiUrl = getPostApiUrl();
       if (apiUrl) {
         $('#postApiBox').style.display = 'block';
         $('#postGhBox').style.display = 'none';
+        $('#postNick').placeholder = 'ニックネーム（空欄なら「名無しのありんこ#' + uid + '」）';
         try { $('#postNick').value = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
-        $('#postSummary').textContent = '「' + name + '」（' + mkW + '×' + mkH + (bgmName ? '・🎵' + bgmName : '') + '）';
+        $('#postSummary').textContent = '「' + name + '」（' + mkW + '×' + mkH + (bgmName ? '・🎵' + bgmName : '') + (mkBaseAuthor ? '・元:' + mkBaseAuthor : '') + '）';
         $('#bPostGo').textContent = '📮 みんなに公開する！';
         $('#bPostGo').disabled = false;
         pendingPost = {
-          mode: 'api', apiUrl, token, name,
+          mode: 'api', apiUrl, token, name, baseAuthor: mkBaseAuthor, contentHash, clientId: uid,
           meta: { w: mkW, h: mkH, talkCount: tCnt, bgmName, allowRemix: mkAllowRemix }
         };
       } else {
@@ -1249,10 +1274,12 @@
         const body =
           '### オリジナルステージ投稿\n' +
           '- ステージ名: ' + name + '\n' +
+          (mkBaseAuthor ? '- 元作者: ' + mkBaseAuthor + '\n' : '') +
           '- サイズ: ' + mkW + '×' + mkH + '\n' +
           (bgmName ? '- BGM: ' + bgmName + '\n' : '') +
           (tCnt ? '- セリフ: あり（' + tCnt + 'こ）\n' : '') +
           '- アレンジ: ' + (mkAllowRemix ? 'OK' : '不可') + '\n' +
+          '- 内容ID: ' + contentHash + '\n' +
           '- プレイURL: ' + url + '\n\n' +
           '（このまま下の緑色の「Create」または「Submit new issue」ボタンを押すと投稿完了！ゲーム内の「🌟 みんなの絵」に表示されます）';
         pendingPost = { mode: 'gh', token, issueUrl: REPO_URL + '/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) };
@@ -1276,6 +1303,9 @@
               kind: 'stage',
               name: pendingPost.name,
               author: nick,
+              clientId: pendingPost.clientId,
+              baseAuthor: pendingPost.baseAuthor,
+              contentHash: pendingPost.contentHash,
               token: pendingPost.token,
               siteUrl: location.origin + location.pathname,
               meta: pendingPost.meta
