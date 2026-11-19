@@ -730,6 +730,7 @@
     ov.id = 'ov-bgm';
     ov.innerHTML =
       '<div class="card">' +
+        '<div class="mktabs"><button type="button" class="mktab" id="bBgmToStage">🎨 ステージをつくる</button><button type="button" class="mktab on">🎵 BGMをつくる</button></div>' +
         '<h2>🎵 BGMをつくる</h2>' +
         '<div class="bgm-top">' +
           '<input id="bgmName" maxlength="20" placeholder="曲のなまえ">' +
@@ -1148,6 +1149,8 @@
       if (save.settings.bgm) Sound.startBgm();
       showOv('title');
     });
+    const toStage = $('#bBgmToStage');
+    if (toStage) toStage.addEventListener('click', () => { Sound.tap(); stopPreview(); if (window.AF_openMaker) window.AF_openMaker(); });
   }
 
   function openBgmMaker() {
@@ -1157,15 +1160,6 @@
   }
   window.AF_openBgmMaker = openBgmMaker;
 
-  // ホーム画面に「🎵 BGM」ボタンを追加
-  const mrow = document.querySelector('.mrow');
-  if (mrow) {
-    const btn = document.createElement('button');
-    btn.id = 'bMBgm';
-    btn.innerHTML = '<i>🎵</i>BGM';
-    btn.addEventListener('click', () => { Sound.tap(); openBgmMaker(); });
-    mrow.appendChild(btn);
-  }
   // 設定画面にも「🎵 自作BGMをつくる・えらぶ」ボタンを追加
   const setA2hs = $('#bSetA2hs');
   if (setA2hs) {

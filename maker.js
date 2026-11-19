@@ -617,8 +617,11 @@
     mkBuilt = true;
     const style = document.createElement('style');
     style.textContent =
-      '.mrow{grid-template-columns:repeat(4,1fr)!important;gap:6px!important}' +
+      '.mrow{grid-template-columns:repeat(3,1fr)!important;gap:6px!important}' +
       '.mrow button{font-size:11px!important;padding:7px 2px!important}' +
+      '.mktabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:2px 0 8px}' +
+      '.mktab{border:2px solid #ffd3e2;border-radius:14px;padding:7px 6px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
+      '.mktab.on{background:linear-gradient(#ff9fbf,#ff6f9e);color:#fff;border-color:#fff;box-shadow:0 2px 0 #d64575}' +
       '#ov-maker .card,#ov-gallery .card{padding:12px 14px}' +
       '.mktop{display:flex;gap:6px;justify-content:center;margin:4px 0 6px}' +
       '.mktop button{border:2px solid #ffd3e2;border-radius:14px;padding:6px 12px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
@@ -678,6 +681,7 @@
     ov.id = 'ov-maker';
     ov.innerHTML =
       '<div class="card">' +
+      '<div class="mktabs"><button type="button" class="mktab on">🎨 ステージをつくる</button><button type="button" class="mktab" id="bMkToBgm">🎵 BGMをつくる</button></div>' +
       '<h2>🎨 ステージをつくる</h2>' +
       '<div class="mktop"><button id="bMkGalTop">💾 マイ作品・みんなの絵</button><button id="bMkCloseTop">✕ とじる</button></div>' +
       '<input id="mkName" type="text" maxlength="14" placeholder="ステージ名（例：わたしのハート）">' +
@@ -1042,6 +1046,7 @@
       toast('投稿ページを開いたよ！緑の「Create」を押してね');
     });
     $('#bPostBack').addEventListener('click', () => { Sound.tap(); showOv('maker'); });
+    $('#bMkToBgm').addEventListener('click', () => { Sound.tap(); if (window.AF_openBgmMaker) window.AF_openBgmMaker(); });
     $('#bMkGal').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkGalTop').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
