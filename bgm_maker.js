@@ -801,7 +801,7 @@
       '<div class="card">' +
       '<h2>📮 BGMを投稿する</h2>' +
       '<div id="bgmPostApiBox" style="display:none">' +
-      '<p class="fine">登録不要・ボタン1つで「🎶 みんなのBGM」に公開されるよ！</p>' +
+      '<p class="fine">ニックネームを決めて「🎶 みんなのBGM」に公開しよう！</p>' +
       '<input id="bgmPostNick" type="text" maxlength="16" placeholder="ニックネーム（空欄なら「名無しのありんこ」）" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:800 13px var(--rf);color:var(--ink);margin:8px 0;text-align:center;background:#fff">' +
       '<p class="fine" id="bgmPostSummary" style="margin:4px 0 8px"></p>' +
       '</div>' +
@@ -1018,7 +1018,7 @@
         $('#bgmPostGhBox').style.display = 'none';
         try { $('#bgmPostNick').value = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
         $('#bgmPostSummary').textContent = '「' + name + '」（BPM' + song.bpm + '・' + song.bars.length + '小節）';
-        $('#bBgmPostGo').textContent = '📮 登録なしで投稿する';
+        $('#bBgmPostGo').textContent = '📮 みんなに公開する！';
         $('#bBgmPostGo').disabled = false;
         pendingBgmPost = {
           mode: 'api', apiUrl, tok, name,
@@ -1070,7 +1070,7 @@
           toast('🎉 みんなにBGMを投稿したよ！');
           openBgmGallery();
         } catch (e) {
-          btn.disabled = false; btn.textContent = '📮 登録なしで投稿する';
+          btn.disabled = false; btn.textContent = '📮 みんなに公開する！';
           toast('投稿に失敗しました：' + (e && e.message ? e.message : '通信エラー'));
         }
         return;

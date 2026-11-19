@@ -730,7 +730,7 @@
       '<div class="card">' +
       '<h2>📮 みんなに投稿する</h2>' +
       '<div id="postApiBox" style="display:none">' +
-      '<p class="fine">登録不要・ボタン1つで「🌟 みんなの絵」に公開されるよ！</p>' +
+      '<p class="fine">ニックネームを決めて「🌟 みんなの絵」に公開しよう！</p>' +
       '<input id="postNick" type="text" maxlength="16" placeholder="ニックネーム（空欄なら「名無しのありんこ」）" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:800 13px var(--rf);color:var(--ink);margin:8px 0;text-align:center;background:#fff">' +
       '<p class="fine" id="postSummary" style="margin:4px 0 8px"></p>' +
       '</div>' +
@@ -1234,7 +1234,7 @@
         $('#postGhBox').style.display = 'none';
         try { $('#postNick').value = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
         $('#postSummary').textContent = '「' + name + '」（' + mkW + '×' + mkH + (bgmName ? '・🎵' + bgmName : '') + '）';
-        $('#bPostGo').textContent = '📮 登録なしで投稿する';
+        $('#bPostGo').textContent = '📮 みんなに公開する！';
         $('#bPostGo').disabled = false;
         pendingPost = {
           mode: 'api', apiUrl, token, name,
@@ -1287,7 +1287,7 @@
           toast('🎉 みんなに投稿したよ！');
           openGallery();
         } catch (e) {
-          btn.disabled = false; btn.textContent = '📮 登録なしで投稿する';
+          btn.disabled = false; btn.textContent = '📮 みんなに公開する！';
           toast('投稿に失敗しました：' + (e && e.message ? e.message : '通信エラー'));
         }
         return;
