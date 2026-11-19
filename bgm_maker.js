@@ -91,8 +91,54 @@
       name: String(s.name || 'わたしのBGM').slice(0, 20),
       bpm: clamp(Number(s.bpm) || 112, 70, 170),
       inst: INSTS.some(x => x.id === s.inst) ? s.inst : 'mallet',
-      bars: (s.bars && s.bars.length ? s.bars : [emptyBar()]).slice(0, 4).map(cloneBar)
+      bars: (s.bars && s.bars.length ? s.bars : [emptyBar()]).slice(0, 8).map(cloneBar)
     };
+  }
+
+  const SCALE = [0, 2, 4, 5, 7, 9, 11, 12];
+  function quantizeSemi(semi) {
+    let best = 0, bd = 999;
+    for (let i = 0; i < SCALE.length; i++) {
+      const d = Math.abs(semi - SCALE[i]);
+      if (d < bd) { bd = d; best = SCALE[i]; }
+    }
+    return best;
+  }
+  function importBuiltinSong(key) {
+    const title = (Sound.BGM_TITLES && Sound.BGM_TITLES[key]) || key;
+    const src = key === 'samba'
+      ? { bpm: Sound.BPM || 108, style: 'samba', bars: (Sound.SONG || []).slice(0, 8) }
+      : (Sound.EXTRA_SONGS && Sound.EXTRA_SONGS[key]);
+    if (!src || !src.bars || !src.bars.length) return null;
+    const rawBars = src.bars.slice(0, 8);
+    let sum = 0, cnt = 0;
+    for (const b of rawBars) for (const m of (b.m || [])) { sum += m[1]; cnt++; }
+    const avg = cnt ? sum / cnt : 16;
+    const shift = Math.round((18 - avg) / 12) * 12; // 12..24 の範囲に合わせる
+    const bSteps = src.barSteps || 16;
+    const calm = src.style === 'sakura' || src.style === 'bell' || src.style === 'waltz';
+    const inst = src.style === 'bell' ? 'bell' : (src.style === 'sakura' || src.style === 'waltz') ? 'flute' : 'mallet';
+    const bars = rawBars.map(rb => {
+      const bar = emptyBar();
+      for (const m of (rb.m || [])) {
+        const st = bSteps === 16 ? (m[0] & 15) : clamp(Math.round(m[0] * 16 / bSteps), 0, 15);
+        const q = quantizeSemi(m[1] + shift - 12);
+        if (bar.notes[st].indexOf(q) < 0) bar.notes[st].push(q);
+      }
+      if (calm) {
+        bar.kick[0] = 1;
+      } else {
+        bar.kick[0] = 1; bar.kick[8] = 1;
+        bar.clap[4] = 1; bar.clap[12] = 1;
+      }
+      return bar;
+    });
+    return cloneSong({
+      name: (title + 'アレンジ').slice(0, 20),
+      bpm: src.bpm || 112,
+      inst,
+      bars
+    });
   }
 
   let song = {
@@ -380,7 +426,7 @@
     for (let i = 0; i < song.bars.length; i++) {
       html += '<button type="button" class="bgm-bar' + (i === curBar ? ' on' : '') + '" data-b="' + i + '">' + (i + 1) + '小節</button>';
     }
-    if (song.bars.length < 4) html += '<button type="button" class="bgm-bar add" id="bgmAddBar">＋追加</button>';
+    if (song.bars.length < 8) html += '<button type="button" class="bgm-bar add" id="bgmAddBar">＋追加</button>';
     if (song.bars.length > 1) html += '<button type="button" class="bgm-bar del" id="bgmDelBar">－削除</button>';
     el.innerHTML = html;
   }
@@ -527,6 +573,7 @@
           '<button type="button" class="big sec" id="bgmPostBtn">📮 みんなに投稿</button>' +
           '<button type="button" class="big sec" id="bgmGalBtn">🎶 みんなのBGM</button>' +
         '</div>' +
+        '<button type="button" class="big sec" id="bgmBuiltinBtn" style="margin-top:8px;height:42px;font-size:14px">🎼 公式BGMをえらんでアレンジ</button>' +
         '<div class="bgm-saved" id="bgmSavedList"></div>' +
         '<button type="button" class="big sec" id="bgmCloseBtn" style="margin-top:8px">とじる</button>' +
       '</div>';
@@ -561,6 +608,18 @@
       '</div>';
     document.body.appendChild(gov);
 
+    const bov = document.createElement('div');
+    bov.className = 'ov';
+    bov.id = 'ov-bgm-builtin';
+    bov.innerHTML =
+      '<div class="card">' +
+      '<h2>🎼 公式BGM一覧</h2>' +
+      '<p class="fine" style="margin-bottom:6px">「✏️ アレンジ」を押すとエディタで自由に編集・保存できるよ！</p>' +
+      '<div class="bgm-gal" id="bgmBuiltinList"></div>' +
+      '<button class="big sec" id="bBgmBuiltinBack">🎵 つくるにもどる</button>' +
+      '</div>';
+    document.body.appendChild(bov);
+
     const grid = $('#bgmGrid');
     grid.addEventListener('pointerdown', e => {
       const btn = e.target.closest('.bgm-cell');
@@ -590,7 +649,7 @@
       const b = e.target.closest('.bgm-bar');
       if (!b) return;
       if (b.id === 'bgmAddBar') {
-        if (song.bars.length < 4) {
+        if (song.bars.length < 8) {
           song.bars.push(cloneBar(song.bars[curBar]));
           curBar = song.bars.length - 1;
           renderBarTabs(); renderGrid(); syncActiveIfUsed();
@@ -804,6 +863,69 @@
         box.innerHTML = '<p class="fine">投稿一覧を読み込めませんでした（オフラインまたはアクセス集中）</p>';
       }
     }
+
+    let builtinTimer = null;
+    function stopBuiltinPreview() {
+      clearInterval(builtinTimer);
+      builtinTimer = null;
+      document.querySelectorAll('#bgmBuiltinList .bgm-mini.play').forEach(b => { b.textContent = '▶'; b.classList.remove('play'); });
+    }
+    function openBuiltinSongs() {
+      stopPreview();
+      stopBuiltinPreview();
+      showOv('bgm-builtin');
+      const box = $('#bgmBuiltinList');
+      box.innerHTML = '';
+      const keys = Object.keys(Sound.BGM_TITLES || {});
+      for (const k of keys) {
+        const s = importBuiltinSong(k);
+        if (!s) continue;
+        const title = Sound.BGM_TITLES[k] || k;
+        const card = document.createElement('div');
+        card.className = 'bgm-gcard';
+        card.innerHTML =
+          '<div class="info"><b></b><small></small></div>' +
+          '<button type="button" class="bgm-mini">▶</button>' +
+          '<button type="button" class="bgm-mini use">使う</button>' +
+          '<button type="button" class="bgm-mini">✏️ アレンジ</button>';
+        card.querySelector('b').textContent = title;
+        card.querySelector('small').textContent = 'BPM' + s.bpm + ' · ' + s.bars.length + '小節';
+        const [pBtn, uBtn, aBtn] = card.querySelectorAll('.bgm-mini');
+        pBtn.addEventListener('click', () => {
+          const was = pBtn.classList.contains('play');
+          stopBuiltinPreview();
+          if (was) return;
+          Sound.init(); Sound.stopBgm();
+          pBtn.textContent = '⏹'; pBtn.classList.add('play');
+          let st = 0;
+          const total = s.bars.length * 16;
+          const stepFn = () => {
+            const idx = st % total, b = s.bars[Math.floor(idx / 16)], c = idx % 16;
+            for (const n of b.notes[c]) Sound.playCustomNote(s.inst, n, 0, 0.22);
+            if (b.kick[c]) Sound.playCustomDrum(1, 0, b.notes[c].length ? b.notes[c][0] : 0);
+            if (b.clap[c]) Sound.playCustomDrum(2, 0);
+            st++;
+          };
+          stepFn();
+          builtinTimer = setInterval(stepFn, Math.round(60000 / s.bpm / 4));
+        });
+        uBtn.addEventListener('click', () => {
+          Sound.init(); stopBuiltinPreview();
+          song = cloneSong(s); song.name = title.slice(0, 20); curBar = 0;
+          applyActiveBgm(song, true);
+          toast('🎧「' + title + '」をゲームのBGMにしたよ！');
+        });
+        aBtn.addEventListener('click', () => {
+          Sound.tap(); stopBuiltinPreview();
+          song = cloneSong(s); curBar = 0; syncUI();
+          showOv('bgm');
+          toast('✏️「' + title + '」を読み込んだよ！アレンジして保存しよう');
+        });
+        box.appendChild(card);
+      }
+    }
+    $('#bgmBuiltinBtn').addEventListener('click', () => { Sound.tap(); openBuiltinSongs(); });
+    $('#bBgmBuiltinBack').addEventListener('click', () => { Sound.tap(); stopBuiltinPreview(); openBgmMaker(); });
 
     $('#bgmGalBtn').addEventListener('click', () => { Sound.tap(); openBgmGallery(); });
     $('#bBgmGalBack').addEventListener('click', () => { Sound.tap(); stopGalPreview(); openBgmMaker(); });
