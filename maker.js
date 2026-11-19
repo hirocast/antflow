@@ -339,7 +339,7 @@
       const ver = bytes[0];
       if (ver === 1) {
         const W = bytes[1], H = bytes[2], nLen = bytes[3];
-        if (W < 8 || W > 32 || H < 8 || H > 32 || 4 + nLen >= bytes.length) return null;
+        if (W < 8 || W > 64 || H < 8 || H > 64 || 4 + nLen >= bytes.length) return null;
         const name = new TextDecoder().decode(bytes.slice(4, 4 + nLen)) || 'オリジナル';
         const grid = new Int8Array(W * H).fill(-1);
         let idx = 0, p = 4 + nLen;
@@ -357,7 +357,7 @@
       }
       if (ver === 4) {
         const W = bytes[1], H = bytes[2], nLen = bytes[3];
-        if (W < 8 || W > 32 || H < 8 || H > 32 || 6 + nLen >= bytes.length) return null;
+        if (W < 8 || W > 64 || H < 8 || H > 64 || 6 + nLen >= bytes.length) return null;
         const name = new TextDecoder().decode(bytes.slice(4, 4 + nLen)) || 'オリジナル';
         const tLen = bytes[4 + nLen] | (bytes[5 + nLen] << 8);
         const tStart = 6 + nLen, tEnd = tStart + tLen;
@@ -385,7 +385,7 @@
         const raw = await inflateRawBytes(bytes.slice(1));
         if (raw.length < 4) return null;
         const W = raw[0], H = raw[1], nLen = raw[2];
-        if (W < 8 || W > 32 || H < 8 || H > 32 || raw.length !== 3 + nLen + W * H) return null;
+        if (W < 8 || W > 64 || H < 8 || H > 64 || raw.length !== 3 + nLen + W * H) return null;
         const name = new TextDecoder().decode(raw.slice(3, 3 + nLen)) || 'オリジナル';
         const grid = new Int8Array(W * H);
         let total = 0;
@@ -404,7 +404,7 @@
         const raw = await inflateRawBytes(bytes.slice(1));
         if (raw.length < 6) return null;
         const W = raw[0], H = raw[1], nLen = raw[2];
-        if (W < 8 || W > 32 || H < 8 || H > 32 || 5 + nLen >= raw.length) return null;
+        if (W < 8 || W > 64 || H < 8 || H > 64 || 5 + nLen >= raw.length) return null;
         const name = new TextDecoder().decode(raw.slice(3, 3 + nLen)) || 'オリジナル';
         const tLen = raw[3 + nLen] | (raw[4 + nLen] << 8);
         const tStart = 5 + nLen, off = tStart + tLen;
@@ -489,7 +489,7 @@
           if (!best || m.score < best.m.score) best = { idx, cfg, c, L, m };
           idx++;
           if (idx >= 14 || Date.now() - t0 > limit || (best.m.ok && best.m.outer === 0 && best.m.random === 0)) {
-            const runs = cfg.total > 1200 ? 6 : 10;
+            const runs = cfg.total > 2200 ? 4 : cfg.total > 1200 ? 6 : 10;
             const rng = mulberry32(hashInt(cfg.total, 1007 + best.idx));
             const o = winRate(best.L, polOuter, rng, runs, runs);
             const r = winRate(best.L, polRandom, rng, runs, runs);
@@ -580,7 +580,7 @@
   function setZoom(z, anchorX, anchorY) {
     const cv = $('#mkCv');
     const S = Math.round((cv && cv.clientWidth) || 272);
-    const nz = clamp(z, 1, 4);
+    const nz = clamp(z, 1, 6);
     if (nz === mkZoom) return;
     const ax = anchorX == null ? S / 2 : anchorX;
     const ay = anchorY == null ? S / 2 : anchorY;
@@ -1221,6 +1221,8 @@
       '<button class="mksz on" data-sz="16">16×16</button>' +
       '<button class="mksz" data-sz="24">24×24</button>' +
       '<button class="mksz" data-sz="32">32×32</button>' +
+      '<button class="mksz" data-sz="48">48×48</button>' +
+      '<button class="mksz" data-sz="64">64×64</button>' +
       '<button id="mkZOut" title="縮小">🔍−</button>' +
       '<span class="mkz" id="mkZoomLbl">1x</span>' +
       '<button id="mkZIn" title="拡大">🔍＋</button>' +
