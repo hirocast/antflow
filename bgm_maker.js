@@ -323,12 +323,15 @@
       for (let i = 0; i < notes.length; i++) Sound.playCustomNote(song.inst, notes[i], 0, 0.22);
       if (bar.kick[st]) Sound.playCustomDrum(1, 0, notes.length ? notes[0] : 0);
       if (bar.clap[st]) Sound.playCustomDrum(2, 0);
-      if (bIdx === curBar) {
-        const old = document.querySelectorAll('#bgmGrid .bgm-cell.play');
-        for (let i = 0; i < old.length; i++) old[i].classList.remove('play');
-        const cur = document.querySelectorAll('#bgmGrid .bgm-cell[data-st="' + st + '"]');
-        for (let i = 0; i < cur.length; i++) cur[i].classList.add('play');
+      if (bIdx !== curBar) {
+        curBar = bIdx;
+        renderBarTabs();
+        renderGrid();
       }
+      const old = document.querySelectorAll('#bgmGrid .bgm-cell.play');
+      for (let i = 0; i < old.length; i++) old[i].classList.remove('play');
+      const cur = document.querySelectorAll('#bgmGrid .bgm-cell[data-st="' + st + '"]');
+      for (let i = 0; i < cur.length; i++) cur[i].classList.add('play');
       playStep++;
     };
     tick();
