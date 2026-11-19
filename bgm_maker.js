@@ -271,22 +271,26 @@
     toast('🎲 メロディを作ったよ！');
   }
 
+  function syncActiveIfUsed() {
+    if (!Sound.useCustomBgm) return;
+    const c = cloneSong(song);
+    Sound.customBgm = c;
+    try { localStorage.setItem(ACTIVE_BGM_KEY, JSON.stringify(c)); } catch (e) {}
+    updateActiveBadge();
+  }
+
   function updateActiveBadge() {
-    const el = $('#bgmActiveBtn');
-    if (!el) return;
-    if (Sound.useCustomBgm) {
-      el.textContent = '🔄 標準BGMにもどす';
-      el.classList.remove('mint');
-      el.classList.add('sec');
-    } else {
-      el.textContent = '🎧 ゲームのBGMにする';
+    const el = $('#bgmActiveBtn'), rst = $('#bgmResetBtn');
+    if (el) {
       el.classList.add('mint');
       el.classList.remove('sec');
+      el.textContent = Sound.useCustomBgm ? '✅ ゲームBGMに反映中（タップで更新）' : '🎧 この曲をゲームのBGMにする';
     }
+    if (rst) rst.style.display = Sound.useCustomBgm ? 'inline-block' : 'none';
     const st = $('#bgmStatus');
     if (st) {
       st.textContent = Sound.useCustomBgm
-        ? 'いまゲーム中で再生中：' + (Sound.customBgm ? Sound.customBgm.name : '')
+        ? 'いまゲーム中で再生中：' + (Sound.customBgm ? Sound.customBgm.name : '') + '（編集すると自動で反映されます）'
         : 'いまはステージごとの標準BGMが流れています';
     }
   }
@@ -509,8 +513,9 @@
           '<button type="button" id="bgmPresetBtn">✨ サンプル</button>' +
           '<button type="button" id="bgmClearBtn">🗑️ クリア</button>' +
         '</div>' +
-        '<button type="button" class="big mint" id="bgmActiveBtn" style="margin-top:8px;height:46px;font-size:15px">🎧 ゲームのBGMにする</button>' +
+        '<button type="button" class="big mint" id="bgmActiveBtn" style="margin-top:8px;height:46px;font-size:15px">🎧 この曲をゲームのBGMにする</button>' +
         '<p class="fine" id="bgmStatus" style="margin:4px 0 0"></p>' +
+        '<button type="button" class="link" id="bgmResetBtn" style="display:none;margin-top:4px">🔄 標準のBGMにもどす</button>' +
         '<div class="bgm-row2">' +
           '<button type="button" class="big sec" id="bgmSaveBtn">💾 ほぞん</button>' +
           '<button type="button" class="big sec" id="bgmShareBtn">🔗 URLコピー</button>' +
@@ -559,21 +564,23 @@
       if (!btn) return;
       e.preventDefault();
       paintVal = toggleCell(btn, null);
+      syncActiveIfUsed();
     });
     grid.addEventListener('pointermove', e => {
       if (paintVal === null) return;
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const btn = el && el.closest ? el.closest('.bgm-cell') : null;
-      if (btn) toggleCell(btn, paintVal);
+      if (btn) { toggleCell(btn, paintVal); syncActiveIfUsed(); }
     });
     window.addEventListener('pointerup', () => { paintVal = null; });
     window.addEventListener('pointercancel', () => { paintVal = null; });
 
-    $('#bgmName').addEventListener('input', e => { song.name = e.target.value.slice(0, 20); });
-    $('#bgmInst').addEventListener('change', e => { song.inst = e.target.value; });
+    $('#bgmName').addEventListener('input', e => { song.name = e.target.value.slice(0, 20); syncActiveIfUsed(); });
+    $('#bgmInst').addEventListener('change', e => { song.inst = e.target.value; syncActiveIfUsed(); });
     $('#bgmBpm').addEventListener('input', e => {
       song.bpm = +e.target.value;
       $('#bgmBpmVal').textContent = song.bpm;
+      syncActiveIfUsed();
       restartPreviewIfPlaying();
     });
     $('#bgmBars').addEventListener('click', e => {
@@ -583,7 +590,7 @@
         if (song.bars.length < 4) {
           song.bars.push(cloneBar(song.bars[curBar]));
           curBar = song.bars.length - 1;
-          renderBarTabs(); renderGrid();
+          renderBarTabs(); renderGrid(); syncActiveIfUsed();
         }
         return;
       }
@@ -591,7 +598,7 @@
         if (song.bars.length > 1) {
           song.bars.splice(curBar, 1);
           curBar = Math.min(curBar, song.bars.length - 1);
-          renderBarTabs(); renderGrid();
+          renderBarTabs(); renderGrid(); syncActiveIfUsed();
         }
         return;
       }
@@ -608,6 +615,7 @@
     $('#bgmRandBtn').addEventListener('click', () => {
       Sound.init();
       randomizeSong();
+      syncActiveIfUsed();
       restartPreviewIfPlaying();
     });
     $('#bgmPresetBtn').addEventListener('click', () => {
@@ -616,24 +624,27 @@
       song = cloneSong(PRESETS[presetIdx]);
       curBar = 0;
       syncUI();
+      syncActiveIfUsed();
       restartPreviewIfPlaying();
       toast('✨「' + song.name + '」を読み込んだよ');
     });
     $('#bgmClearBtn').addEventListener('click', () => {
       song.bars[curBar] = emptyBar();
       renderGrid();
+      syncActiveIfUsed();
     });
     $('#bgmActiveBtn').addEventListener('click', () => {
       Sound.init();
       stopPreview();
-      if (Sound.useCustomBgm) {
-        applyActiveBgm(null, false);
-        toast('🔄 標準BGMにもどしたよ');
-      } else {
-        if (!song.name.trim()) song.name = 'わたしのBGM';
-        applyActiveBgm(song, true);
-        toast('🎧「' + song.name + '」をゲームのBGMにしたよ！');
-      }
+      if (!song.name.trim()) song.name = 'わたしのBGM';
+      applyActiveBgm(song, true);
+      toast('🎧「' + song.name + '」をゲームのBGMに反映したよ！');
+    });
+    $('#bgmResetBtn').addEventListener('click', () => {
+      Sound.init();
+      stopPreview();
+      applyActiveBgm(null, false);
+      toast('🔄 標準BGMにもどしたよ');
     });
     $('#bgmSaveBtn').addEventListener('click', () => {
       if (!song.name.trim()) song.name = 'わたしのBGM';
