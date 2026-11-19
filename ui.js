@@ -28,7 +28,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-eve
  radial-gradient(ellipse 110px 34px at 82% 18%,#fff 60%,transparent 62%),radial-gradient(ellipse 66px 26px at 89% 14%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%)}
 header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
-.lv{min-width:84px;margin-right:auto;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
+.lv{min-width:72px;margin-right:0;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
 .ib{border:3px solid #fff;background:linear-gradient(#fff,#ffeef5);box-shadow:0 4px 0 rgba(90,61,92,.22)}
 .prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:8px;padding-top:1px}
 .bar{flex:1;min-width:44px;height:12px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
@@ -39,9 +39,9 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 #timeTxt b{color:#ffa000}
 #timeTxt b.s1{color:#b99aa8}
 #coinPill{margin-left:auto}
-#lvTalk{display:flex;flex-direction:column;align-items:center;line-height:1.15;background:linear-gradient(#fff,#fff2f7);border:2px solid #fff;border-radius:12px;padding:3px 8px;color:#c0507a;box-shadow:0 3px 0 rgba(90,61,92,.18);white-space:nowrap;min-width:0;max-width:96px}
-#lvTalk #lvName{font-size:10.5px;font-weight:900;color:var(--ink);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#lvTalk small{font-size:9px;font-weight:900;color:#c0507a}
+#lvTalk{display:flex;flex-direction:column;align-items:center;line-height:1.15;background:linear-gradient(#fff,#fff2f7);border:2px solid #fff;border-radius:12px;padding:3px 6px;color:#c0507a;box-shadow:0 3px 0 rgba(90,61,92,.18);white-space:nowrap;min-width:0;max-width:74px;flex:0 1 auto}
+#lvTalk #lvName{font-size:10px;font-weight:900;color:var(--ink);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#lvTalk small{font-size:8.5px;font-weight:900;color:#c0507a;letter-spacing:-0.02em}
 .coin{display:flex;align-items:center;gap:3px;height:38px;padding:0 10px 0 6px;border-radius:19px;background:linear-gradient(#fffbe6,#ffe39a);border:3px solid #fff;box-shadow:0 4px 0 #d9a520;font-weight:900;font-size:15px;color:#8a5a00;flex:0 0 auto;cursor:pointer}
 .coin i{font-style:normal;font-size:17px}
 .coin.bump{animation:cbump .45s}
@@ -271,9 +271,9 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  .fb span{font-size:16px}
 }
 @media (max-width:420px){
- header{gap:4px;padding:4px 6px 3px}
- .lv{min-width:78px;padding:4px 8px}
- .lv b{font-size:15px}
+ header{gap:3px;padding:4px 6px 3px}
+ .lv{min-width:68px;padding:4px 7px}
+ .lv b{font-size:14px}
  .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
  .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
  .coin i{font-size:15px}
@@ -1783,7 +1783,7 @@ function updateStageTalkHud() {
   for (const s of all) if (seenTalkSet.has(s)) seen++;
   const pct = Math.round(100 * seen / all.length);
   el.style.display = '';
-  el.textContent = '💬 ' + seen + '/' + all.length + ' (' + pct + '%)' + (seen === all.length ? '🎉' : '');
+  el.textContent = '💬' + seen + '/' + all.length + '(' + pct + '%)' + (seen === all.length ? '🎉' : '');
 }
 function stageTalkList(name) {
   const o = (typeof TALK_STAGE !== 'undefined' && TALK_STAGE[name]) || null;
