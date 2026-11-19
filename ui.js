@@ -220,9 +220,11 @@ body.wide .fb{max-width:none}
   const cr = document.createElement('div'); cr.className = 'cfrow';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
-  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><button class="big sec" id="bClearShare">📣 クリアをシェアする</button>');
+  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><button class="big sec" id="bClearShare">📣 クリアをシェアする</button><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
   $('#bSetClose').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetHome">🏠 ホーム（女王さま・ミッション・きせかえ）</button>');
-  $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button>');
+  $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button><button class="big sec" id="bSetA2hs">📲 ホーム画面に追加（アプリ化）</button>');
+  const titleFine = $('#ov-title .fine');
+  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
   // あそびかた：ページめくり式に作りかえる
   $('#ov-help .help').innerHTML =
     '<div class="hpic" id="hPic"><canvas id="hCv"></canvas><b class="hnum" id="hNum"></b></div>' +
@@ -2224,6 +2226,100 @@ updateBadge(); updateCoins(); applyDev(); refreshPrices();
 loadLevel(save.level);
 if (gotCount() === 0 && !save.daily.day) startPlay(); else if (dailyCheck()) showDaily(); else showOv('title');
 layout();
+/* ================= ホーム画面追加（アプリ化）ガイド ================= */
+(function initA2HS() {
+  const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const ua = navigator.userAgent || '';
+  const isInApp = /Line\/|LIFF|Instagram|FBAN|FBAV|Twitter|MicroMessenger/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = isIOS || isAndroid;
+  let deferredPrompt = null, prevOv = 'title';
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    refreshA2hsBtns();
+  });
+
+  const ov = document.createElement('div');
+  ov.className = 'ov';
+  ov.id = 'ov-a2hs';
+  ov.innerHTML =
+    '<div class="card">' +
+    '<img src="apple-touch-icon.png" alt="アントフロー" style="width:68px;height:68px;border-radius:16px;box-shadow:0 4px 10px rgba(90,61,92,.2);margin:0 auto 6px;display:block">' +
+    '<h2>📲 アプリとして保存しよう</h2>' +
+    '<p class="fine" style="margin-bottom:8px">ホーム画面に追加すると、ツールバーが消えて<b>広い画面</b>で遊べるよ！セーブも消えにくくなります。</p>' +
+    '<div id="a2hsBody" style="background:#fff;border-radius:14px;padding:10px 12px;margin:6px 0;text-align:left;font-size:12px;line-height:1.7;border:2px solid #ffd3e2"></div>' +
+    '<button class="big" id="bA2hsInstall" style="display:none">📲 ワンタップでアプリ化</button>' +
+    '<button class="big sec" id="bA2hsCopy" style="display:none">📋 URLをコピーする</button>' +
+    '<button class="big sec" id="bA2hsClose">とじる</button>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  function renderA2hsBody() {
+    const body = $('#a2hsBody'), inst = $('#bA2hsInstall'), cp = $('#bA2hsCopy');
+    inst.style.display = deferredPrompt ? '' : 'none';
+    cp.style.display = isInApp ? '' : 'none';
+    if (isInApp) {
+      body.innerHTML = isIOS
+        ? '<div><b style="color:#e46a92">いまアプリ内ブラウザで開いています！</b></div>' +
+          '<div><b>①</b> 画面下の <b>「⋯」</b>（または共有アイコン）＞<b>「デフォルトのブラウザで開く（Safari）」</b></div>' +
+          '<div><b>②</b> Safariで開いたら、下の <b>「□↑（共有）」</b>＞<b>「ホーム画面に追加」</b></div>'
+        : '<div><b style="color:#e46a92">いまアプリ内ブラウザで開いています！</b></div>' +
+          '<div><b>①</b> 右上の <b>「⋮」</b>＞<b>「他のアプリで開く（Chrome）」</b></div>' +
+          '<div><b>②</b> Chromeで開いたら、右上の <b>「⋮」</b>＞<b>「ホーム画面に追加」</b></div>';
+    } else if (isIOS) {
+      body.innerHTML =
+        '<div><b>①</b> 画面下の共有ボタン <b>「□↑」</b> をタップ</div>' +
+        '<div><b>②</b> 下にスクロールして <b>「ホーム画面に追加」</b> をタップ</div>' +
+        '<div><b>③</b> 右上の <b>「追加」</b> を押すと、可愛いアイコンがホームにできるよ！</div>';
+    } else if (isAndroid) {
+      body.innerHTML = deferredPrompt
+        ? '<div>下の <b>「📲 ワンタップでアプリ化」</b> を押すだけでホーム画面に追加できるよ！</div>'
+        : '<div><b>①</b> ブラウザ右上の <b>「⋮」</b> メニューをタップ</div>' +
+          '<div><b>②</b> <b>「ホーム画面に追加」</b>（または「アプリをインストール」）をタップ</div>';
+    } else {
+      body.innerHTML = '<div>スマホの Safari / Chrome から開いて「ホーム画面に追加」すると、アプリのように遊べます！</div>';
+    }
+  }
+
+  function openA2hs(from) {
+    prevOv = from || G.overlay || 'title';
+    renderA2hsBody();
+    showOv('a2hs');
+  }
+  function refreshA2hsBtns() {
+    const show = !isStandalone() && (isMobile || !!deferredPrompt);
+    const bt = $('#bTitleA2hs'), bc = $('#bClearA2hs');
+    if (bt) {
+      bt.style.display = show ? '' : 'none';
+      bt.textContent = isInApp ? '⚠️ Safari/Chromeで開いてアプリ化しよう' : '📲 ホーム画面に追加して広く遊ぶ';
+    }
+    if (bc) bc.style.display = show ? '' : 'none';
+  }
+  refreshA2hsBtns();
+
+  on('#bTitleA2hs', () => openA2hs('title'));
+  on('#bClearA2hs', () => openA2hs('clear'));
+  on('#bSetA2hs', () => openA2hs('settings'));
+  on('#bA2hsClose', () => { if (prevOv && prevOv !== 'a2hs') showOv(prevOv); else hideOv(); });
+  on('#bA2hsCopy', () => {
+    const url = 'https://hirocast.github.io/antflow/';
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast('URLをコピーしたよ！SafariやChromeに貼ってね')).catch(() => prompt('このURLをコピーしてね：', url));
+    else prompt('このURLをコピーしてね：', url);
+  });
+  on('#bA2hsInstall', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const res = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    refreshA2hsBtns();
+    if (res && res.outcome === 'accepted') { toast('ホーム画面に追加したよ！'); hideOv(); }
+    else renderA2hsBody();
+  });
+})();
+
 requestAnimationFrame(frame);
 
 AF_LOADED.push('ui.js');
