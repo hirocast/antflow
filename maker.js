@@ -118,7 +118,14 @@
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
   const mkHistory = [];
   let mkCol = 0, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
-  let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '';
+  let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '', mkDiff = 2;
+  const STAGE_DIFFS = {
+    1: { label: 'かんたん', short: '🌱 かんたん', hint: '3列・おやすみ少なめでのんびり遊べるよ', paramId: 2, stars: 1 },
+    2: { label: 'ふつう', short: '⭐ ふつう', hint: '3列・標準のバランスだよ', paramId: 5, stars: 2 },
+    3: { label: 'むずかしい', short: '🔥 むずかしい', hint: '3列・先読みがカギ！色を交互の層にするとさらに難化', paramId: 15, stars: 4 },
+    4: { label: 'げきむず', short: '💀 げきむず', hint: '4列・おやすみ多め！上級者向けの歯ごたえ配置', paramId: 30, stars: 5 }
+  };
+  function clampDiff(d) { const n = Number(d) | 0; return (n >= 1 && n <= 4) ? n : 2; }
   const UID_KEY = 'antflow-anon-name-v1';
   const ANON_ADJ = ['Sweet','Star','Sunny','Happy','Fluffy','Cozy','Mint','Choco','Berry','Peach','Lemon','Apple','Melon','Honey','Milk','Sugar','Moon','Sky','Cloud','Rain','Snow','Sakura','Mochi','Magic','Lucky','Cute','Tiny','Bouncy','Dreamy','Spark','Ruby','Pearl'];
   const ANON_NOUN = ['Ant','Cat','Bear','Fox','Bunny','Panda','Koala','Frog','Duck','Owl','Seal','Puppy','Kitty','Candy','Donut','Cake','Cookie','Tart','Waffle','Puff','Macaron','Mochi','Berry','Melon','Cloud','Star','Heart','Ribbon','Bell','Leaf','Drop','Pony'];
@@ -223,28 +230,31 @@
     const n = normalizeCustomTalk(t);
     return n ? n.hi.length + n.p.length + n.c.length + n.j.length + n.q.length : 0;
   }
-  function encodeStageMeta(talk, bgmToken, allowRemix) {
+  function encodeStageMeta(talk, bgmToken, allowRemix, diff) {
     const o = {};
     const ct = compactTalkObj(talk);
     if (ct) o.t = ct;
     if (bgmToken && typeof bgmToken === 'string') o.b = bgmToken;
     if (allowRemix) o.r = 1;
+    const d = clampDiff(diff);
+    if (d !== 2) o.d = d;
     return Object.keys(o).length ? o : null;
   }
   function decodeStageMeta(obj) {
-    if (!obj || typeof obj !== 'object') return { talk: null, bgmToken: '', allowRemix: false };
+    if (!obj || typeof obj !== 'object') return { talk: null, bgmToken: '', allowRemix: false, diff: 2 };
     if (obj.hi || obj.p || obj.c || obj.j || obj.q) {
-      return { talk: normalizeCustomTalk(obj), bgmToken: '', allowRemix: false };
+      return { talk: normalizeCustomTalk(obj), bgmToken: '', allowRemix: false, diff: 2 };
     }
     const talk = normalizeCustomTalk(obj.t);
     const bgmToken = (typeof obj.b === 'string' && /^[A-Za-z0-9_-]+$/.test(obj.b)) ? obj.b : '';
     const allowRemix = !!obj.r;
-    return { talk, bgmToken, allowRemix };
+    const diff = clampDiff(obj.d);
+    return { talk, bgmToken, allowRemix, diff };
   }
-  function encodeCustomStageV1(name, grid, w, h, talk, bgmToken, allowRemix) {
+  function encodeCustomStageV1(name, grid, w, h, talk, bgmToken, allowRemix, diff) {
     const W = w || mkW, H = h || mkH;
     const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
-    const meta = encodeStageMeta(talk, bgmToken, allowRemix);
+    const meta = encodeStageMeta(talk, bgmToken, allowRemix, diff);
     const tb = meta ? new TextEncoder().encode(JSON.stringify(meta)) : new Uint8Array(0);
     const runs = [];
     let i = 0;
@@ -277,13 +287,13 @@
     bytes.set(runs, 4 + nb.length);
     return toB64Url(bytes);
   }
-  async function encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix) {
-    const v1 = encodeCustomStageV1(name, grid, w, h, talk, bgmToken, allowRemix);
+  async function encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff) {
+    const v1 = encodeCustomStageV1(name, grid, w, h, talk, bgmToken, allowRemix, diff);
     if (typeof CompressionStream !== 'function') return v1;
     try {
       const W = w || mkW, H = h || mkH;
       const nb = new TextEncoder().encode((name || 'オリジナル').slice(0, 20));
-      const meta = encodeStageMeta(talk, bgmToken, allowRemix);
+      const meta = encodeStageMeta(talk, bgmToken, allowRemix, diff);
       const tb = meta ? new TextEncoder().encode(JSON.stringify(meta)) : new Uint8Array(0);
       if (tb.length > 0 && tb.length <= 65535) {
         const raw = new Uint8Array(5 + nb.length + tb.length + grid.length);
@@ -340,7 +350,7 @@
         let total = 0;
         for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
         if (total < 4) return null;
-        return { W, H, grid, name, theme: 'オリジナル', talk: null, bgmToken: '', bgm: null, allowRemix: false, token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: null, bgmToken: '', bgm: null, allowRemix: false, diff: 2, token };
       }
       if (ver === 4) {
         const W = bytes[1], H = bytes[2], nLen = bytes[3];
@@ -349,7 +359,7 @@
         const tLen = bytes[4 + nLen] | (bytes[5 + nLen] << 8);
         const tStart = 6 + nLen, tEnd = tStart + tLen;
         if (tEnd >= bytes.length) return null;
-        let meta = { talk: null, bgmToken: '', allowRemix: false };
+        let meta = { talk: null, bgmToken: '', allowRemix: false, diff: 2 };
         if (tLen > 0) {
           try { meta = decodeStageMeta(JSON.parse(new TextDecoder().decode(bytes.slice(tStart, tEnd)))); } catch (e) { return null; }
         }
@@ -365,7 +375,7 @@
         for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
         if (total < 4) return null;
         const bgm = (meta.bgmToken && window.AF_bgmTools) ? window.AF_bgmTools.decodeBgm(meta.bgmToken) : null;
-        return { W, H, grid, name, theme: 'オリジナル', talk: meta.talk, bgmToken: meta.bgmToken, bgm, allowRemix: meta.allowRemix, token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: meta.talk, bgmToken: meta.bgmToken, bgm, allowRemix: meta.allowRemix, diff: meta.diff, token };
       }
       if (ver === 2) {
         if (typeof DecompressionStream !== 'function') return null;
@@ -384,7 +394,7 @@
           if (val >= 0) total++;
         }
         if (total < 4) return null;
-        return { W, H, grid, name, theme: 'オリジナル', talk: null, bgmToken: '', bgm: null, allowRemix: false, token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: null, bgmToken: '', bgm: null, allowRemix: false, diff: 2, token };
       }
       if (ver === 3) {
         if (typeof DecompressionStream !== 'function') return null;
@@ -396,7 +406,7 @@
         const tLen = raw[3 + nLen] | (raw[4 + nLen] << 8);
         const tStart = 5 + nLen, off = tStart + tLen;
         if (raw.length !== off + W * H) return null;
-        let meta = { talk: null, bgmToken: '', allowRemix: false };
+        let meta = { talk: null, bgmToken: '', allowRemix: false, diff: 2 };
         if (tLen > 0) {
           try { meta = decodeStageMeta(JSON.parse(new TextDecoder().decode(raw.slice(tStart, off)))); } catch (e) { return null; }
         }
@@ -410,13 +420,13 @@
         }
         if (total < 4) return null;
         const bgm = (meta.bgmToken && window.AF_bgmTools) ? window.AF_bgmTools.decodeBgm(meta.bgmToken) : null;
-        return { W, H, grid, name, theme: 'オリジナル', talk: meta.talk, bgmToken: meta.bgmToken, bgm, allowRemix: meta.allowRemix, token };
+        return { W, H, grid, name, theme: 'オリジナル', talk: meta.talk, bgmToken: meta.bgmToken, bgm, allowRemix: meta.allowRemix, diff: meta.diff, token };
       }
       return null;
     } catch (e) { return null; }
   }
-  async function stageShareUrl(name, grid, w, h, preToken, talk, bgmToken, allowRemix) {
-    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix);
+  async function stageShareUrl(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff) {
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff);
     return location.origin + location.pathname + '?stage=' + token;
   }
   function extractStageToken(input) {
@@ -436,20 +446,30 @@
     const baseUrl = location.origin + location.pathname + '?stage=';
     const talk = normalizeCustomTalk(art.talk);
     const bgmToken = art.bgmToken || '';
+    const diff = clampDiff(art.diff), di = STAGE_DIFFS[diff];
     const customBgm = art.bgm || (bgmToken && window.AF_bgmTools ? window.AF_bgmTools.decodeBgm(bgmToken) : null);
-    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix));
-    const P = params(5, total);
-    const rng = mulberry32(hashInt(total, art.name.length + 77));
-    const c = construct(art, P, rng);
+    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix, diff));
+    const P = params(di.paramId, total);
+    let c = null;
+    const tries = diff >= 3 ? 4 : 1;
+    for (let k = 0; k < tries; k++) {
+      const rng = mulberry32(hashInt(total, art.name.length + 77 + k * 31));
+      c = construct(art, P, rng);
+      if (tries === 1) break;
+      const testL = { W: art.W, H: art.H, grid: art.grid, cols: c.cols, total };
+      let naive = false;
+      for (const f of [polLeft, polRight, polComplete, polMost]) if (playout(testL, f, null)) { naive = true; break; }
+      if (!naive) break;
+    }
     const L = {
-      id: 0, custom: true, art, shareUrl,
+      id: 0, custom: true, art: Object.assign({}, art, { diff }), shareUrl,
       name: art.name || 'オリジナル', theme: 'オリジナル',
       customTalk: talk, customBgm,
       W: art.W, H: art.H, grid: art.grid, cols: c.cols, solution: c.solution, total,
-      metrics: { stars: 2 }
+      metrics: { stars: di.stars }
     };
     if (!art.token) {
-      stageShareUrl(art.name, art.grid, art.W, art.H, null, talk, bgmToken, art.allowRemix).then(u => {
+      stageShareUrl(art.name, art.grid, art.W, art.H, null, talk, bgmToken, art.allowRemix, diff).then(u => {
         L.shareUrl = u;
         if (G.lastShare && G.lastShare.custom) G.lastShare.url = u;
       });
@@ -603,9 +623,9 @@
   function loadMyStages() {
     try { return JSON.parse(localStorage.getItem(MY_KEY) || '[]'); } catch (e) { return []; }
   }
-  async function saveMyStage(name, grid, w, h, preToken, talk, bgmToken, allowRemix) {
+  async function saveMyStage(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff) {
     const list = loadMyStages();
-    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix);
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff);
     const filtered = list.filter(x => x.token !== token);
     filtered.unshift({ name, w, h, token, at: Date.now() });
     if (filtered.length > 20) filtered.length = 20;
@@ -627,10 +647,10 @@
       if (v >= 0) { g.fillStyle = HEX[v]; g.fillRect(2 + x * c, 2 + y * c, c + 0.3, c + 0.3); }
     }
   }
-  async function shareStageArt(name, grid, w, h, talk, preToken, bgmToken, allowRemix) {
-    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix);
-    await saveMyStage(name, grid, w, h, token, talk, bgmToken, allowRemix);
-    const url = await stageShareUrl(name, grid, w, h, token, talk, bgmToken, allowRemix);
+  async function shareStageArt(name, grid, w, h, talk, preToken, bgmToken, allowRemix, diff) {
+    const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff);
+    await saveMyStage(name, grid, w, h, token, talk, bgmToken, allowRemix, diff);
+    const url = await stageShareUrl(name, grid, w, h, token, talk, bgmToken, allowRemix, diff);
     const text = 'アントフローでオリジナルステージ「' + name + '」を作ったよ！遊んでみてね🐜🍬\n#アントフロー';
     if (navigator.share) {
       try {
@@ -831,7 +851,9 @@
     const b = document.createElement('b');
     b.textContent = art.name;
     const sm = document.createElement('small');
-    sm.textContent = art.W + '×' + art.H + ' · ' + sub + (art.baseAuthor ? ' (元:' + art.baseAuthor + ')' : '') + (art.bgmToken ? ' · 🎵' : '') + (!isMine && art.allowRemix ? ' · ✏️OK' : '');
+    const di = STAGE_DIFFS[clampDiff(art.diff)];
+    const diffTag = clampDiff(art.diff) !== 2 ? ' · ' + di.short : '';
+    sm.textContent = art.W + '×' + art.H + diffTag + ' · ' + sub + (art.baseAuthor ? ' (元:' + art.baseAuthor + ')' : '') + (art.bgmToken ? ' · 🎵' : '') + (!isMine && art.allowRemix ? ' · ✏️OK' : '');
     btn.appendChild(cv); btn.appendChild(b); btn.appendChild(sm);
     if (isMine || art.allowRemix) {
       const acts = document.createElement('div');
@@ -844,7 +866,7 @@
           e.stopPropagation();
           e.preventDefault();
           Sound.tap();
-          await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token, art.bgmToken, art.allowRemix);
+          await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token, art.bgmToken, art.allowRemix, art.diff);
         });
         acts.appendChild(sh);
       }
@@ -917,6 +939,12 @@
       '.mkbgm button{border:2px solid #fff;border-radius:10px;padding:4px 10px;background:#ffeef4;color:#c0507a;font:800 11px var(--rf);cursor:pointer;box-shadow:0 2px 0 #e6bfd0}' +
       '.mkperm{display:flex;align-items:center;justify-content:center;gap:6px;margin:4px 0 6px;padding:6px 10px;background:#fff7fb;border:1.5px solid #ffd3e2;border-radius:12px;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
       '.mkperm input{accent-color:#ff6f9e;width:15px;height:15px;cursor:pointer}' +
+      '.mkdiff{background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:6px 8px;margin:5px 0;text-align:left}' +
+      '.mkdiff-h{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;font:800 11px var(--rf);color:#c0507a}' +
+      '.mkdiff-h small{font-size:9.5px;color:#8a6578;font-weight:700;text-align:right}' +
+      '.mkdiff-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}' +
+      '.mkd{border:2px solid #fff;border-radius:10px;padding:5px 2px;background:#ffeef4;color:#8c546e;font:900 10.5px var(--rf);cursor:pointer;box-shadow:0 2px 0 #e6bfd0;white-space:nowrap}' +
+      '.mkd.on{background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;box-shadow:0 2px 0 #d4507c}' +
       '.stbgm-list{max-height:24vh;overflow:auto;text-align:left;margin:4px 0 8px}' +
       '.stbgm-card{display:flex;align-items:center;gap:6px;padding:7px 9px;background:#fff;border:2px solid #ffd3e2;border-radius:12px;margin-bottom:5px}' +
       '.stbgm-card .info{flex:1;min-width:0}' +
@@ -1149,6 +1177,15 @@
       '<div class="mktalk-row"><span>💦 渋滞時</span><input id="mkTalkJ" type="text" maxlength="90" placeholder="例：つまった～！ / もう1回！"></div>' +
       '<div class="mktalk-row"><span>👑 女王さま</span><input id="mkTalkQ" type="text" maxlength="90" placeholder="例：すてきな絵ですわ！"></div>' +
       '<div class="mktalk-act"><button type="button" id="mkTalkAuto">✨ おまかせで作る</button><button type="button" id="mkTalkClr">🗑️ セリフを消す</button></div>' +
+      '</div>' +
+      '</div>' +
+      '<div class="mkdiff">' +
+      '<div class="mkdiff-h"><span>🎯 むずかしさ</span><small id="mkDiffHint">3列・標準のバランスだよ</small></div>' +
+      '<div class="mkdiff-btns">' +
+      '<button type="button" class="mkd" data-d="1">🌱 かんたん</button>' +
+      '<button type="button" class="mkd on" data-d="2">⭐ ふつう</button>' +
+      '<button type="button" class="mkd" data-d="3">🔥 むずかしい</button>' +
+      '<button type="button" class="mkd" data-d="4">💀 げきむず</button>' +
       '</div>' +
       '</div>' +
       '<label class="mkperm"><input type="checkbox" id="mkAllowRemix"> ✏️ 他の人がこのステージをアレンジしてOK</label>' +
@@ -1507,6 +1544,17 @@
       if (save.settings.bgm) Sound.startBgm();
       showOv('maker');
     });
+    function refreshDiffUI() {
+      const di = STAGE_DIFFS[clampDiff(mkDiff)];
+      document.querySelectorAll('.mkd').forEach(b => b.classList.toggle('on', Number(b.dataset.d) === clampDiff(mkDiff)));
+      if ($('#mkDiffHint')) $('#mkDiffHint').textContent = di.hint;
+    }
+    document.querySelectorAll('.mkd').forEach(b => b.addEventListener('click', () => {
+      Sound.tap();
+      mkDiff = clampDiff(b.dataset.d);
+      refreshDiffUI();
+    }));
+    refreshDiffUI();
     $('#mkAllowRemix').addEventListener('change', e => { mkAllowRemix = !!e.target.checked; });
 
     window.AF_loadArtIntoMaker = function (art, isMine) {
@@ -1520,6 +1568,8 @@
       const t = normalizeCustomTalk(art.talk);
       for (const [k, sel] of talkIds) $(sel).value = (t && t[k] && t[k].length) ? t[k].join(' / ') : '';
       updateTalkBadge();
+      mkDiff = clampDiff(art.diff);
+      refreshDiffUI();
       if (isMine) {
         mkBgmToken = art.bgmToken || '';
         mkAllowRemix = !!art.allowRemix;
@@ -1541,8 +1591,8 @@
       Sound.tap(); commitSel(); drawMaker();
       const name = ($('#mkName').value || '').trim() || 'オリジナル';
       const talk = readTalkFromUI();
-      saveMyStage(name, mkGrid, mkW, mkH, null, talk, mkBgmToken, mkAllowRemix);
-      loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル', talk, bgmToken: mkBgmToken, allowRemix: mkAllowRemix });
+      saveMyStage(name, mkGrid, mkW, mkH, null, talk, mkBgmToken, mkAllowRemix, mkDiff);
+      loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル', talk, bgmToken: mkBgmToken, allowRemix: mkAllowRemix, diff: mkDiff });
     });
     $('#bMkShare').addEventListener('click', async () => {
       Sound.tap(); commitSel(); drawMaker();
@@ -1559,7 +1609,7 @@
           if (tng) { toast('セリフ：' + tng); return; }
         }
       }
-      await shareStageArt(name, mkGrid, mkW, mkH, talk, null, mkBgmToken, mkAllowRemix);
+      await shareStageArt(name, mkGrid, mkW, mkH, talk, null, mkBgmToken, mkAllowRemix, mkDiff);
     });
     let pendingPost = null;
     $('#bMkPost').addEventListener('click', async () => {
@@ -1577,15 +1627,16 @@
           if (tng) { toast('セリフ：' + tng); return; }
         }
       }
-      const token = await encodeCustomStage(name, mkGrid, mkW, mkH, talk, mkBgmToken, mkAllowRemix);
+      const token = await encodeCustomStage(name, mkGrid, mkW, mkH, talk, mkBgmToken, mkAllowRemix, mkDiff);
       const cd = checkPostLimit(token);
       if (cd) { toast(cd); return; }
-      await saveMyStage(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix);
-      const url = await stageShareUrl(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix);
+      await saveMyStage(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff);
+      const url = await stageShareUrl(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff);
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
       const tCnt = countTalkLines(talk);
       const bgmObj = (mkBgmToken && window.AF_bgmTools) ? window.AF_bgmTools.decodeBgm(mkBgmToken) : null;
       const bgmName = bgmObj ? bgmObj.name : '';
+      const di = STAGE_DIFFS[clampDiff(mkDiff)];
       const contentHash = stageContentHash(mkGrid, mkW, mkH);
       const uid = getClientUid();
       const apiUrl = getPostApiUrl();
@@ -1594,12 +1645,12 @@
         $('#postGhBox').style.display = 'none';
         $('#postNick').placeholder = 'ニックネーム（空欄なら「' + uid + '」）';
         try { $('#postNick').value = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
-        $('#postSummary').textContent = '「' + name + '」（' + mkW + '×' + mkH + (bgmName ? '・🎵' + bgmName : '') + (mkBaseAuthor ? '・元:' + mkBaseAuthor : '') + '）';
+        $('#postSummary').textContent = '「' + name + '」（' + mkW + '×' + mkH + '・' + di.short + (bgmName ? '・🎵' + bgmName : '') + (mkBaseAuthor ? '・元:' + mkBaseAuthor : '') + '）';
         $('#bPostGo').textContent = '📮 みんなに公開する！';
         $('#bPostGo').disabled = false;
         pendingPost = {
           mode: 'api', apiUrl, token, name, baseAuthor: mkBaseAuthor, contentHash, clientId: uid,
-          meta: { w: mkW, h: mkH, talkCount: tCnt, bgmName, allowRemix: mkAllowRemix }
+          meta: { w: mkW, h: mkH, diff: clampDiff(mkDiff), talkCount: tCnt, bgmName, allowRemix: mkAllowRemix }
         };
       } else {
         $('#postApiBox').style.display = 'none';
@@ -1611,6 +1662,7 @@
           '- ステージ名: ' + name + '\n' +
           (mkBaseAuthor ? '- 元作者: ' + mkBaseAuthor + '\n' : '') +
           '- サイズ: ' + mkW + '×' + mkH + '\n' +
+          '- むずかしさ: ' + di.short + '\n' +
           (bgmName ? '- BGM: ' + bgmName + '\n' : '') +
           (tCnt ? '- セリフ: あり（' + tCnt + 'こ）\n' : '') +
           '- アレンジ: ' + (mkAllowRemix ? 'OK' : '不可') + '\n' +
