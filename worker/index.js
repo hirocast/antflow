@@ -70,13 +70,15 @@ async function recordRateLimit(ip, token) {
   }));
 }
 
+const UID_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 async function makeAnonId(ip, clientId) {
-  if (/^\d{4}$/.test(String(clientId || ''))) return String(clientId);
+  if (/^[2-9A-HJ-KM-NP-Z]{6}$/.test(String(clientId || ''))) return String(clientId);
   const data = new TextEncoder().encode('antflow-anon:' + String(ip || 'unknown'));
   const digest = await crypto.subtle.digest('SHA-256', data);
   const arr = new Uint8Array(digest);
-  const num = ((arr[0] << 8) | arr[1]) % 9000 + 1000;
-  return String(num);
+  let out = '';
+  for (let i = 0; i < 6; i++) out += UID_CHARS[arr[i] % UID_CHARS.length];
+  return out;
 }
 
 async function checkDuplicateIssue(env, kind, token, contentHash) {

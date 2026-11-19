@@ -211,14 +211,16 @@
   let curBar = 0;
   let bgmBaseAuthor = '';
   const UID_KEY = 'antflow-uid-v1';
+  const UID_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   function getClientUid() {
     try {
       let u = localStorage.getItem(UID_KEY);
-      if (u && /^\d{4}$/.test(u)) return u;
-      u = String(Math.floor(1000 + Math.random() * 9000));
+      if (u && /^[2-9A-HJ-KM-NP-Z]{6}$/.test(u)) return u;
+      u = '';
+      for (let i = 0; i < 6; i++) u += UID_CHARS[Math.floor(Math.random() * UID_CHARS.length)];
       localStorage.setItem(UID_KEY, u);
       return u;
-    } catch (e) { return '1000'; }
+    } catch (e) { return 'A2B3C4'; }
   }
   function bgmContentHash(s) {
     const str = JSON.stringify({ b: s.bpm, i: s.inst, r: s.bars.map(x => [x.notes, x.ties, x.kick, x.clap]) });
