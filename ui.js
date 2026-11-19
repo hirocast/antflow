@@ -629,10 +629,6 @@ window.onTalkShown = text => {
   let hasAny = false;
   for (const card of BINGO_CARDS) if (bingoCardStatus(card).hasReward) { hasAny = true; break; }
   if (dot) dot.classList.toggle('on', hasAny);
-  if (hasAny && Date.now() - lastBingoToast > 6000) {
-    lastBingoToast = Date.now();
-    toast('🎯 セリフビンゴ達成！ホームの「ビンゴ」で報酬をうけとろう！', 3000);
-  }
   persist();
 };
 let bingoSelCell = null;
