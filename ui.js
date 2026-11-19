@@ -332,25 +332,30 @@ body.wide .fb{max-width:none}
     try { localStorage.setItem(TALK_LIKE_KEY, JSON.stringify([...s].slice(-500))); } catch (e) {}
     return true;
   }
+  function handleTalkLikeClick(e) {
+    const lb = e.target.closest('.restalk-like');
+    if (!lb || !lb.dataset.talk) return false;
+    Sound.tap();
+    const t = lb.dataset.talk;
+    if (lb.classList.contains('on')) { toast('♥ もういいね！済みだよ'); return true; }
+    lb.classList.add('on');
+    lb.textContent = '♥ いいね';
+    if (saveTalkLike(t)) {
+      toast('♥ セリフにいいね！したよ');
+      fetch(TALK_LIKE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ talk: t })
+      }).catch(() => {});
+    }
+    return true;
+  }
   $('#resTalkBox').addEventListener('click', e => {
     if (e.target.closest('[data-bingo-go]')) { Sound.tap(); openBingo('clear'); return; }
-    const lb = e.target.closest('.restalk-like');
-    if (lb && lb.dataset.talk) {
-      Sound.tap();
-      const t = lb.dataset.talk;
-      if (lb.classList.contains('on')) { toast('♥ もういいね！済みだよ'); return; }
-      lb.classList.add('on');
-      lb.textContent = '♥ いいね';
-      if (saveTalkLike(t)) {
-        toast('♥ セリフにいいね！したよ');
-        fetch(TALK_LIKE_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ talk: t })
-        }).catch(() => {});
-      }
-    }
+    handleTalkLikeClick(e);
   });
+  $('#viewInfo').insertAdjacentHTML('afterend', '<div class="restalk" id="viewTalkBox" style="max-height:26vh;overflow:auto"></div>');
+  $('#viewTalkBox').addEventListener('click', handleTalkLikeClick);
   const cr = document.createElement('div'); cr.className = 'cfrow';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
@@ -1754,11 +1759,45 @@ function openAlbum(fromTitle) {
   save.newArts = []; persist(); updateBadge();
   showOv('album');
 }
+function stageTalkList(name) {
+  const o = (typeof TALK_STAGE !== 'undefined' && TALK_STAGE[name]) || null;
+  if (!o) return [];
+  const out = [], seen = new Set();
+  for (const k of ['hi', 'p', 'c', 'j', 'q']) {
+    const arr = o[k];
+    if (!Array.isArray(arr)) continue;
+    for (const s of arr) {
+      if (s && !seen.has(s)) { seen.add(s); out.push(s); }
+    }
+  }
+  return out;
+}
 function openView(id) {
   const art = getArt(id), cv = $('#viewCv'), S = Math.round(Math.min(innerWidth * 0.72, 300)), b = save.best[id];
   $('#viewName').textContent = art.name;
   drawThumb(cv, art, S, false);
   $('#viewInfo').textContent = 'Lv.' + posOf(id) + '・' + art.theme + '・' + art.W + '×' + art.H + (b ? '・ベスト ' + b.t + '秒 ' + '★'.repeat(b.s) : '');
+  const vb = $('#viewTalkBox');
+  if (vb) {
+    const allTalks = stageTalkList(art.name);
+    if (allTalks.length) {
+      const seenList = allTalks.filter(s => seenTalkSet.has(s));
+      const liked = loadTalkLikes();
+      const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const chips = seenList.map(s => {
+        const isOn = liked.has(s);
+        return '<span class="restalk-chip"><span>「' + esc(s) + '」</span><button type="button" class="restalk-like' + (isOn ? ' on' : '') + '" data-talk="' + esc(s) + '">' + (isOn ? '♥ いいね' : '♡') + '</button></span>';
+      }).join('');
+      const left = allTalks.length - seenList.length;
+      vb.innerHTML =
+        '<div class="restalk-h"><span>💬 このステージのセリフ（' + seenList.length + '/' + allTalks.length + '）</span><span>' + (left ? 'あと ' + left + 'こ' : '🎉 コンプ！') + '</span></div>' +
+        (chips ? '<div class="restalk-list">' + chips + '</div>' : '<p class="fine" style="margin:2px 0">このステージを遊んでセリフを見つけよう！</p>');
+      vb.classList.add('on');
+    } else {
+      vb.classList.remove('on');
+      vb.innerHTML = '';
+    }
+  }
   G.viewId = id;
   showOv('view');
 }
