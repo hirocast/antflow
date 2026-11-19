@@ -584,7 +584,7 @@
   function setZoom(z, anchorX, anchorY) {
     const cv = $('#mkCv');
     const S = Math.round((cv && cv.clientWidth) || 272);
-    const nz = clamp(z, 1, 6);
+    const nz = clamp(z, 1, 16);
     if (nz === mkZoom) return;
     const ax = anchorX == null ? S / 2 : anchorX;
     const ay = anchorY == null ? S / 2 : anchorY;
@@ -1535,7 +1535,7 @@
         const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1;
         const mx = (pts[0].x + pts[1].x) / 2, my = (pts[0].y + pts[1].y) / 2;
         if (mkRefMove && mkRefUrl && mkRefOn) {
-          mkRefScale = clamp(mkRefScale * (dist / mkPinch.dist), 0.3, 6);
+          mkRefScale = clamp(mkRefScale * (dist / mkPinch.dist), 0.3, 16);
           mkPinch.dist = dist;
           mkRefX += (mx - mkPinch.mx) / mkZoom;
           mkRefY += (my - mkPinch.my) / mkZoom;
@@ -1596,19 +1596,19 @@
     cv.addEventListener('wheel', e => {
       e.preventDefault();
       if (mkRefMove && mkRefUrl && mkRefOn) {
-        mkRefScale = clamp(mkRefScale * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 0.3, 6);
+        mkRefScale = clamp(mkRefScale * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 0.3, 16);
         refreshRefUI();
         return;
       }
       const rect = cv.getBoundingClientRect();
-      setZoom(mkZoom + (e.deltaY < 0 ? 0.5 : -0.5), e.clientX - rect.left, e.clientY - rect.top);
+      setZoom(mkZoom + (e.deltaY < 0 ? (mkZoom >= 4 ? 1 : 0.5) : (mkZoom > 4 ? -1 : -0.5)), e.clientX - rect.left, e.clientY - rect.top);
     }, { passive: false });
 
     document.querySelectorAll('.mksz').forEach(b => {
       b.addEventListener('click', () => { Sound.tap(); commitSel(); setMakerSize(Number(b.dataset.sz)); });
     });
-    $('#mkZIn').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom < 2 ? 2 : mkZoom + 1); });
-    $('#mkZOut').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom <= 2 ? 1 : mkZoom - 1); });
+    $('#mkZIn').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom < 2 ? 2 : mkZoom < 4 ? mkZoom + 1 : mkZoom + 2); });
+    $('#mkZOut').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom <= 2 ? 1 : mkZoom <= 4 ? mkZoom - 1 : mkZoom - 2); });
     function setTool(t) {
       mkTool = t;
       if (t !== 'pen') {
@@ -1806,12 +1806,12 @@
     });
     $('#bRefIn').addEventListener('click', () => {
       Sound.tap();
-      mkRefScale = clamp(Number((mkRefScale * 1.25).toFixed(2)), 0.3, 6);
+      mkRefScale = clamp(Number((mkRefScale * 1.25).toFixed(2)), 0.3, 16);
       refreshRefUI();
     });
     $('#bRefOut').addEventListener('click', () => {
       Sound.tap();
-      mkRefScale = clamp(Number((mkRefScale / 1.25).toFixed(2)), 0.3, 6);
+      mkRefScale = clamp(Number((mkRefScale / 1.25).toFixed(2)), 0.3, 16);
       refreshRefUI();
     });
     $('#bRefAlpha').addEventListener('click', () => {
