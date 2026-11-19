@@ -197,6 +197,14 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  .fb{height:40px;flex-direction:row;gap:4px}
  .fb span{font-size:16px}
 }
+@media (max-width:420px){
+ header{gap:4px;padding:0 6px}
+ .lv{min-width:78px;padding:4px 8px}
+ .lv b{font-size:15px}
+ .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
+ .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
+ .coin i{font-size:15px}
+}
 body.wide footer{align-self:flex-end;width:var(--pw);max-width:100%;padding-left:6px}
 body.wide .fb{max-width:none}
 `;
@@ -206,6 +214,7 @@ body.wide .fb{max-width:none}
 /* ================= 画面の部品を追加（index.html は変更不要） ================= */
 (function buildMetaUI() {
   $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b>'; return d; })(), $('#bAlbum'));
+  $('header').insertBefore((() => { const b = document.createElement('button'); b.className = 'ib'; b.id = 'bHome'; b.setAttribute('aria-label', 'ホーム'); b.textContent = '🏠'; return b; })(), $('#bAlbum'));
   const tt = document.createElement('span'); tt.id = 'timeTxt'; $('.prog').appendChild(tt);
   document.body.appendChild($('#toast'));
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
@@ -220,9 +229,11 @@ body.wide .fb{max-width:none}
   const cr = document.createElement('div'); cr.className = 'cfrow';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
-  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><button class="big sec" id="bClearShare">📣 クリアをシェアする</button><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
-  $('#bSetClose').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetHome">🏠 ホーム（女王さま・ミッション・きせかえ）</button>');
+  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><button class="big sec" id="bClearShare">📣 クリアをシェアする</button><button class="big sec" id="bClearHome">🏠 ホームへもどる</button><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
+  $('#ov-settings h2').insertAdjacentHTML('afterend', '<button class="big sec" id="bSetHome" style="margin-bottom:8px">🏠 ホームへもどる（女王さま・ミッション・きせかえ）</button>');
   $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button><button class="big sec" id="bSetA2hs">📲 ホーム画面に追加（アプリ化）</button>');
+  $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
+  $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
   const titleFine = $('#ov-title .fine');
   if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
   // あそびかた：ページめくり式に作りかえる
@@ -1191,6 +1202,7 @@ function doScan() {
 }
 function openAlbum(fromTitle) {
   G.fromTitle = fromTitle;
+  const ah = $('#bAlbumHome'); if (ah) ah.style.display = fromTitle ? 'none' : 'block';
   const grid = $('#albumGrid'), fresh = new Set(save.newArts);
   grid.innerHTML = '';
   for (let pos = 1; pos <= TOTAL; pos++) {
@@ -1983,6 +1995,10 @@ on('#bScan', () => { Sound.init(); doScan(); });
 on('#bSet', () => { G.fromTitle = false; showOv('settings'); });
 on('#bSetClose', back);
 on('#bSetHome', () => { Sound.init(); showOv('title'); });
+on('#bHome', () => { Sound.init(); showOv('title'); });
+on('#bClearHome', () => { Sound.init(); showOv('title'); });
+on('#bJamHome', () => { Sound.init(); showOv('title'); });
+on('#bAlbumHome', () => { Sound.init(); showOv('title'); });
 on('#coinPill', () => { if (!G.overlay) { Sound.init(); showOv('title'); } });
 on('#bMQueen', () => { Sound.init(); openColony('title'); });
 on('#bMMis', () => { Sound.init(); openMissions('title'); });
