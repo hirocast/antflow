@@ -116,8 +116,9 @@
 
   let mkW = 16, mkH = 16;
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
-  const mkHistory = [];
+  const mkHistory = [], mkRedo = [];
   let mkCol = 0, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
+  let mkTool = 'pen', mkBrush = 1, mkLastCell = null;
   let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '', mkDiff = 2, mkGenIdx = 0;
   const STAGE_DIFFS = {
     1: { label: 'かんたん', short: '🌱 かんたん', stars: 1 },
@@ -168,12 +169,14 @@
   }
 
   function refreshUndoBtn() {
-    const b = $('#mkUndo');
+    const b = $('#mkUndo'), r = $('#mkRedo');
     if (b) b.disabled = !mkHistory.length;
+    if (r) r.disabled = !mkRedo.length;
   }
-  function pushMkUndo() {
+  function pushMkUndo(keepRedo) {
     mkHistory.push({ w: mkW, h: mkH, grid: mkGrid.slice() });
     if (mkHistory.length > 40) mkHistory.shift();
+    if (!keepRedo) mkRedo.length = 0;
     refreshUndoBtn();
   }
 
@@ -1231,6 +1234,10 @@
       '<canvas id="mkCv"></canvas>' +
       '<div class="mktools">' +
       '<button id="mkUndo" disabled>↶ もどす</button>' +
+      '<button id="mkRedo" disabled>↪️ やりなおし</button>' +
+      '<button id="mkFill">🪣 ぬりつぶし</button>' +
+      '<button id="mkDrop">💉 スポイト</button>' +
+      '<button id="mkBrush">🖌️ 1×1</button>' +
       '<button id="mkSelBtn">🔲 選択移動</button>' +
       '<button id="mkMir">🪞 左右対称</button>' +
       '<button id="mkMirV">↕️ 上下対称</button>' +
@@ -1351,14 +1358,54 @@
       if (clampEdge) { x = clamp(x, 0, mkW - 1); y = clamp(y, 0, mkH - 1); }
       return { x, y };
     }
-    function paintAt(clientX, clientY) {
+    function stampCell(cx, cy) {
+      const r0 = -Math.floor((mkBrush - 1) / 2);
+      const r1 = r0 + mkBrush - 1;
+      for (let dy = r0; dy <= r1; dy++) {
+        for (let dx = r0; dx <= r1; dx++) {
+          const x = cx + dx, y = cy + dy;
+          if (x < 0 || x >= mkW || y < 0 || y >= mkH) continue;
+          const mx = mkW - 1 - x, my = mkH - 1 - y;
+          mkGrid[y * mkW + x] = mkCol;
+          if (mkMirror) mkGrid[y * mkW + mx] = mkCol;
+          if (mkMirrorV) mkGrid[my * mkW + x] = mkCol;
+          if (mkMirror && mkMirrorV) mkGrid[my * mkW + mx] = mkCol;
+        }
+      }
+    }
+    function drawLineCells(x0, y0, x1, y1) {
+      let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+      let sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+      let err = dx - dy, x = x0, y = y0;
+      for (;;) {
+        stampCell(x, y);
+        if (x === x1 && y === y1) break;
+        const e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x += sx; }
+        if (e2 < dx) { err += dx; y += sy; }
+      }
+    }
+    function floodFillOne(sx, sy, target, fillCol) {
+      if (sx < 0 || sx >= mkW || sy < 0 || sy >= mkH || target === fillCol) return;
+      if (mkGrid[sy * mkW + sx] !== target) return;
+      const seen = new Uint8Array(mkW * mkH);
+      const q = [sx, sy];
+      seen[sy * mkW + sx] = 1;
+      for (let qi = 0; qi < q.length; qi += 2) {
+        const x = q[qi], y = q[qi + 1];
+        mkGrid[y * mkW + x] = fillCol;
+        if (x > 0 && !seen[y * mkW + x - 1] && mkGrid[y * mkW + x - 1] === target) { seen[y * mkW + x - 1] = 1; q.push(x - 1, y); }
+        if (x + 1 < mkW && !seen[y * mkW + x + 1] && mkGrid[y * mkW + x + 1] === target) { seen[y * mkW + x + 1] = 1; q.push(x + 1, y); }
+        if (y > 0 && !seen[(y - 1) * mkW + x] && mkGrid[(y - 1) * mkW + x] === target) { seen[(y - 1) * mkW + x] = 1; q.push(x, y - 1); }
+        if (y + 1 < mkH && !seen[(y + 1) * mkW + x] && mkGrid[(y + 1) * mkW + x] === target) { seen[(y + 1) * mkW + x] = 1; q.push(x, y + 1); }
+      }
+    }
+    function paintAt(clientX, clientY, isStart) {
       const { x, y } = cellAt(clientX, clientY, false);
       if (x < 0 || x >= mkW || y < 0 || y >= mkH) return;
-      const mx = mkW - 1 - x, my = mkH - 1 - y;
-      mkGrid[y * mkW + x] = mkCol;
-      if (mkMirror) mkGrid[y * mkW + mx] = mkCol;
-      if (mkMirrorV) mkGrid[my * mkW + x] = mkCol;
-      if (mkMirror && mkMirrorV) mkGrid[my * mkW + mx] = mkCol;
+      if (!isStart && mkLastCell) drawLineCells(mkLastCell.x, mkLastCell.y, x, y);
+      else stampCell(x, y);
+      mkLastCell = { x, y };
       drawMaker();
     }
     cv.addEventListener('pointerdown', e => {
@@ -1366,7 +1413,7 @@
       cv.setPointerCapture(e.pointerId);
       mkPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (mkPtrs.size === 2) {
-        mkDrawing = false; mkSelDrag = null;
+        mkDrawing = false; mkSelDrag = null; mkLastCell = null;
         const pts = [...mkPtrs.values()];
         mkPinch = {
           dist: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1,
@@ -1404,9 +1451,38 @@
         drawMaker();
         return;
       }
+      if (mkTool === 'drop') {
+        const { x, y } = cellAt(e.clientX, e.clientY, false);
+        if (x >= 0 && x < mkW && y >= 0 && y < mkH) {
+          Sound.tap();
+          mkCol = mkGrid[y * mkW + x];
+          refreshPal();
+          setTool('pen');
+          toast(mkCol < 0 ? '消しゴムをえらんだよ' : '色をひろったよ！');
+        }
+        return;
+      }
+      if (mkTool === 'fill') {
+        const { x, y } = cellAt(e.clientX, e.clientY, false);
+        if (x >= 0 && x < mkW && y >= 0 && y < mkH) {
+          const target = mkGrid[y * mkW + x];
+          if (target !== mkCol) {
+            Sound.tap();
+            pushMkUndo();
+            const mx = mkW - 1 - x, my = mkH - 1 - y;
+            floodFillOne(x, y, target, mkCol);
+            if (mkMirror) floodFillOne(mx, y, target, mkCol);
+            if (mkMirrorV) floodFillOne(x, my, target, mkCol);
+            if (mkMirror && mkMirrorV) floodFillOne(mx, my, target, mkCol);
+            drawMaker();
+          }
+        }
+        return;
+      }
       pushMkUndo();
       mkDrawing = true;
-      paintAt(e.clientX, e.clientY);
+      mkLastCell = null;
+      paintAt(e.clientX, e.clientY, true);
     });
     cv.addEventListener('pointermove', e => {
       if (!mkPtrs.has(e.pointerId)) return;
@@ -1449,12 +1525,12 @@
         drawMaker();
         return;
       }
-      if (mkDrawing) { e.preventDefault(); paintAt(e.clientX, e.clientY); }
+      if (mkDrawing) { e.preventDefault(); paintAt(e.clientX, e.clientY, false); }
     });
     const stop = e => {
       mkPtrs.delete(e.pointerId);
       if (mkPtrs.size < 2) mkPinch = null;
-      if (mkPtrs.size === 0) { mkDrawing = false; mkLastPan = null; mkSelDrag = null; }
+      if (mkPtrs.size === 0) { mkDrawing = false; mkLastPan = null; mkSelDrag = null; mkLastCell = null; }
     };
     cv.addEventListener('pointerup', stop);
     cv.addEventListener('pointercancel', stop);
@@ -1469,10 +1545,22 @@
     });
     $('#mkZIn').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom < 2 ? 2 : mkZoom + 1); });
     $('#mkZOut').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom <= 2 ? 1 : mkZoom - 1); });
+    function setTool(t) {
+      mkTool = t;
+      if (t !== 'pen') {
+        if (mkSelMode) { mkSelMode = false; commitSel(); drawMaker(); $('#mkSelBtn').classList.remove('on'); }
+        if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
+      }
+      $('#mkFill').classList.toggle('on', mkTool === 'fill');
+      $('#mkDrop').classList.toggle('on', mkTool === 'drop');
+    }
     $('#mkPanBtn').addEventListener('click', () => {
       if (mkZoom <= 1) return;
       Sound.tap(); mkPanMode = !mkPanMode;
-      if (mkPanMode && mkSelMode) { mkSelMode = false; $('#mkSelBtn').classList.remove('on'); }
+      if (mkPanMode) {
+        if (mkSelMode) { mkSelMode = false; $('#mkSelBtn').classList.remove('on'); }
+        setTool('pen');
+      }
       refreshZoomUI();
     });
 
@@ -1480,6 +1568,7 @@
       if (!mkHistory.length) return;
       Sound.undo();
       mkSel = null; mkSelDrag = null;
+      mkRedo.push({ w: mkW, h: mkH, grid: mkGrid.slice() });
       const prev = mkHistory.pop();
       if (prev.w !== mkW || prev.h !== mkH) {
         mkW = prev.w; mkH = prev.h;
@@ -1490,11 +1579,44 @@
       refreshUndoBtn();
       drawMaker();
     });
+    $('#mkRedo').addEventListener('click', () => {
+      if (!mkRedo.length) return;
+      Sound.tap();
+      mkSel = null; mkSelDrag = null;
+      pushMkUndo(true);
+      const next = mkRedo.pop();
+      if (next.w !== mkW || next.h !== mkH) {
+        mkW = next.w; mkH = next.h;
+        resetZoom();
+        refreshSizeBtns();
+      }
+      mkGrid = next.grid;
+      refreshUndoBtn();
+      drawMaker();
+    });
+    $('#mkFill').addEventListener('click', () => {
+      Sound.tap();
+      setTool(mkTool === 'fill' ? 'pen' : 'fill');
+    });
+    $('#mkDrop').addEventListener('click', () => {
+      Sound.tap();
+      setTool(mkTool === 'drop' ? 'pen' : 'drop');
+    });
+    $('#mkBrush').addEventListener('click', () => {
+      Sound.tap();
+      mkBrush = mkBrush === 1 ? 2 : mkBrush === 2 ? 3 : 1;
+      $('#mkBrush').textContent = '🖌️ ' + mkBrush + '×' + mkBrush;
+      $('#mkBrush').classList.toggle('on', mkBrush > 1);
+      setTool('pen');
+    });
     $('#mkSelBtn').addEventListener('click', () => {
       Sound.tap();
       mkSelMode = !mkSelMode;
       if (!mkSelMode) { commitSel(); drawMaker(); }
-      else if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
+      else {
+        if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
+        setTool('pen');
+      }
       $('#mkSelBtn').classList.toggle('on', mkSelMode);
     });
     $('#mkMir').addEventListener('click', () => { Sound.tap(); mkMirror = !mkMirror; $('#mkMir').classList.toggle('on', mkMirror); drawMaker(); });
