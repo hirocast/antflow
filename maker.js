@@ -9,6 +9,77 @@
   const NICK_KEY = 'antflow-nick-v1';
   const POST_API_URL = 'https://antflow.hiroshi-artcast.workers.dev/post';
   function getPostApiUrl() { return (window.AF_POST_API || POST_API_URL || '').trim(); }
+  function getWorkerBase() { return getPostApiUrl().replace(/\/post\/?$/, '').replace(/\/$/, ''); }
+  const STAGE_LIKES_KEY = 'antflow-stage-likes-v1';
+  const STAGE_VOTES_KEY = 'antflow-stage-votes-v1';
+  const stageStatsCache = {};
+  let galSortMode = 'new';
+  function loadStageLikes() {
+    try { return new Set(JSON.parse(localStorage.getItem(STAGE_LIKES_KEY) || '[]')); } catch (e) { return new Set(); }
+  }
+  function saveStageLikes(s) {
+    try { localStorage.setItem(STAGE_LIKES_KEY, JSON.stringify([...s].slice(-200))); } catch (e) {}
+  }
+  function loadStageVotes() {
+    try { const o = JSON.parse(localStorage.getItem(STAGE_VOTES_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; }
+  }
+  function saveStageVotes(o) {
+    try { localStorage.setItem(STAGE_VOTES_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  async function fetchStageStats() {
+    const base = getWorkerBase();
+    if (!base) return stageStatsCache;
+    try {
+      const res = await fetch(base + '/stage-stats');
+      if (res.ok) {
+        const d = await res.json();
+        if (d && d.ok && d.stats) Object.assign(stageStatsCache, d.stats);
+      }
+    } catch (e) {}
+    return stageStatsCache;
+  }
+  async function reportStageStat(hash, event, sec) {
+    const base = getWorkerBase();
+    if (!base || !hash || !/^[A-Za-z0-9_-]{6,32}$/.test(hash)) return null;
+    try {
+      const res = await fetch(base + '/stage-stat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hash, event, sec, clientId: getClientUid() })
+      });
+      if (!res.ok) return null;
+      const d = await res.json();
+      if (d && d.ok && d.stat) {
+        stageStatsCache[hash] = d.stat;
+        return d.stat;
+      }
+    } catch (e) {}
+    return null;
+  }
+  window.AF_reportStageStat = reportStageStat;
+  window.AF_getStageVote = hash => ({ like: loadStageLikes().has(hash), vote: loadStageVotes()[hash] || '' });
+  window.AF_toggleStageLike = async hash => {
+    const s = loadStageLikes(), on = !s.has(hash);
+    if (on) s.add(hash); else s.delete(hash);
+    saveStageLikes(s);
+    const cur = stageStatsCache[hash] || { u: 0, p: 0, c: 0, ts: 0, bt: 0, lk: 0, up: 0, dn: 0 };
+    cur.lk = Math.max(0, (Number(cur.lk) || 0) + (on ? 1 : -1));
+    stageStatsCache[hash] = cur;
+    await reportStageStat(hash, on ? 'like' : 'unlike');
+    return { on, stat: stageStatsCache[hash] };
+  };
+  window.AF_sendStageVote = async (hash, v) => {
+    if (v !== 'up' && v !== 'down') return null;
+    const vs = loadStageVotes();
+    if (vs[hash]) return { already: true, vote: vs[hash] };
+    vs[hash] = v;
+    saveStageVotes(vs);
+    const cur = stageStatsCache[hash] || { u: 0, p: 0, c: 0, ts: 0, bt: 0, lk: 0, up: 0, dn: 0 };
+    cur[v] = (Number(cur[v]) || 0) + 1;
+    stageStatsCache[hash] = cur;
+    await reportStageStat(hash, v);
+    return { already: false, vote: v, stat: stageStatsCache[hash] };
+  };
   const POST_COOLDOWN_MS = 60 * 1000; // 連続投稿制限（60秒）
   const REPO_URL = 'https://github.com/hirocast/antflow';
   const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
@@ -538,8 +609,9 @@
     const bgmToken = art.bgmToken || '';
     const customBgm = art.bgm || (bgmToken && window.AF_bgmTools ? window.AF_bgmTools.decodeBgm(bgmToken) : null);
     const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix, diff, genIdx));
+    const customHash = stageContentHash(art.grid, art.W, art.H);
     const L = {
-      id: 0, custom: true, art: Object.assign({}, art, { diff, genIdx }), shareUrl,
+      id: 0, custom: true, customHash, art: Object.assign({}, art, { diff, genIdx }), shareUrl,
       name: art.name || 'オリジナル', theme: 'オリジナル',
       customTalk: talk, customBgm,
       W: art.W, H: art.H, grid: art.grid, cols: c.cols, solution: c.solution, total,
@@ -857,24 +929,26 @@
     showOv('gallery');
     const mine = $('#galMine'), pub = $('#galPub');
     mine.innerHTML = '';
+    pub.innerHTML = '<p class="fine">読み込み中…</p>';
+    const statsPromise = fetchStageStats();
     const myList = loadMyStages();
+    const stats = await statsPromise;
     if (!myList.length) {
       mine.innerHTML = '<p class="fine">まだ保存した作品がありません（「▶ あそぶ」「🔗 シェア」で残るよ）</p>';
     } else {
       for (const item of myList) {
         const art = await decodeCustomStage(item.token);
         if (!art) continue;
-        mine.appendChild(makeGalCard(art, 'マイ作品', null, true));
+        const h = stageContentHash(art.grid, art.W, art.H);
+        mine.appendChild(makeGalCard(art, 'マイ作品', null, true, stats[h] || null, h));
       }
     }
-    pub.innerHTML = '<p class="fine">読み込み中…</p>';
     const reported = loadReported();
     try {
       const res = await fetch(ISSUES_API);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const issues = await res.json();
       checkContestAwards(issues);
-      pub.innerHTML = '';
       const entries = [];
       for (const iss of issues) {
         const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
@@ -886,19 +960,54 @@
         const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
         const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品');
         const bm = (iss.body || '').match(/^- 元作者:\s*(.+)$/m);
+        const h = stageContentHash(art.grid, art.W, art.H);
         art.author = author;
         art.baseAuthor = bm ? bm[1].trim().slice(0, 16) : '';
         art.award = detectIssueAward(iss);
-        entries.push({ art, author, id });
+        entries.push({ art, author, id, hash: h, stat: stats[h] || null });
       }
-      entries.sort((a, b) => (a.art.award ? a.art.award.rank : 99) - (b.art.award ? b.art.award.rank : 99));
-      for (const e of entries) pub.appendChild(makeGalCard(e.art, e.author, e.id, false));
-      if (!entries.length) pub.innerHTML = '<p class="fine">表示できる投稿作品がありません。最初の1作を投稿してみよう！</p>';
+      const renderPub = () => {
+        pub.innerHTML = '';
+        const list = entries.slice();
+        if (galSortMode === 'pop') {
+          list.sort((a, b) => ((b.stat && b.stat.u) || 0) - ((a.stat && a.stat.u) || 0) || ((b.stat && b.stat.p) || 0) - ((a.stat && a.stat.p) || 0));
+        } else if (galSortMode === 'like') {
+          list.sort((a, b) => ((b.stat && b.stat.lk) || 0) - ((a.stat && a.stat.lk) || 0) || ((b.stat && b.stat.u) || 0) - ((a.stat && a.stat.u) || 0));
+        } else {
+          list.sort((a, b) => (a.art.award ? a.art.award.rank : 99) - (b.art.award ? b.art.award.rank : 99));
+        }
+        for (const e of list) pub.appendChild(makeGalCard(e.art, e.author, e.id, false, stats[e.hash] || e.stat, e.hash));
+        if (!list.length) pub.innerHTML = '<p class="fine">表示できる投稿作品がありません。最初の1作を投稿してみよう！</p>';
+      };
+      document.querySelectorAll('.galsort-btn').forEach(sb => {
+        sb.classList.toggle('on', sb.dataset.sort === galSortMode);
+        sb.onclick = () => {
+          Sound.tap();
+          galSortMode = sb.dataset.sort || 'new';
+          document.querySelectorAll('.galsort-btn').forEach(x => x.classList.toggle('on', x.dataset.sort === galSortMode));
+          renderPub();
+        };
+      });
+      renderPub();
     } catch (e) {
       pub.innerHTML = '<p class="fine">投稿一覧を読み込めませんでした（オフラインまたはアクセス集中）</p>';
     }
   }
-  function makeGalCard(art, sub, reportId, isMine) {
+  function formatGalStatsText(st) {
+    if (!st) return { line1: '👥 0人 · 🎮 0回 · ❤️ 0', line2: '✅ - · ⏱ - · ⚡ - · 👍 -' };
+    const u = Number(st.u) || 0, p = Number(st.p) || 0, c = Number(st.c) || 0;
+    const lk = Number(st.lk) || 0, up = Number(st.up) || 0, dn = Number(st.dn) || 0;
+    const clrPct = p > 0 ? Math.min(100, Math.round(c / p * 100)) + '%' : '-';
+    const avgTxt = c > 0 && st.ts > 0 ? (st.ts / c).toFixed(1) + 's' : '-';
+    const bestTxt = st.bt > 0 ? Number(st.bt).toFixed(1) + 's' : '-';
+    const rateTxt = (up + dn) > 0 ? Math.round(up / (up + dn) * 100) + '%' : '-';
+    return {
+      line1: '👥 ' + u + '人 · 🎮 ' + p + '回 · ❤️ ' + lk,
+      line2: '✅ ' + clrPct + ' · ⏱ 平均' + avgTxt + ' · ⚡ 最短' + bestTxt + ' · 👍 ' + rateTxt
+    };
+  }
+  function makeGalCard(art, sub, reportId, isMine, stat, hash) {
+    const h = hash || stageContentHash(art.grid, art.W, art.H);
     const btn = document.createElement('button');
     btn.className = 'galcard' + (art.award ? ' awarded' : '');
     if (reportId) {
@@ -931,22 +1040,41 @@
     const di = STAGE_DIFFS[clampDiff(art.diff)];
     const diffTag = clampDiff(art.diff) !== 2 ? ' · ' + di.short : '';
     sm.textContent = art.W + '×' + art.H + diffTag + ' · ' + sub + (art.baseAuthor ? ' (元:' + art.baseAuthor + ')' : '') + (art.bgmToken ? ' · 🎵' : '') + (!isMine && art.allowRemix ? ' · ✏️OK' : '');
-    btn.appendChild(cv); btn.appendChild(b); btn.appendChild(sm);
+    const stBox = document.createElement('div');
+    stBox.className = 'galstats';
+    const stTxt = formatGalStatsText(stat);
+    stBox.innerHTML = '<span>' + stTxt.line1 + '</span><span>' + stTxt.line2 + '</span>';
+    btn.appendChild(cv); btn.appendChild(b); btn.appendChild(sm); btn.appendChild(stBox);
+    const acts = document.createElement('div');
+    acts.className = 'galacts';
+    const likedSet = loadStageLikes();
+    const lkBtn = document.createElement('span');
+    lkBtn.className = 'gallike' + (likedSet.has(h) ? ' on' : '');
+    lkBtn.textContent = (likedSet.has(h) ? '♥ ' : '♡ ') + ((stat && stat.lk) || 0);
+    lkBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      e.preventDefault();
+      Sound.tap();
+      const r = await window.AF_toggleStageLike(h);
+      lkBtn.classList.toggle('on', r.on);
+      lkBtn.textContent = (r.on ? '♥ ' : '♡ ') + ((r.stat && r.stat.lk) || 0);
+      const t2 = formatGalStatsText(r.stat);
+      stBox.innerHTML = '<span>' + t2.line1 + '</span><span>' + t2.line2 + '</span>';
+    });
+    acts.appendChild(lkBtn);
+    if (isMine) {
+      const sh = document.createElement('span');
+      sh.className = 'galshare';
+      sh.textContent = '🔗 シェア';
+      sh.addEventListener('click', async e => {
+        e.stopPropagation();
+        e.preventDefault();
+        Sound.tap();
+        await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token, art.bgmToken, art.allowRemix, art.diff, art.genIdx);
+      });
+      acts.appendChild(sh);
+    }
     if (isMine || art.allowRemix) {
-      const acts = document.createElement('div');
-      acts.className = 'galacts';
-      if (isMine) {
-        const sh = document.createElement('span');
-        sh.className = 'galshare';
-        sh.textContent = '🔗 シェア';
-        sh.addEventListener('click', async e => {
-          e.stopPropagation();
-          e.preventDefault();
-          Sound.tap();
-          await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token, art.bgmToken, art.allowRemix, art.diff, art.genIdx);
-        });
-        acts.appendChild(sh);
-      }
       const arrBtn = document.createElement('span');
       arrBtn.className = 'galarr';
       arrBtn.textContent = '✏️ アレンジ';
@@ -957,8 +1085,8 @@
         if (window.AF_loadArtIntoMaker) window.AF_loadArtIntoMaker(art, isMine);
       });
       acts.appendChild(arrBtn);
-      btn.appendChild(acts);
     }
+    btn.appendChild(acts);
     btn.addEventListener('click', () => { Sound.tap(); loadCustomLevel(art); });
     return btn;
   }
@@ -1022,6 +1150,12 @@
       '.galacts{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;margin-top:2px}' +
       '.galarr{padding:3px 7px;border-radius:10px;background:#fff1d6;border:1.5px solid #f0d39a;color:#8a5a00;font:800 10px var(--rf);line-height:1.2}' +
       '.galarr:hover{background:#ffe5b4}' +
+      '.galstats{display:flex;flex-direction:column;gap:1px;width:100%;font-size:8.5px;font-weight:800;line-height:1.25;color:#7a5368;background:#fff7fb;border-radius:7px;padding:3px 4px;box-sizing:border-box}' +
+      '.gallike{padding:3px 7px;border-radius:10px;background:#fff0f5;border:1.5px solid #ffb8d0;color:#c03060;font:800 10px var(--rf);line-height:1.2;cursor:pointer}' +
+      '.gallike.on{background:#ff6f9f;border-color:#ff4d88;color:#fff}' +
+      '.galsort{display:flex;justify-content:center;gap:5px;margin:2px 0 6px}' +
+      '.galsort-btn{border:2px solid #fff;border-radius:10px;padding:4px 9px;background:#ffeef4;color:#8c546e;font:900 10.5px var(--rf);cursor:pointer;box-shadow:0 2px 0 #e6bfd0}' +
+      '.galsort-btn.on{background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;box-shadow:0 2px 0 #d4507c}' +
       '.mkbgm{display:flex;align-items:center;gap:6px;margin:6px 0 4px;padding:6px 10px;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;font:800 12px var(--rf)}' +
       '.mkbgm-lbl{color:#c0507a;white-space:nowrap}' +
       '.mkbgm b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;color:var(--ink)}' +
@@ -1347,6 +1481,11 @@
       '<h3>💾 マイ作品</h3>' +
       '<div class="galgrid" id="galMine"></div>' +
       '<h3>📮 みんなの絵（投稿作品）</h3>' +
+      '<div class="galsort">' +
+      '<button type="button" class="galsort-btn on" data-sort="new">🆕 新着順</button>' +
+      '<button type="button" class="galsort-btn" data-sort="pop">🔥 人気順</button>' +
+      '<button type="button" class="galsort-btn" data-sort="like">❤️ いいね順</button>' +
+      '</div>' +
       '<div class="galgrid" id="galPub"></div>' +
       '<button class="big" id="bGalBack">🎨 つくるにもどる</button>' +
       '<button class="big sec" id="bGalImport">📥 URL・メッセージから読み込む</button>' +

@@ -185,6 +185,132 @@ async function handleTalkLike(request, env, cors) {
   return jsonRes({ ok: true, count: next }, 200, cors);
 }
 
+async function readStageStatsIssue(ghHeaders) {
+  const listRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=stage-stats&state=open&per_page=1`, { headers: ghHeaders });
+  if (!listRes.ok) return { ok: false, iss: null, stats: {} };
+  const existing = await listRes.json();
+  const iss = Array.isArray(existing) && existing[0] ? existing[0] : null;
+  let stats = {};
+  if (iss && iss.body) {
+    const m = iss.body.match(/<!--\s*STAGE_STATS_JSON:([\s\S]*?)-->/);
+    if (m) {
+      try { stats = JSON.parse(m[1]) || {}; } catch {}
+    }
+  }
+  return { ok: true, iss, stats };
+}
+
+async function handleStageStatsGet(env, cors) {
+  const ghHeaders = {
+    'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+    'Accept': 'application/vnd.github+json',
+    'User-Agent': 'antflow-post-worker'
+  };
+  const { ok, stats } = await readStageStatsIssue(ghHeaders);
+  if (!ok) return jsonRes({ ok: false, error: 'GitHub read failed' }, 502, cors);
+  return jsonRes({ ok: true, stats }, 200, { ...cors, 'Cache-Control': 'public, max-age=10' });
+}
+
+async function handleStageStatPost(request, env, cors) {
+  let body;
+  try { body = await request.json(); } catch { return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors); }
+  const hash = String(body.hash || '').trim();
+  const event = String(body.event || '').trim();
+  const clientId = String(body.clientId || '').trim().slice(0, 32);
+  const sec = Number(body.sec);
+  if (!/^[A-Za-z0-9_-]{6,32}$/.test(hash)) return jsonRes({ ok: false, error: 'Invalid hash' }, 400, cors);
+  if (!['play', 'clear', 'like', 'unlike', 'up', 'down'].includes(event)) return jsonRes({ ok: false, error: 'Invalid event' }, 400, cors);
+
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const actor = clientId || ip;
+  const cache = caches.default;
+
+  if (event === 'play') {
+    const cdKey = new Request('https://antflow-rl.internal/st-play-cd/' + encodeURIComponent(actor + ':' + hash));
+    if (await cache.match(cdKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await cache.put(cdKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=5' } }));
+  } else if (event === 'clear') {
+    const cdKey = new Request('https://antflow-rl.internal/st-clr-cd/' + encodeURIComponent(actor + ':' + hash));
+    if (await cache.match(cdKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await cache.put(cdKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=5' } }));
+  } else if (event === 'like') {
+    const lkKey = new Request('https://antflow-rl.internal/st-like/' + encodeURIComponent(actor + ':' + hash));
+    if (await cache.match(lkKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await cache.put(lkKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=2592000' } }));
+  } else if (event === 'unlike') {
+    const lkKey = new Request('https://antflow-rl.internal/st-like/' + encodeURIComponent(actor + ':' + hash));
+    await cache.delete(lkKey);
+  } else if (event === 'up' || event === 'down') {
+    const vKey = new Request('https://antflow-rl.internal/st-vote/' + encodeURIComponent(actor + ':' + hash));
+    if (await cache.match(vKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await cache.put(vKey, new Response(event, { headers: { 'Cache-Control': 'public, max-age=2592000' } }));
+  }
+
+  let isUniquePlay = false;
+  if (event === 'play') {
+    const uKey = new Request('https://antflow-rl.internal/st-uniq/' + encodeURIComponent(actor + ':' + hash));
+    if (!(await cache.match(uKey))) {
+      isUniquePlay = true;
+      await cache.put(uKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=2592000' } }));
+    }
+  }
+
+  const ghHeaders = {
+    'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+    'Accept': 'application/vnd.github+json',
+    'User-Agent': 'antflow-post-worker',
+    'Content-Type': 'application/json'
+  };
+  const { ok, iss, stats } = await readStageStatsIssue(ghHeaders);
+  if (!ok) return jsonRes({ ok: false, error: 'GitHub read failed' }, 502, cors);
+
+  const cur = Object.assign({ u: 0, p: 0, c: 0, ts: 0, bt: 0, lk: 0, up: 0, dn: 0 }, stats[hash] || {});
+  if (event === 'play') {
+    cur.p = (Number(cur.p) || 0) + 1;
+    if (isUniquePlay) cur.u = (Number(cur.u) || 0) + 1;
+  } else if (event === 'clear') {
+    cur.c = (Number(cur.c) || 0) + 1;
+    if (Number.isFinite(sec) && sec >= 0.1 && sec <= 36000) {
+      const s1 = Math.round(sec * 10) / 10;
+      cur.ts = Math.round(((Number(cur.ts) || 0) + s1) * 10) / 10;
+      cur.bt = (Number(cur.bt) || 0) > 0 ? Math.round(Math.min(cur.bt, s1) * 10) / 10 : s1;
+    }
+  } else if (event === 'like') {
+    cur.lk = (Number(cur.lk) || 0) + 1;
+  } else if (event === 'unlike') {
+    cur.lk = Math.max(0, (Number(cur.lk) || 0) - 1);
+  } else if (event === 'up') {
+    cur.up = (Number(cur.up) || 0) + 1;
+  } else if (event === 'down') {
+    cur.dn = (Number(cur.dn) || 0) + 1;
+  }
+  stats[hash] = cur;
+
+  const entries = Object.entries(stats).sort((a, b) => (b[1].p || 0) - (a[1].p || 0)).slice(0, 300);
+  const compact = Object.fromEntries(entries);
+  let md = '### 📊 投稿ステージ統計（自動集計）\n';
+  md += '<!-- STAGE_STATS_JSON:' + JSON.stringify(compact) + ' -->\n\n';
+  md += '| 内容ID | 人数 | プレイ | クリア | いいね | 👍 | 👎 | 最短 |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n';
+  entries.slice(0, 50).forEach(([h, s]) => {
+    md += `| ${h} | ${s.u || 0} | ${s.p || 0} | ${s.c || 0} | ${s.lk || 0} | ${s.up || 0} | ${s.dn || 0} | ${s.bt ? s.bt + 's' : '-'} |\n`;
+  });
+
+  if (iss) {
+    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${iss.number}`, {
+      method: 'PATCH',
+      headers: ghHeaders,
+      body: JSON.stringify({ body: md })
+    });
+  } else {
+    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
+      method: 'POST',
+      headers: ghHeaders,
+      body: JSON.stringify({ title: '[集計] 投稿ステージ統計', labels: ['stage-stats'], body: md })
+    });
+  }
+  return jsonRes({ ok: true, stat: cur }, 200, cors);
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -201,6 +327,12 @@ export default {
       return jsonRes({ ok: false, error: 'Server not configured (missing GITHUB_TOKEN)' }, 500, cors);
     }
 
+    if (request.method === 'GET' && url.pathname === '/stage-stats') {
+      return handleStageStatsGet(env, cors);
+    }
+    if (request.method === 'POST' && url.pathname === '/stage-stat') {
+      return handleStageStatPost(request, env, cors);
+    }
     if (request.method === 'POST' && url.pathname === '/like-talk') {
       return handleTalkLike(request, env, cors);
     }

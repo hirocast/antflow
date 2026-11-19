@@ -148,6 +148,13 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .restalk.on{display:block}
 .restalk-h{display:flex;justify-content:space-between;align-items:center;gap:6px;color:#c0507a;font-weight:900;margin-bottom:4px}
 .restalk-list{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px}
+.resvote{display:none;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:6px 10px;margin:5px 0;text-align:center;font-size:11px;font-weight:800;color:var(--ink)}
+.resvote.on{display:block}
+.resvote-btns{display:flex;justify-content:center;gap:6px;margin-top:4px}
+.resvote-btn{border:2px solid #fff;border-radius:11px;padding:4px 10px;background:#fff;box-shadow:0 2px 0 #e6bfd0;font:900 11px var(--rf);color:var(--ink);cursor:pointer}
+.resvote-btn.like.on{background:#ff6f9f;color:#fff;box-shadow:0 2px 0 #d4507c}
+.resvote-btn.up.on{background:#4ec98f;color:#fff;box-shadow:0 2px 0 #2e9e69}
+.resvote-btn.dn.on{background:#b8a0ad;color:#fff;box-shadow:0 2px 0 #8d7582}
 .restalk-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid #ffd3e2;border-radius:10px;padding:2px 6px 2px 7px;font-size:10px;font-weight:800;color:var(--ink)}
 .restalk-like{border:none;background:#ffeef4;color:#d65b88;border-radius:8px;padding:1px 5px;font:900 10px var(--rf);cursor:pointer;line-height:1.2}
 .restalk-like.on{background:#ff6f9e;color:#fff}
@@ -358,7 +365,27 @@ function handleTalkLikeClick(e) {
   const tf = $('#ov-title .fine');
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
-  $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div><div class="restalk" id="resTalkBox"></div>');
+  $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div><div class="restalk" id="resTalkBox"></div><div class="resvote" id="resCustomVote"></div>');
+  $('#resCustomVote').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-cv]');
+    if (!btn || !G.level || !G.level.custom || !G.level.customHash) return;
+    Sound.tap();
+    const h = G.level.customHash, act = btn.dataset.cv;
+    if (act === 'like' && window.AF_toggleStageLike) {
+      const r = await window.AF_toggleStageLike(h);
+      btn.classList.toggle('on', r.on);
+      btn.textContent = r.on ? '♥ いいね済み' : '♡ いいね！';
+      toast(r.on ? '❤️ 作者にいいねを送ったよ！' : 'いいねを取り消しました');
+    } else if ((act === 'up' || act === 'down') && window.AF_sendStageVote) {
+      const r = await window.AF_sendStageVote(h, act);
+      if (!r || r.already) { toast('すでに評価済みだよ！'); return; }
+      $('#resCustomVote').querySelectorAll('[data-cv="up"],[data-cv="down"]').forEach(x => {
+        x.classList.toggle('on', x.dataset.cv === r.vote);
+        x.disabled = true;
+      });
+      toast('評価ありがとう！作者に届くよ✨');
+    }
+  });
   $('#resTalkBox').addEventListener('click', e => {
     if (e.target.closest('[data-bingo-go]')) { Sound.tap(); openBingo('clear'); return; }
     handleTalkLikeClick(e);
@@ -944,7 +971,12 @@ function onTapCol(j) {
   if (s.boxes.length >= SLOT_COUNT) { G.shake = { j, t: 0.24 }; G.slotFlash = 0.4; Sound.deny(); haptic(20); return; }
   const free = G.vslots.indexOf(null);
   if (free < 0) { G.queued = { j, until: G.rt + 2.5 }; return; }
-  if (G.run && !G.run.started) { G.run.started = true; G.timerShown = -9; }
+  if (G.run && !G.run.started) {
+    G.run.started = true; G.timerShown = -9;
+    if (G.level && G.level.custom && G.level.customHash && window.AF_reportStageStat) {
+      window.AF_reportStageStat(G.level.customHash, 'play');
+    }
+  }
   G.undo.push(cloneState(s)); G.moves.push(j);
   const ev = [];
   place(s, j, ev);
@@ -1090,6 +1122,24 @@ function showClear() {
   $('#clearName').textContent = '「' + G.level.name + '」がかんせい！';
   G.lastShare = { pos, name: G.level.name, stars: st, sec: t, custom: isCustom, url: isCustom && G.level.shareUrl ? G.level.shareUrl : 'https://hirocast.github.io/antflow/' };
   $('#clearSay').textContent = '🐜「' + talkLine(st === 3 ? 'star3' : 'clear') + '」';
+  const voteBox = $('#resCustomVote');
+  if (voteBox) {
+    if (isCustom && G.level.customHash) {
+      if (window.AF_reportStageStat) window.AF_reportStageStat(G.level.customHash, 'clear', t);
+      const stV = window.AF_getStageVote ? window.AF_getStageVote(G.level.customHash) : { like: false, vote: '' };
+      voteBox.classList.add('on');
+      voteBox.innerHTML =
+        '<div>このオリジナルステージはどうだった？（作者に届くよ！）</div>' +
+        '<div class="resvote-btns">' +
+        '<button type="button" class="resvote-btn like' + (stV.like ? ' on' : '') + '" data-cv="like">' + (stV.like ? '♥ いいね済み' : '♡ いいね！') + '</button>' +
+        '<button type="button" class="resvote-btn up' + (stV.vote === 'up' ? ' on' : '') + '" data-cv="up"' + (stV.vote ? ' disabled' : '') + '>👍 よかった！</button>' +
+        '<button type="button" class="resvote-btn dn' + (stV.vote === 'down' ? ' on' : '') + '" data-cv="down"' + (stV.vote ? ' disabled' : '') + '>👎 もうちょっと</button>' +
+        '</div>';
+    } else {
+      voteBox.classList.remove('on');
+      voteBox.innerHTML = '';
+    }
+  }
   const talkBox = $('#resTalkBox');
   if (talkBox) {
     const newTalks = Array.isArray(R.newTalks) ? R.newTalks : [];
