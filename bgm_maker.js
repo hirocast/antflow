@@ -63,7 +63,8 @@
     { label: 'ファ', semi: 5, col: '#4ecdc4' },
     { label: 'ミ', semi: 4, col: '#69b4ff' },
     { label: 'レ', semi: 2, col: '#9b8aff' },
-    { label: 'ド', semi: 0, col: '#d484ff' }
+    { label: 'ド', semi: 0, col: '#d484ff' },
+    { label: 'シ↓', semi: -1, col: '#ff8a80' }
   ];
   const INSTS = [
     { id: 'mallet', label: '🎹 もっきん' },
@@ -131,9 +132,9 @@
     };
   }
 
-  const SCALE = [0, 2, 4, 5, 7, 9, 11, 12];
+  const SCALE = [-1, 0, 2, 4, 5, 7, 9, 11, 12];
   function quantizeSemi(semi) {
-    while (semi < 0) semi += 12;
+    while (semi < -1) semi += 12;
     while (semi > 12) semi -= 12;
     let best = 0, bd = 999;
     for (let i = 0; i < SCALE.length; i++) {
@@ -693,7 +694,7 @@
 .bgm-mhint{flex:1;text-align:right;font-size:10px;opacity:.7;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bgm-grid{display:grid;grid-template-columns:28px repeat(16,1fr);gap:2px;background:#f8ecf2;padding:5px;border-radius:14px;border:2px solid #ffd3e2;touch-action:none;user-select:none}
 .bgm-lbl{font:900 10px/1 var(--rf);display:flex;align-items:center;justify-content:center}
-.bgm-cell{height:23px;border:1px solid #ead8e2;border-radius:5px;background:#fff;padding:0;cursor:pointer}
+.bgm-cell{height:21px;border:1px solid #ead8e2;border-radius:5px;background:#fff;padding:0;cursor:pointer}
 .bgm-cell.beat{background:#fff7fb}
 .bgm-cell.tie{opacity:.72;background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.32) 0 3px,transparent 3px 6px)}
 .bgm-cell.ext-r{border-top-right-radius:1px;border-bottom-right-radius:1px}
