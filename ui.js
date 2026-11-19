@@ -34,7 +34,8 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 .prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:8px;padding-top:1px}
 .bar{flex:1;min-width:44px;height:12px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
 .bar i{background:repeating-linear-gradient(-45deg,#ff7fae 0 8px,#ffa6c8 8px 16px);box-shadow:inset 0 3px 0 rgba(255,255,255,.45)}
-#leftTxt,#timeTxt{flex:0 0 auto;font-size:11px;font-weight:800;white-space:nowrap;text-shadow:0 1px 0 #fff}
+#leftTxt{display:none}
+#timeTxt{flex:0 0 auto;font-size:11px;font-weight:800;white-space:nowrap;text-shadow:0 1px 0 #fff}
 #timeTxt b{color:#ffa000}
 #timeTxt b.s1{color:#b99aa8}
 .coin{display:flex;align-items:center;gap:3px;height:38px;padding:0 10px 0 6px;border-radius:19px;background:linear-gradient(#fffbe6,#ffe39a);border:3px solid #fff;box-shadow:0 4px 0 #d9a520;font-weight:900;font-size:15px;color:#8a5a00;flex:0 0 auto;cursor:pointer}
