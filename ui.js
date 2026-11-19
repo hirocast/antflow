@@ -60,8 +60,12 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 @keyframes fvg{from{opacity:.5}to{opacity:1}}
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
 #ov-title .home-h2{margin:0 0 4px;padding:4px 20px;font-size:17px}
-.tinfo span{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
+.tinfo span,.tinfo-btn{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
+.tinfo-btn{border:none;font-family:var(--rf);color:var(--ink);cursor:pointer}
+.tinfo-btn:active{transform:translateY(2px);box-shadow:none}
 .hub{background:#fff;border:2px solid #ffd3e2;border-radius:18px;padding:10px;margin:8px 0 4px;text-align:left;box-shadow:0 3px 0 #f3d5e0}
+.hub-qbtn{width:100%;display:block;background:none;border:none;padding:0;text-align:left;font-family:var(--rf);color:var(--ink);cursor:pointer;border-radius:12px}
+.hub-qbtn:active{opacity:.75;transform:scale(.99)}
 .hub-q{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;font-weight:900}
 .hub-q b{color:var(--pinkd)}
 .hub-q .hq-food{background:#fff4c9;border:1.5px solid #ffe08a;border-radius:10px;padding:1px 7px;font-size:11px;color:#8a5a00;white-space:nowrap}
@@ -69,7 +73,8 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .hub .abar{margin:5px 0 3px;height:9px}
 .hub-sub{font-size:11px;font-weight:700;opacity:.78;margin-bottom:7px}
 .hub-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
-.hub-chip{background:#fff8fb;border:1.5px solid #ffe4ee;border-radius:11px;padding:5px 8px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0}
+.hub-chip{background:#fff8fb;border:1.5px solid #ffe4ee;border-radius:11px;padding:5px 8px;font:800 11px var(--rf);color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0;cursor:pointer;text-align:left}
+.hub-chip:active{transform:translateY(1px);background:#ffeef6}
 .hub-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hub-chip b{color:var(--pinkd);white-space:nowrap;font-size:11px}
 .hub-toggle{width:100%;margin-top:7px;padding:6px 10px;border:none;border-radius:12px;background:#fff1d6;color:var(--ink);font:900 12px var(--rf);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 2px 0 #e8cfa0}
@@ -251,6 +256,13 @@ body.wide .fb{max-width:none}
   $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全部運べる</small><em class="price" id="pScan"></em></button>');
   $('#ov-title .card').insertAdjacentHTML('afterbegin', '<h2 class="home-h2">🏠 ホーム</h2>');
   $('#ttl').insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div><div class="hub" id="homeHub"></div>');
+  $('#titleInfo').addEventListener('click', e => {
+    const t = e.target.closest('button[data-hub]');
+    if (!t) return;
+    Sound.tap();
+    if (t.dataset.hub === 'queen') openColony('title');
+    else if (t.dataset.hub === 'mis') openMissions('title');
+  });
   $('#homeHub').addEventListener('click', e => {
     const t = e.target.closest('button[data-hub]');
     if (!t) return;
@@ -906,7 +918,7 @@ function renderTitle() {
   misCheck();
   const qs = queenStatus(), ts = totalStars(), got = gotCount(), lv = save.qlv, maxQ = lv >= Q_MAX;
   const need = qNeed(lv), qPct = maxQ ? 100 : clamp(100 * save.qexp / need, 0, 100);
-  el.innerHTML = '<span>🪙 ' + save.coins + '</span><span>⭐ ' + ts + '</span><span>👑 Lv.' + lv + '</span>' + (save.tickets > 0 ? '<span>🎟️ ' + save.tickets + '</span>' : '');
+  el.innerHTML = '<span>🪙 ' + save.coins + '</span><button type="button" class="tinfo-btn" data-hub="mis">⭐ ' + ts + '</button><button type="button" class="tinfo-btn" data-hub="queen">👑 Lv.' + lv + '</button>' + (save.tickets > 0 ? '<span>🎟️ ' + save.tickets + '</span>' : '');
   $('#misDot').classList.toggle('on', save.mis.list.some(m => !m.done));
   $('#queenDot').classList.toggle('on', qs.canUnlock);
 
@@ -937,14 +949,16 @@ function renderTitle() {
   }).join('');
 
   hub.innerHTML =
-    '<div class="hub-q"><b>👑 女王さま Lv.' + lv + '（' + qTitle(lv) + '）</b>' + foodBadge + '</div>' +
-    '<div class="abar"><i style="width:' + qPct + '%"></i></div>' +
-    '<div class="hub-sub">' + qSub + '</div>' +
+    '<button type="button" class="hub-qbtn" data-hub="queen">' +
+      '<div class="hub-q"><b>👑 女王さま Lv.' + lv + '（' + qTitle(lv) + '）</b>' + foodBadge + '</div>' +
+      '<div class="abar"><i style="width:' + qPct + '%"></i></div>' +
+      '<div class="hub-sub">' + qSub + '</div>' +
+    '</button>' +
     '<div class="hub-grid">' +
-      '<div class="hub-chip"><span>📋 ミッション</span><b>' + misDone + ' / 3</b></div>' +
-      '<div class="hub-chip"><span>📒 アルバム</span><b>' + got + ' / ' + TOTAL + '</b></div>' +
-      '<div class="hub-chip"><span>' + sk.e + ' ' + sk.n + '</span><b>' + save.skins.length + '/' + SKINS.length + '</b></div>' +
-      '<div class="hub-chip"><span>⭐ スターロード</span><b>' + ts + ' / ' + nxtStar + '</b></div>' +
+      '<button type="button" class="hub-chip" data-hub="mis"><span>📋 ミッション</span><b>' + misDone + ' / 3</b></button>' +
+      '<button type="button" class="hub-chip" data-hub="album"><span>📒 アルバム</span><b>' + got + ' / ' + TOTAL + '</b></button>' +
+      '<button type="button" class="hub-chip" data-hub="skin"><span>' + sk.e + ' ' + sk.n + '</span><b>' + save.skins.length + '/' + SKINS.length + '</b></button>' +
+      '<button type="button" class="hub-chip" data-hub="mis"><span>⭐ スターロード</span><b>' + ts + ' / ' + nxtStar + '</b></button>' +
     '</div>' +
     '<button type="button" class="hub-toggle" data-hub="toggle"><span>' + (isOpen ? '📊 くわしい情報をとじる' : '📊 コロニー・進行状況をもっと見る') + '</span><i class="hub-arr">▼</i></button>' +
     '<div class="hub-detail">' +
