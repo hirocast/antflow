@@ -760,7 +760,7 @@
         '</div>' +
         '<div class="bgm-row2">' +
           '<button type="button" class="big sec" id="bgmPostBtn">📮 みんなに投稿</button>' +
-          '<button type="button" class="big sec" id="bgmGalBtn">🎶 みんなのBGM</button>' +
+          '<button type="button" class="big sec" id="bgmGalBtn">💾 マイ作品・みんなのBGM</button>' +
         '</div>' +
         '<button type="button" class="big sec" id="bgmBuiltinBtn" style="margin-top:8px;height:42px;font-size:14px">🎼 公式BGMをえらんでアレンジ</button>' +
         '<div class="bgm-saved" id="bgmSavedList"></div>' +
@@ -790,8 +790,12 @@
     gov.id = 'ov-bgm-gal';
     gov.innerHTML =
       '<div class="card">' +
-      '<h2>🎶 みんなのBGM</h2>' +
-      '<div class="bgm-gal" id="bgmGalList"></div>' +
+      '<div class="mktabs"><button type="button" class="mktab" id="bBgmGalToStage">🎨 ステージ作品</button><button type="button" class="mktab on">🎵 BGM作品</button></div>' +
+      '<h2>💾 マイBGM・みんなのBGM</h2>' +
+      '<h3>💾 マイ作品</h3>' +
+      '<div class="bgm-gal" id="bgmMyList" style="max-height:24vh"></div>' +
+      '<h3>🎶 みんなのBGM（投稿作品）</h3>' +
+      '<div class="bgm-gal" id="bgmGalList" style="max-height:28vh"></div>' +
       '<button class="big" id="bBgmGalBack">🎵 つくるにもどる</button>' +
       '<button class="big sec" id="bBgmGalClose">ホームへ</button>' +
       '</div>';
@@ -994,12 +998,91 @@
     function stopGalPreview() {
       clearInterval(galTimer);
       galTimer = null;
-      document.querySelectorAll('#bgmGalList .bgm-mini.play').forEach(b => { b.textContent = '▶'; b.classList.remove('play'); });
+      document.querySelectorAll('#bgmMyList .bgm-mini.play, #bgmGalList .bgm-mini.play').forEach(b => { b.textContent = '▶'; b.classList.remove('play'); });
+    }
+    function renderMyBgmGal() {
+      const myBox = $('#bgmMyList');
+      if (!myBox) return;
+      const arr = loadMyBgms();
+      myBox.innerHTML = '';
+      if (!arr.length) {
+        myBox.innerHTML = '<p class="fine">まだ保存したBGMがありません。「💾 ほぞん」で作った曲を残せるよ！</p>';
+        return;
+      }
+      arr.forEach((raw, idx) => {
+        const s = cloneSong(raw);
+        const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
+        const card = document.createElement('div');
+        card.className = 'bgm-gcard';
+        card.innerHTML =
+          '<div class="info"><b></b><small></small></div>' +
+          '<button type="button" class="bgm-mini">▶</button>' +
+          '<button type="button" class="bgm-mini use">使う</button>' +
+          '<button type="button" class="bgm-mini">ひらく</button>' +
+          '<button type="button" class="bgm-mini" title="URLシェア">🔗</button>' +
+          '<button type="button" class="rep" title="削除">🗑️</button>';
+        card.querySelector('b').textContent = s.name;
+        card.querySelector('small').textContent = instInfo.label + ' · BPM' + s.bpm + ' · ' + s.bars.length + '小節';
+        const [pBtn, uBtn, lBtn, shBtn] = card.querySelectorAll('.bgm-mini');
+        pBtn.addEventListener('click', () => {
+          const was = pBtn.classList.contains('play');
+          stopGalPreview();
+          if (was) return;
+          Sound.init(); Sound.stopBgm();
+          pBtn.textContent = '⏹'; pBtn.classList.add('play');
+          let st = 0;
+          const total = s.bars.length * 16;
+          const stepFn = () => {
+            const kIdx = st % total, b = s.bars[Math.floor(kIdx / 16)], k = kIdx % 16;
+            for (const n of b.notes[k]) Sound.playCustomNote(s.inst, n, 0, 0.22);
+            if (b.kick[k]) Sound.playCustomDrum(1, 0, b.notes[k].length ? b.notes[k][0] : 0);
+            if (b.clap[k]) Sound.playCustomDrum(2, 0);
+            st++;
+          };
+          stepFn();
+          galTimer = setInterval(stepFn, Math.round(60000 / s.bpm / 4));
+        });
+        uBtn.addEventListener('click', () => {
+          Sound.init(); stopGalPreview();
+          song = cloneSong(s); curBar = 0;
+          applyActiveBgm(song, true);
+          toast('🎧「' + song.name + '」をゲームのBGMにしたよ！');
+        });
+        lBtn.addEventListener('click', () => {
+          Sound.tap(); stopGalPreview();
+          song = cloneSong(s); curBar = 0; syncUI();
+          showOv('bgm');
+          toast('🎵「' + song.name + '」をひらいたよ');
+        });
+        shBtn.addEventListener('click', async () => {
+          Sound.tap();
+          const url = location.origin + location.pathname + '?bgm=' + encodeBgm(s);
+          const text = 'アントフローでオリジナルBGM「' + s.name + '」を作ったよ！聴いてみてね🐜🎵\n#アントフロー';
+          if (navigator.share) {
+            try { await navigator.share({ title: 'アントフローBGM｜' + s.name, text, url }); return; }
+            catch (e) { if (e && e.name === 'AbortError') return; }
+          }
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(() => toast('🔗 BGMのURLをコピーしたよ！')).catch(() => prompt('このURLをコピーしてシェアしてね', url));
+          } else prompt('このURLをコピーしてシェアしてね', url);
+        });
+        card.querySelector('.rep').addEventListener('click', () => {
+          Sound.tap(); stopGalPreview();
+          const cur = loadMyBgms();
+          cur.splice(idx, 1);
+          saveMyBgms(cur);
+          renderSavedList();
+          renderMyBgmGal();
+          toast('「' + s.name + '」を削除したよ');
+        });
+        myBox.appendChild(card);
+      });
     }
     async function openBgmGallery() {
       stopPreview();
       stopGalPreview();
       showOv('bgm-gal');
+      renderMyBgmGal();
       const box = $('#bgmGalList');
       box.innerHTML = '<p class="fine">読み込み中…</p>';
       const reported = loadBgmReported();
@@ -1149,8 +1232,11 @@
       if (save.settings.bgm) Sound.startBgm();
       showOv('title');
     });
-    const toStage = $('#bBgmToStage');
-    if (toStage) toStage.addEventListener('click', () => { Sound.tap(); stopPreview(); if (window.AF_openMaker) window.AF_openMaker(); });
+    const toStage = $('#bBgmGalToStage');
+    if (toStage) toStage.addEventListener('click', () => { Sound.tap(); stopGalPreview(); if (window.AF_openGallery) window.AF_openGallery(); });
+    const toStage2 = $('#bBgmToStage');
+    if (toStage2) toStage2.addEventListener('click', () => { Sound.tap(); stopPreview(); if (window.AF_openMaker) window.AF_openMaker(); });
+    window._AF_openBgmGalInner = openBgmGallery;
   }
 
   function openBgmMaker() {
@@ -1159,6 +1245,10 @@
     showOv('bgm');
   }
   window.AF_openBgmMaker = openBgmMaker;
+  window.AF_openBgmGallery = () => {
+    buildBgmMakerUI();
+    if (window._AF_openBgmGalInner) window._AF_openBgmGalInner();
+  };
 
   // 設定画面にも「🎵 自作BGMをつくる・えらぶ」ボタンを追加
   const setA2hs = $('#bSetA2hs');

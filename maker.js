@@ -735,6 +735,7 @@
     gov.id = 'ov-gallery';
     gov.innerHTML =
       '<div class="card">' +
+      '<div class="mktabs"><button type="button" class="mktab on">🎨 ステージ作品</button><button type="button" class="mktab" id="bGalToBgm">🎵 BGM作品</button></div>' +
       '<h2>💾 マイ作品・みんなの絵</h2>' +
       '<h3>💾 マイ作品</h3>' +
       '<div class="galgrid" id="galMine"></div>' +
@@ -1051,6 +1052,7 @@
     $('#bMkGalTop').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
     $('#bMkCloseTop').addEventListener('click', () => { Sound.tap(); showOv('title'); });
+    $('#bGalToBgm').addEventListener('click', () => { Sound.tap(); if (window.AF_openBgmGallery) window.AF_openBgmGallery(); });
     $('#bGalBack').addEventListener('click', () => { Sound.tap(); openMaker(); });
     $('#bGalImport').addEventListener('click', () => {
       Sound.tap();
@@ -1139,6 +1141,7 @@
     requestAnimationFrame(drawMaker);
   }
   window.AF_openMaker = openMaker;
+  window.AF_openGallery = openGallery;
 
   // ホーム画面に「🎨 つくる」「💾 マイ作品」ボタンを追加
   buildMakerUI();
