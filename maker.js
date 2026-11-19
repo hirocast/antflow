@@ -13,17 +13,37 @@
   const REPO_URL = 'https://github.com/hirocast/antflow';
   const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
   const CLAIMED_KEY = 'antflow-contest-claimed-v1';
+  const INBOX_KEY = 'antflow-inbox-v1';
   const CONTEST = {
     active: true,
     title: '🏆 第1回 ステージコンテスト開催中！',
     period: '11/29（日）まで · テーマ自由！',
     note: '参加賞：🪙100＋🎟️1 ／ 特別賞：🪙300＋🎟️2＋💡1 ／ 最優秀賞：🪙500＋🎟️3＋💡2＋🔍2',
     awards: {
-      'award-gold': { key: 'gold', badge: '🏆 最優秀賞', rank: 1, coins: 500, tickets: 3, hintT: 2, scanT: 2 },
-      'award-silver': { key: 'silver', badge: '🥈 特別賞', rank: 2, coins: 300, tickets: 2, hintT: 1, scanT: 0 },
-      'award-join': { key: 'join', badge: '🎁 参加賞', rank: 3, coins: 100, tickets: 1, hintT: 0, scanT: 0 }
+      'award-gold': {
+        key: 'gold', badge: '🏆 最優秀賞', rank: 1, coins: 500, tickets: 3, hintT: 2, scanT: 2,
+        praise: 'とびきりステキな作品をありがとう！色づかいもアイデアもピカイチで、女王さまもありんこ隊も大感動です✨ 次の作品も楽しみにしているよ！'
+      },
+      'award-silver': {
+        key: 'silver', badge: '🥈 特別賞', rank: 2, coins: 300, tickets: 2, hintT: 1, scanT: 0,
+        praise: 'キラリと光るステキな作品でした！遊んだみんながニコニコ笑顔になる工夫がいっぱいだね✨ これからも楽しい作品を作ってね！'
+      },
+      'award-join': {
+        key: 'join', badge: '🎁 参加賞', rank: 3, coins: 100, tickets: 1, hintT: 0, scanT: 0,
+        praise: 'コンテストへの応募ありがとう！あなたが心をこめて作ったステージ、ありんこ隊みんなで楽しく運んだよ✨'
+      }
     }
   };
+  const OFFICIAL_NEWS = [
+    {
+      id: 'news_c1_open',
+      kind: 'news',
+      badge: '📢 おしらせ',
+      title: '🏆 第1回 ステージコンテスト開催中！',
+      body: '11/29（日）まで第1回ステージコンテストを開催しています！\nテーマは自由！応募してくれた全員に参加賞（🪙100＋🎟️1）、優秀作品には豪華報酬をプレゼント！\n「🎨 つくる」→「📮 みんなに投稿」から応募してね！',
+      at: Date.UTC(2026, 10, 19)
+    }
+  ];
   function loadClaimedAwards() {
     try { return JSON.parse(localStorage.getItem(CLAIMED_KEY) || '{}'); } catch (e) { return {}; }
   }
@@ -31,6 +51,32 @@
     const o = loadClaimedAwards();
     o[String(k)] = Date.now();
     try { localStorage.setItem(CLAIMED_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  function loadInbox() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(INBOX_KEY) || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+  function saveInbox(arr) {
+    try { localStorage.setItem(INBOX_KEY, JSON.stringify(arr.slice(0, 50))); } catch (e) {}
+  }
+  function pushInboxItem(item) {
+    const arr = loadInbox();
+    if (arr.some(x => x.id === item.id)) return false;
+    arr.unshift({ read: false, at: Date.now(), ...item });
+    saveInbox(arr);
+    updateInboxBadge();
+    return true;
+  }
+  function seedOfficialNews() {
+    for (const n of OFFICIAL_NEWS) pushInboxItem(n);
+  }
+  function updateInboxBadge() {
+    const dot = $('#inboxDot');
+    if (!dot) return;
+    const unread = loadInbox().filter(x => !x.read).length;
+    dot.classList.toggle('on', unread > 0);
   }
 
   const NG_WORDS = [
@@ -620,8 +666,43 @@
     if (aw.scanT) p.push('🔍+' + aw.scanT);
     return p.join('  ');
   }
-  function checkContestAwards(issues) {
+  async function fetchOwnerPraise(iss) {
+    if (!iss || !iss.comments || !iss.comments_url) return '';
+    try {
+      const res = await fetch(iss.comments_url);
+      if (!res.ok) return '';
+      const list = await res.json();
+      if (!Array.isArray(list)) return '';
+      for (let i = list.length - 1; i >= 0; i--) {
+        const c = list[i];
+        if (c && c.user && c.user.login === 'hirocast' && c.body && c.body.trim()) {
+          return c.body.trim().slice(0, 240);
+        }
+      }
+    } catch (e) {}
+    return '';
+  }
+  function syncNoticeIssues(issues) {
+    if (!Array.isArray(issues)) return;
+    for (const iss of issues) {
+      const labels = Array.isArray(iss.labels) ? iss.labels : [];
+      const isNotice = labels.some(lb => String(lb && lb.name ? lb.name : lb || '').toLowerCase() === 'notice');
+      if (!isNotice) continue;
+      const body = String(iss.body || '').trim();
+      if (!body) continue;
+      pushInboxItem({
+        id: 'notice_' + iss.number,
+        kind: 'news',
+        badge: '📢 運営からのお知らせ',
+        title: String(iss.title || 'おしらせ').replace(/^\[お知らせ\]\s*/, ''),
+        body: body.slice(0, 600),
+        at: iss.created_at ? Date.parse(iss.created_at) : Date.now()
+      });
+    }
+  }
+  async function checkContestAwards(issues) {
     if (!Array.isArray(issues) || !issues.length) return;
+    syncNoticeIssues(issues);
     const myTokens = new Set(loadMyStages().map(x => x.token));
     if (!myTokens.size) return;
     const claimed = loadClaimedAwards();
@@ -632,15 +713,29 @@
       const m = (iss.body || '').match(/[?&]stage=([A-Za-z0-9_-]+)/);
       if (!m || !myTokens.has(m[1])) continue;
       const cKey = iss.number + ':' + aw.key;
-      if (claimed[cKey]) continue;
       const nm = (iss.body || '').match(/^- ステージ名:\s*(.+)$/m);
       const artName = nm ? nm[1].trim() : 'あなたの作品';
+      const customPraise = await fetchOwnerPraise(iss);
+      const praise = customPraise || aw.praise;
+      const rwTxt = fmtAwardItems(aw);
+      // メールボックスへ保存（すでに受け取り済みでも未登録なら補完する）
+      pushInboxItem({
+        id: 'award_' + cKey,
+        kind: 'award',
+        badge: aw.badge,
+        title: aw.badge + '「' + artName + '」',
+        artName,
+        body: praise,
+        rewardText: rwTxt,
+        read: !!claimed[cKey]
+      });
+      if (claimed[cKey]) continue;
       saveClaimedAward(cKey);
       save.coins += aw.coins || 0;
       save.tickets += aw.tickets || 0;
       save.hintT += aw.hintT || 0;
       save.scanT += aw.scanT || 0;
-      pending.push({ artName, aw });
+      pending.push({ artName, aw, praise, rwTxt });
     }
     if (!pending.length) return;
     persist();
@@ -648,16 +743,17 @@
     if (typeof refreshPrices === 'function') refreshPrices();
     if (typeof renderTitle === 'function') renderTitle();
     const first = pending[0];
-    const extra = pending.length > 1 ? '（ほか ' + (pending.length - 1) + '件も受け取りました！）' : '';
-    const ttl = $('#awTitle'), desc = $('#awDesc'), rw = $('#awReward');
+    const extra = pending.length > 1 ? '（ほか ' + (pending.length - 1) + '件もメールボックスに届いています！）' : '';
+    const ttl = $('#awTitle'), desc = $('#awDesc'), pr = $('#awPraise'), rw = $('#awReward');
     if (ttl && desc && rw) {
       ttl.textContent = first.aw.badge + ' おめでとう！';
-      desc.textContent = '投稿作品「' + first.artName + '」がコンテストで受賞したよ！' + extra;
-      rw.textContent = pending.map(p => fmtAwardItems(p.aw)).join(' / ');
+      desc.textContent = '「' + first.artName + '」がコンテストで受賞したよ！' + extra;
+      if (pr) pr.textContent = first.praise;
+      rw.textContent = pending.map(p => p.rwTxt).join(' / ');
       Sound.fanfare();
       showOv('award');
     } else {
-      toast('🏆 コンテスト受賞！' + fmtAwardItems(first.aw), 4500);
+      toast('🏆 コンテスト受賞！' + first.rwTxt, 4500);
     }
   }
   async function openGallery() {
@@ -838,7 +934,20 @@
       '.contest-home span{flex:0 0 auto;background:#ff8fb3;color:#fff;border-radius:10px;padding:4px 9px;font:900 11px var(--rf);box-shadow:0 2px 0 #d4507c}' +
       '.galcard.awarded{border-color:#ffc94d;background:linear-gradient(#fffdf2,#fff5d6)}' +
       '.galaward{background:linear-gradient(#ffcf4d,#ff9f1c);color:#fff;font:900 9px var(--rf);padding:2px 6px;border-radius:8px;text-shadow:0 1px 0 rgba(0,0,0,.2)}' +
-      '.awbox{background:#fff9e6;border:2px solid #ffd166;border-radius:14px;padding:10px 12px;margin:8px 0;font:900 18px var(--rf);color:#c26a00}';
+      '.awbox{background:#fff9e6;border:2px solid #ffd166;border-radius:14px;padding:10px 12px;margin:8px 0;font:900 18px var(--rf);color:#c26a00}' +
+      '.awpraise{background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:9px 11px;margin:6px 0;text-align:left;font:700 12px/1.6 var(--rf);color:var(--ink)}' +
+      '.inbox-list{max-height:28vh;overflow:auto;text-align:left;margin:6px 0}' +
+      '.inbox-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:2px solid #ffd3e2;border-radius:13px;margin-bottom:6px;cursor:pointer;text-align:left;width:100%;font-family:var(--rf);color:var(--ink)}' +
+      '.inbox-item.award{border-color:#ffd166;background:#fffdf2}' +
+      '.inbox-item.sel{outline:2.5px solid #ff6f9e;outline-offset:-1px}' +
+      '.inbox-item .info{flex:1;min-width:0}' +
+      '.inbox-item .info b{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+      '.inbox-item .info small{display:block;font-size:10px;color:#8a6a7a}' +
+      '.inbox-new{flex:0 0 auto;background:#ff4d6d;color:#fff;font:900 9px var(--rf);padding:2px 6px;border-radius:8px}' +
+      '.inbox-det{background:#fff;border:2px solid #cfe6ff;border-radius:14px;padding:10px 12px;margin:6px 0;text-align:left;font-size:12px;line-height:1.6;min-height:64px}' +
+      '.inbox-det h3{margin:0 0 4px;font-size:14px;color:#c0507a}' +
+      '.inbox-det .rw{margin-top:6px;padding:5px 8px;background:#fff9e6;border:1.5px solid #ffd166;border-radius:10px;font:900 12px var(--rf);color:#c26a00}' +
+      '.inbox-btn-home{position:relative;width:100%;margin:6px 0 2px;padding:7px 12px;border:2px solid #fff;border-radius:14px;background:linear-gradient(#fff7fb,#ffe5f0);box-shadow:0 3px 0 #e6bfd0;font:900 12px var(--rf);color:#c0507a;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}';
     document.head.appendChild(style);
 
     const aov = document.createElement('div');
@@ -849,12 +958,78 @@
       '<div style="font-size:44px;line-height:1.1">🏆</div>' +
       '<h2 id="awTitle">コンテスト受賞！</h2>' +
       '<p id="awDesc" style="font-weight:800;font-size:13px"></p>' +
+      '<div class="awpraise" id="awPraise"></div>' +
       '<div class="awbox" id="awReward"></div>' +
-      '<p class="fine">コインとアイテムが自動で追加されたよ！</p>' +
-      '<button class="big" id="bAwClose">やったー！</button>' +
+      '<p class="fine">コインとアイテムが自動で追加されたよ！（📬 おしらせからいつでも読み返せます）</p>' +
+      '<button class="big" id="bAwInbox">📬 メールボックスで見る</button>' +
+      '<button class="big sec" id="bAwClose">やったー！</button>' +
       '</div>';
     document.body.appendChild(aov);
+
+    const mov = document.createElement('div');
+    mov.className = 'ov';
+    mov.id = 'ov-inbox';
+    mov.innerHTML =
+      '<div class="card">' +
+      '<h2>📬 おしらせ・受賞メール</h2>' +
+      '<div class="inbox-list" id="inboxList"></div>' +
+      '<div class="inbox-det" id="inboxDet"><p class="fine">メッセージをタップすると読めるよ！</p></div>' +
+      '<button class="big sec" id="bInboxClose">とじる</button>' +
+      '</div>';
+    document.body.appendChild(mov);
+
+    let selInboxId = null;
+    function renderInbox() {
+      const listEl = $('#inboxList'), detEl = $('#inboxDet');
+      if (!listEl || !detEl) return;
+      const arr = loadInbox();
+      listEl.innerHTML = '';
+      if (!arr.length) {
+        listEl.innerHTML = '<p class="fine">まだメッセージはありません</p>';
+        detEl.innerHTML = '<p class="fine">運営からのお知らせやコンテスト受賞メールがここに届きます。</p>';
+        return;
+      }
+      if (!selInboxId || !arr.some(x => x.id === selInboxId)) selInboxId = arr[0].id;
+      for (const item of arr) {
+        if (item.id === selInboxId && !item.read) { item.read = true; saveInbox(arr); updateInboxBadge(); }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'inbox-item' + (item.kind === 'award' ? ' award' : '') + (item.id === selInboxId ? ' sel' : '');
+        const dStr = item.at ? new Date(item.at).toLocaleDateString('ja-JP') : '';
+        btn.innerHTML =
+          '<span style="font-size:20px">' + (item.kind === 'award' ? '🏆' : '💌') + '</span>' +
+          '<span class="info"><b></b><small></small></span>' +
+          (!item.read ? '<span class="inbox-new">NEW</span>' : '');
+        btn.querySelector('b').textContent = item.title;
+        btn.querySelector('small').textContent = (item.badge || '') + (dStr ? ' · ' + dStr : '');
+        btn.addEventListener('click', () => {
+          Sound.tap();
+          selInboxId = item.id;
+          if (!item.read) { item.read = true; saveInbox(arr); updateInboxBadge(); }
+          renderInbox();
+        });
+        listEl.appendChild(btn);
+      }
+      const cur = arr.find(x => x.id === selInboxId) || arr[0];
+      const dStr = cur.at ? new Date(cur.at).toLocaleDateString('ja-JP') : '';
+      detEl.innerHTML =
+        '<h3></h3>' +
+        '<small class="fine" style="display:block;margin-bottom:4px"></small>' +
+        '<div class="body" style="white-space:pre-line;font-weight:700"></div>' +
+        (cur.rewardText ? '<div class="rw">🎁 うけとった報酬：' + cur.rewardText + '</div>' : '');
+      detEl.querySelector('h3').textContent = cur.title;
+      detEl.querySelector('small').textContent = (cur.badge || '') + (dStr ? ' · ' + dStr : '');
+      detEl.querySelector('.body').textContent = cur.body;
+    }
+    function openInbox() {
+      seedOfficialNews();
+      renderInbox();
+      showOv('inbox');
+    }
+    window.AF_openInbox = openInbox;
     $('#bAwClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
+    $('#bAwInbox').addEventListener('click', () => { Sound.tap(); openInbox(); });
+    $('#bInboxClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
 
     const pov = document.createElement('div');
     pov.className = 'ov';
@@ -1564,17 +1739,26 @@
       cb.addEventListener('click', () => { Sound.tap(); openMaker(); });
       mrow.insertAdjacentElement('beforebegin', cb);
     }
+
+    const ib = document.createElement('button');
+    ib.type = 'button';
+    ib.id = 'bMInbox';
+    ib.className = 'inbox-btn-home';
+    ib.innerHTML = '📬 おしらせ・受賞メール<em class="dot" id="inboxDot"></em>';
+    ib.addEventListener('click', () => { Sound.tap(); if (window.AF_openInbox) window.AF_openInbox(); });
+    mrow.insertAdjacentElement('beforebegin', ib);
   }
 
-  // 起動時にコンテスト受賞チェック（自分の投稿作品がある場合のみ）
-  if (loadMyStages().length) {
-    setTimeout(async () => {
-      try {
-        const res = await fetch(ISSUES_API);
-        if (res.ok) checkContestAwards(await res.json());
-      } catch (e) {}
-    }, 1200);
-  }
+  seedOfficialNews();
+  updateInboxBadge();
+
+  // 起動時に運営からのお知らせ・コンテスト受賞チェック
+  setTimeout(async () => {
+    try {
+      const res = await fetch(ISSUES_API);
+      if (res.ok) await checkContestAwards(await res.json());
+    } catch (e) {}
+  }, 1200);
 
   // URL に ?stage=... があればそのオリジナルステージを起動
   const stParam = new URLSearchParams(location.search).get('stage');
