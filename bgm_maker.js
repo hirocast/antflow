@@ -8,7 +8,7 @@
   const BGM_POST_CD_KEY = 'antflow-bgm-post-cd-v1';
   const BGM_REPORT_KEY = 'antflow-bgm-reported-v1';
   const NICK_KEY = 'antflow-nick-v1';
-  const POST_API_URL = ''; // Cloudflare Workers デプロイ後に 'https://xxx.workers.dev/post' を設定
+  const POST_API_URL = 'https://antflow.hiroshi-artcast.workers.dev/post';
   function getPostApiUrl() { return (window.AF_POST_API || POST_API_URL || '').trim(); }
   const POST_COOLDOWN_MS = 60 * 1000;
   const REPO_URL = 'https://github.com/hirocast/antflow';
