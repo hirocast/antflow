@@ -2262,13 +2262,14 @@ layout();
     inst.style.display = deferredPrompt ? '' : 'none';
     cp.style.display = isInApp ? '' : 'none';
     if (isInApp) {
-      body.innerHTML = isIOS
+      body.innerHTML = (isIOS
         ? '<div><b style="color:#e46a92">いまアプリ内ブラウザで開いています！</b></div>' +
-          '<div><b>①</b> 画面下の <b>「⋯」</b>（または共有アイコン）＞<b>「デフォルトのブラウザで開く（Safari）」</b></div>' +
+          '<div><b>①</b> 画面下の <b>「⋯」「⋮」</b>（または共有）＞<b>「Safari / ブラウザで開く」</b></div>' +
           '<div><b>②</b> Safariで開いたら、下の <b>「□↑（共有）」</b>＞<b>「ホーム画面に追加」</b></div>'
         : '<div><b style="color:#e46a92">いまアプリ内ブラウザで開いています！</b></div>' +
-          '<div><b>①</b> 右上の <b>「⋮」</b>＞<b>「他のアプリで開く（Chrome）」</b></div>' +
-          '<div><b>②</b> Chromeで開いたら、右上の <b>「⋮」</b>＞<b>「ホーム画面に追加」</b></div>';
+          '<div><b>①</b> 右上・右下の <b>「⋮」「⋯」</b>＞<b>「他のアプリで開く（Chrome）」</b></div>' +
+          '<div><b>②</b> Chromeで開いたら、右上の <b>「⋮」</b>＞<b>「ホーム画面に追加」</b></div>') +
+        '<div style="margin-top:4px;color:#8a6a7a;font-size:11px">※「ブラウザで開く」が見つからないときは、下の<b>「📋 URLをコピーする」</b>を押して Safari / Chrome のアドレス欄に貼り付けて開いてね！</div>';
     } else if (isIOS) {
       body.innerHTML =
         '<div><b>①</b> 画面下の共有ボタン <b>「□↑」</b> をタップ</div>' +
