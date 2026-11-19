@@ -106,6 +106,7 @@
   function emptyBar() {
     return {
       notes: Array.from({ length: 16 }, () => []),
+      ties: Array.from({ length: 16 }, () => []),
       kick: new Array(16).fill(0),
       clap: new Array(16).fill(0),
       lyric: ''
@@ -114,6 +115,7 @@
   function cloneBar(b) {
     return {
       notes: b.notes.map(a => a.slice()),
+      ties: Array.from({ length: 16 }, (_, i) => (b.ties && Array.isArray(b.ties[i])) ? b.ties[i].slice() : []),
       kick: b.kick.slice(),
       clap: b.clap.slice(),
       lyric: String(b.lyric || '').slice(0, 24)
@@ -159,6 +161,11 @@
         const st = bSteps === 16 ? (m[0] & 15) : clamp(Math.round(m[0] * 16 / bSteps), 0, 15);
         const q = quantizeSemi(m[1] + shift - 12);
         if (bar.notes[st].indexOf(q) < 0) bar.notes[st].push(q);
+        const steps = bSteps === 16 ? (m[2] || 1) : Math.max(1, Math.round((m[2] || 1) * 16 / bSteps));
+        for (let k = 1; k < steps && st + k < 16; k++) {
+          if (bar.notes[st + k].indexOf(q) >= 0) break;
+          if (bar.ties[st + k].indexOf(q) < 0) bar.ties[st + k].push(q);
+        }
       }
       if (calm) {
         bar.kick[0] = 1;
@@ -191,6 +198,8 @@
   let playTimer = null;
   let playStep = 0;
   let paintVal = null;
+  let editMode = 'note'; // 'note' | 'tie'
+  let tieDrag = null;
   let built = false;
 
   // 初期プリセット曲
@@ -294,12 +303,16 @@
       b: s.bpm,
       i: s.inst,
       sg: s.singer || 'custom',
-      r: s.bars.map(bar => ({
-        n: bar.notes,
-        k: bar.kick.join(''),
-        c: bar.clap.join(''),
-        l: bar.lyric || ''
-      }))
+      r: s.bars.map(bar => {
+        const o = {
+          n: bar.notes,
+          k: bar.kick.join(''),
+          c: bar.clap.join(''),
+          l: bar.lyric || ''
+        };
+        if (bar.ties && bar.ties.some(a => a && a.length)) o.t = bar.ties;
+        return o;
+      })
     };
     const json = JSON.stringify(min);
     const bytes = new TextEncoder().encode(json);
@@ -324,6 +337,7 @@
         singer: min.sg || 'custom',
         bars: min.r.map(rb => ({
           notes: Array.from({ length: 16 }, (_, idx) => Array.isArray(rb.n && rb.n[idx]) ? rb.n[idx].filter(v => Number.isFinite(v)) : []),
+          ties: Array.from({ length: 16 }, (_, idx) => Array.isArray(rb.t && rb.t[idx]) ? rb.t[idx].filter(v => Number.isFinite(v)) : []),
           kick: Array.from({ length: 16 }, (_, idx) => (rb.k && rb.k[idx] === '1') ? 1 : 0),
           clap: Array.from({ length: 16 }, (_, idx) => (rb.c && rb.c[idx] === '1') ? 1 : 0),
           lyric: rb.l ? String(rb.l).slice(0, 24) : ''
@@ -409,7 +423,19 @@
       const bIdx = Math.floor(idx / 16), st = idx % 16;
       const bar = song.bars[bIdx];
       const notes = bar.notes[st];
-      for (let i = 0; i < notes.length; i++) Sound.playCustomNote(song.inst, notes[i], 0, 0.22);
+      const s16 = 60 / clamp(song.bpm || 112, 60, 200) / 4;
+      for (let i = 0; i < notes.length; i++) {
+        const semi = notes[i];
+        let len = 1;
+        while (len < 16) {
+          const gi = (idx + len) % total;
+          const nb = song.bars[Math.floor(gi / 16)], ns = gi % 16;
+          if (!nb.ties || !nb.ties[ns] || nb.ties[ns].indexOf(semi) < 0) break;
+          if (nb.notes && nb.notes[ns] && nb.notes[ns].indexOf(semi) >= 0) break;
+          len++;
+        }
+        Sound.playCustomNote(song.inst, semi, 0, len > 1 ? s16 * (len - 0.08) : s16 * 1.4);
+      }
       if (bar.kick[st]) Sound.playCustomDrum(1, 0, notes.length ? notes[0] : 0);
       if (bar.clap[st]) Sound.playCustomDrum(2, 0);
       if (bIdx !== curBar) {
@@ -441,9 +467,13 @@
       html += '<div class="bgm-lbl" style="color:' + nt.col + '">' + nt.label + '</div>';
       for (let st = 0; st < 16; st++) {
         const on = bar.notes[st].indexOf(nt.semi) >= 0;
+        const tie = !on && bar.ties && bar.ties[st] && bar.ties[st].indexOf(nt.semi) >= 0;
+        const nextTie = st < 15 && bar.notes[st + 1].indexOf(nt.semi) < 0 && bar.ties && bar.ties[st + 1] && bar.ties[st + 1].indexOf(nt.semi) >= 0;
+        const prevAny = st > 0 && (bar.notes[st - 1].indexOf(nt.semi) >= 0 || (bar.ties && bar.ties[st - 1] && bar.ties[st - 1].indexOf(nt.semi) >= 0));
         const beat = st % 4 === 0 ? ' beat' : '';
-        const bg = on ? ' style="background:' + nt.col + ';border-color:#fff"' : '';
-        html += '<button type="button" class="bgm-cell' + beat + (on ? ' on' : '') + '" data-kind="note" data-semi="' + nt.semi + '" data-st="' + st + '"' + bg + '></button>';
+        const cls = (on ? ' on' : '') + (tie ? ' tie' : '') + ((on || tie) && nextTie ? ' ext-r' : '') + (tie && prevAny ? ' ext-l' : '');
+        const bg = (on || tie) ? ' style="background:' + nt.col + ';border-color:#fff"' : '';
+        html += '<button type="button" class="bgm-cell' + beat + cls + '" data-kind="note" data-semi="' + nt.semi + '" data-st="' + st + '"' + bg + '></button>';
       }
     }
     // ドラム2行
@@ -522,27 +552,46 @@
     updateActiveBadge();
   }
 
+  function clearTrailingTies(bar, semi, fromSt) {
+    if (!bar.ties) return;
+    for (let k = fromSt; k < 16; k++) {
+      if (bar.notes[k].indexOf(semi) >= 0) break;
+      const ti = bar.ties[k].indexOf(semi);
+      if (ti < 0) break;
+      bar.ties[k].splice(ti, 1);
+    }
+  }
+
   function toggleCell(btn, forceVal) {
     if (!btn || !btn.dataset || !btn.dataset.kind) return false;
     const kind = btn.dataset.kind, st = +btn.dataset.st;
     const bar = song.bars[curBar];
+    if (!bar.ties) bar.ties = Array.from({ length: 16 }, () => []);
     let nextOn = false;
     if (kind === 'note') {
       const semi = +btn.dataset.semi;
       const arr = bar.notes[st];
+      const tarr = bar.ties[st];
       const idx = arr.indexOf(semi);
+      const tidx = tarr.indexOf(semi);
+      if (forceVal == null && tidx >= 0 && idx < 0) {
+        tarr.splice(tidx, 1);
+        clearTrailingTies(bar, semi, st + 1);
+        renderGrid();
+        return false;
+      }
       nextOn = forceVal == null ? idx < 0 : forceVal;
       if (nextOn && idx < 0) {
+        if (tidx >= 0) tarr.splice(tidx, 1);
         arr.push(semi);
         Sound.init();
         Sound.playCustomNote(song.inst, semi, 0, 0.22);
-      } else if (!nextOn && idx >= 0) {
-        arr.splice(idx, 1);
+      } else if (!nextOn) {
+        if (idx >= 0) arr.splice(idx, 1);
+        if (tidx >= 0) tarr.splice(tidx, 1);
+        clearTrailingTies(bar, semi, st + 1);
       }
-      const nt = NOTES.find(x => x.semi === semi);
-      btn.classList.toggle('on', nextOn);
-      btn.style.background = nextOn && nt ? nt.col : '';
-      btn.style.borderColor = nextOn ? '#fff' : '';
+      renderGrid();
     } else if (kind === 'kick') {
       nextOn = forceVal == null ? !bar.kick[st] : forceVal;
       bar.kick[st] = nextOn ? 1 : 0;
@@ -555,6 +604,64 @@
       btn.classList.toggle('on', nextOn);
     }
     return nextOn;
+  }
+
+  function handleTieDown(btn) {
+    const semi = +btn.dataset.semi, st = +btn.dataset.st;
+    const bar = song.bars[curBar];
+    if (!bar.ties) bar.ties = Array.from({ length: 16 }, () => []);
+    const isNote = bar.notes[st].indexOf(semi) >= 0;
+    const isTie = !isNote && bar.ties[st].indexOf(semi) >= 0;
+    if (isTie) {
+      bar.ties[st].splice(bar.ties[st].indexOf(semi), 1);
+      clearTrailingTies(bar, semi, st + 1);
+      renderGrid();
+      tieDrag = { semi, startSt: st, action: 'erase' };
+      return;
+    }
+    if (isNote) {
+      Sound.init();
+      Sound.playCustomNote(song.inst, semi, 0, 0.45);
+      tieDrag = { semi, startSt: st, action: 'extend' };
+      return;
+    }
+    const prevHas = st > 0 && (bar.notes[st - 1].indexOf(semi) >= 0 || bar.ties[st - 1].indexOf(semi) >= 0);
+    if (prevHas) {
+      bar.ties[st].push(semi);
+      Sound.init();
+      Sound.playCustomNote(song.inst, semi, 0, 0.45);
+      renderGrid();
+      tieDrag = { semi, startSt: st, action: 'extend' };
+    } else {
+      bar.notes[st].push(semi);
+      Sound.init();
+      Sound.playCustomNote(song.inst, semi, 0, 0.35);
+      renderGrid();
+      tieDrag = { semi, startSt: st, action: 'extend' };
+    }
+  }
+
+  function handleTieMove(btn) {
+    if (!tieDrag || btn.dataset.kind !== 'note' || +btn.dataset.semi !== tieDrag.semi) return;
+    const st = +btn.dataset.st, semi = tieDrag.semi, bar = song.bars[curBar];
+    if (tieDrag.action === 'extend' && st > tieDrag.startSt) {
+      let changed = false;
+      for (let k = tieDrag.startSt + 1; k <= st; k++) {
+        if (bar.notes[k].indexOf(semi) >= 0) break;
+        if (bar.ties[k].indexOf(semi) < 0) {
+          bar.ties[k].push(semi);
+          changed = true;
+        }
+      }
+      if (changed) renderGrid();
+    } else if (tieDrag.action === 'erase') {
+      const idx = bar.ties[st].indexOf(semi);
+      if (idx >= 0) {
+        bar.ties[st].splice(idx, 1);
+        clearTrailingTies(bar, semi, st + 1);
+        renderGrid();
+      }
+    }
   }
 
   function buildBgmMakerUI() {
@@ -577,10 +684,17 @@
 .bgm-bar.on{background:var(--pink);color:#fff}
 .bgm-bar.add{background:#dff7ec;color:#1b7a52}
 .bgm-bar.del{background:#ffe5ea;color:#c03858}
+.bgm-mode{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.bgm-mbtn{border:none;border-radius:10px;padding:4px 10px;background:#fff1d6;color:var(--ink);font:800 11px var(--rf);cursor:pointer}
+.bgm-mbtn.on{background:var(--pink);color:#fff}
+.bgm-mhint{flex:1;text-align:right;font-size:10px;opacity:.7;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bgm-grid{display:grid;grid-template-columns:28px repeat(16,1fr);gap:2px;background:#f8ecf2;padding:5px;border-radius:14px;border:2px solid #ffd3e2;touch-action:none;user-select:none}
 .bgm-lbl{font:900 10px/1 var(--rf);display:flex;align-items:center;justify-content:center}
 .bgm-cell{height:23px;border:1px solid #ead8e2;border-radius:5px;background:#fff;padding:0;cursor:pointer}
 .bgm-cell.beat{background:#fff7fb}
+.bgm-cell.tie{opacity:.72;background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.32) 0 3px,transparent 3px 6px)}
+.bgm-cell.ext-r{border-top-right-radius:1px;border-bottom-right-radius:1px}
+.bgm-cell.ext-l{border-top-left-radius:1px;border-bottom-left-radius:1px}
 .bgm-cell.drum.on{background:#8b6f99;border-color:#fff}
 .bgm-cell.clap.on{background:#ff9a3c;border-color:#fff}
 .bgm-cell.play{outline:2px solid #ff5a7a;outline-offset:-1px}
@@ -620,6 +734,11 @@
         '<div class="bgm-bpm"><span>はやさ (BPM)</span><input id="bgmBpm" type="range" min="70" max="170" step="2"><b id="bgmBpmVal">116</b></div>' +
         '<div class="bgm-bars" id="bgmBars"></div>' +
         '<div class="bgm-lyric"><canvas id="bgmSingerCv" width="40" height="40"></canvas><input id="bgmLyric" maxlength="24" placeholder="🎤 この小節の歌詞（空でもOK）"><select id="bgmSinger" title="アリシンガーの衣装">' + SINGERS.map(x => '<option value="' + x.id + '">' + x.label + '</option>').join('') + '</select></div>' +
+        '<div class="bgm-mode" id="bgmMode">' +
+          '<button type="button" class="bgm-mbtn on" data-mode="note">🎵 おく</button>' +
+          '<button type="button" class="bgm-mbtn" data-mode="tie">〰️ のばす</button>' +
+          '<span class="bgm-mhint">音をのばしたい時は「のばす」</span>' +
+        '</div>' +
         '<div class="bgm-grid" id="bgmGrid"></div>' +
         '<div class="bgm-btns">' +
           '<button type="button" class="go" id="bgmPlayBtn">▶ さいせい</button>' +
@@ -685,22 +804,38 @@
       '</div>';
     document.body.appendChild(bov);
 
+    $('#bgmMode').addEventListener('click', e => {
+      const b = e.target.closest('.bgm-mbtn');
+      if (!b || !b.dataset.mode) return;
+      editMode = b.dataset.mode;
+      const btns = document.querySelectorAll('#bgmMode .bgm-mbtn');
+      for (let i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].dataset.mode === editMode);
+      const hint = $('#bgmMode .bgm-mhint');
+      if (hint) hint.textContent = editMode === 'tie' ? '右へドラッグまたはタップでのばせるよ' : '音をのばしたい時は「のばす」';
+    });
+
     const grid = $('#bgmGrid');
     grid.addEventListener('pointerdown', e => {
       const btn = e.target.closest('.bgm-cell');
       if (!btn) return;
       e.preventDefault();
-      paintVal = toggleCell(btn, null);
+      if (editMode === 'tie' && btn.dataset.kind === 'note') {
+        handleTieDown(btn);
+      } else {
+        paintVal = toggleCell(btn, null);
+      }
       syncActiveIfUsed();
     });
     grid.addEventListener('pointermove', e => {
-      if (paintVal === null) return;
+      if (paintVal === null && !tieDrag) return;
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const btn = el && el.closest ? el.closest('.bgm-cell') : null;
-      if (btn) { toggleCell(btn, paintVal); syncActiveIfUsed(); }
+      if (!btn) return;
+      if (tieDrag) { handleTieMove(btn); syncActiveIfUsed(); }
+      else { toggleCell(btn, paintVal); syncActiveIfUsed(); }
     });
-    window.addEventListener('pointerup', () => { paintVal = null; });
-    window.addEventListener('pointercancel', () => { paintVal = null; });
+    window.addEventListener('pointerup', () => { paintVal = null; tieDrag = null; });
+    window.addEventListener('pointercancel', () => { paintVal = null; tieDrag = null; });
 
     $('#bgmName').addEventListener('input', e => { song.name = e.target.value.slice(0, 20); syncActiveIfUsed(); });
     $('#bgmLyric').addEventListener('input', e => { song.bars[curBar].lyric = e.target.value.slice(0, 24); syncActiveIfUsed(); });

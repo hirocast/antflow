@@ -301,7 +301,11 @@ const Sound = {
     if (inst === 'chip') this.tone(f, dur * 0.9, { type: 'square', vol: 0.042, when: w, attack: 0.004, dest: this.mus });
     else if (inst === 'bell') this.tone(f * 2, dur * 1.4, { type: 'sine', vol: 0.085, when: w, attack: 0.003, dest: this.mus });
     else if (inst === 'flute') this.lead(f, w, dur * 0.92, 0.07);
-    else this.mallet(f, w, 0.14, this.mus);
+    else if (dur > 0.35) {
+      this.tone(f, Math.max(0.42, dur), { vol: 0.14, when: w, attack: 0.004, dest: this.mus });
+      this.tone(f * 2, 0.16, { vol: 0.14 * 0.18, when: w, attack: 0.003, dest: this.mus, type: 'triangle' });
+      this.tone(f * 4, 0.07, { vol: 0.14 * 0.1, when: w, attack: 0.002, dest: this.mus });
+    } else this.mallet(f, w, 0.14, this.mus);
   },
   playCustomDrum(kind, w, semi) {
     if (!this.ctx) return;
@@ -1293,7 +1297,18 @@ const Sound = {
       if (st === 0) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: false });
       const notes = bar.notes && bar.notes[st];
       if (Array.isArray(notes)) {
-        for (let i = 0; i < notes.length; i++) this.playCustomNote(B.inst, notes[i], w, s16 * 1.4);
+        for (let i = 0; i < notes.length; i++) {
+          const semi = notes[i];
+          let len = 1;
+          while (len < 16) {
+            const gi = (idx + len) % totalSteps;
+            const nb = B.bars[Math.floor(gi / 16)], ns = gi % 16;
+            if (!nb.ties || !Array.isArray(nb.ties[ns]) || nb.ties[ns].indexOf(semi) < 0) break;
+            if (nb.notes && Array.isArray(nb.notes[ns]) && nb.notes[ns].indexOf(semi) >= 0) break;
+            len++;
+          }
+          this.playCustomNote(B.inst, semi, w, len > 1 ? s16 * (len - 0.08) : s16 * 1.4);
+        }
         if (notes.length) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: true });
       }
       if (bar.kick && bar.kick[st]) this.playCustomDrum(1, w, Array.isArray(notes) && notes.length ? notes[0] : 0);
