@@ -33,7 +33,8 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 .ib{border:3px solid #fff;background:linear-gradient(#fff,#ffeef5);box-shadow:0 4px 0 rgba(90,61,92,.22)}
 .prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:8px;padding-top:1px}
 .bar{flex:1;min-width:44px;height:12px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
-.bar i{background:repeating-linear-gradient(-45deg,#ff7fae 0 8px,#ffa6c8 8px 16px);box-shadow:inset 0 3px 0 rgba(255,255,255,.45)}
+.bar i{background:repeating-linear-gradient(-45deg,#ffcf4a 0 8px,#ffe07d 8px 16px);box-shadow:inset 0 3px 0 rgba(255,255,255,.45);transition:width .9s linear}
+.bar i.s2{background:repeating-linear-gradient(-45deg,#6cd6a8 0 8px,#96e6c4 8px 16px)}
 #leftTxt{display:none}
 #timeTxt{flex:0 0 auto;font-size:11px;font-weight:800;white-space:nowrap;text-shadow:0 1px 0 #fff}
 #timeTxt b{color:#ffa000}
@@ -1043,25 +1044,33 @@ function updateHUD() {
   const lv = isCustom ? 'オリジナル' : 'Lv.' + pos, stars = isCustom ? '🎨' : '★'.repeat(st) + '☆'.repeat(5 - st);
   const name = isCustom || save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
   const left = 'のこり ' + G.vleft + ' / ' + G.level.total;
-  const w = (100 * (1 - G.vleft / G.level.total)).toFixed(2) + '%';
   const dis = !G.undo.length, spd = G.speed + 'x';
   if (hudCache.lv !== lv) { hudCache.lv = lv; $('#lvNum').textContent = lv; }
   if (hudCache.st !== stars) { hudCache.st = stars; $('#lvStars').textContent = stars; }
   if (hudCache.name !== name) { hudCache.name = name; $('#lvName').textContent = name; }
   if (hudCache.left !== left) { hudCache.left = left; $('#leftTxt').textContent = left; }
-  if (hudCache.w !== w) { hudCache.w = w; $('#progBar').style.width = w; }
   if (hudCache.dis !== dis) { hudCache.dis = dis; $('#bUndo').disabled = dis; }
   if (hudCache.spd !== spd) { hudCache.spd = spd; $('#spdIco').textContent = spd; }
 }
 function updateTimer() {
-  const R = G.run, el = $('#timeTxt');
+  const R = G.run, el = $('#timeTxt'), bar = $('#progBar');
   if (!R || !G.par) return;
   const sec = Math.floor(R.time), key = R.started ? sec : -2;
   if (key === G.timerShown) return;
   G.timerShown = key;
-  if (!R.started) { el.innerHTML = '⏱ タップでスタート　<b>★★★</b> ' + G.par[0] + '秒以内'; return; }
+  if (!R.started) {
+    el.innerHTML = '⏱ タップでスタート　<b>★★★</b> ' + G.par[0] + '秒以内';
+    if (bar) { bar.className = 's3'; bar.style.width = '100%'; }
+    return;
+  }
   const st = timeStars(R.time, G.par), lim = st === 3 ? G.par[0] : st === 2 ? G.par[1] : 0;
   el.innerHTML = '⏱ ' + sec + '秒　<b class="s' + st + '">' + '★'.repeat(st) + '</b>' + (lim ? ' あと' + Math.max(0, lim - sec) + '秒' : ' ゆっくりでOK');
+  if (bar) {
+    const pct = st === 3 ? Math.max(0, (G.par[0] - sec) / Math.max(1, G.par[0])) * 100
+      : st === 2 ? Math.max(0, (G.par[1] - sec) / Math.max(1, G.par[1] - G.par[0])) * 100 : 0;
+    bar.className = 's' + st;
+    bar.style.width = pct.toFixed(1) + '%';
+  }
 }
 const tipState = { msg: '', timer: 0, bound: false };
 function foldTip(fold) {
