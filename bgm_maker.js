@@ -133,6 +133,8 @@
 
   const SCALE = [0, 2, 4, 5, 7, 9, 11, 12];
   function quantizeSemi(semi) {
+    while (semi < 0) semi += 12;
+    while (semi > 12) semi -= 12;
     let best = 0, bd = 999;
     for (let i = 0; i < SCALE.length; i++) {
       const d = Math.abs(semi - SCALE[i]);
@@ -153,7 +155,7 @@
     const shift = Math.round((18 - avg) / 12) * 12; // 12..24 の範囲に合わせる
     const bSteps = src.barSteps || 16;
     const calm = src.style === 'sakura' || src.style === 'bell' || src.style === 'waltz';
-    const inst = src.style === 'bell' ? 'bell' : (src.style === 'sakura' || src.style === 'waltz') ? 'flute' : 'mallet';
+    const inst = src.style === 'bell' ? 'bell' : (src.style === 'samba' || src.style === 'sakura' || src.style === 'waltz') ? 'flute' : 'mallet';
     const lyrArr = (Sound.LYRICS && Sound.LYRICS[key]) || [];
     const bars = rawBars.map((rb, bi) => {
       const bar = emptyBar();
@@ -171,6 +173,7 @@
         bar.kick[0] = 1;
       } else {
         bar.kick[0] = 1; bar.kick[8] = 1;
+        if (src.style === 'samba') { bar.kick[4] = 1; bar.kick[12] = 1; }
         bar.clap[4] = 1; bar.clap[12] = 1;
       }
       const le = lyrArr[bi];
