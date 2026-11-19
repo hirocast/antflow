@@ -292,7 +292,30 @@ const Sound = {
     matsuri: 'おまつりおはやし',
     breeze: 'そよかぜワルツ'
   },
-  bgmTitle() { return this.BGM_TITLES[this.bgmKey] || this.bgmKey; },
+  customBgm: null,
+  useCustomBgm: false,
+  playCustomNote(inst, semi, w, dur) {
+    if (!this.ctx) return;
+    const f = this.hz(semi + 12);
+    if (inst === 'chip') this.tone(f, dur * 0.9, { type: 'square', vol: 0.042, when: w, attack: 0.004, dest: this.mus });
+    else if (inst === 'bell') this.tone(f * 2, dur * 1.4, { type: 'sine', vol: 0.085, when: w, attack: 0.003, dest: this.mus });
+    else if (inst === 'flute') this.lead(f, w, dur * 0.92, 0.07);
+    else this.mallet(f, w, 0.14, this.mus);
+  },
+  playCustomDrum(kind, w, semi) {
+    if (!this.ctx) return;
+    if (kind === 1) {
+      this.surdo(w, 0.55, false);
+      if (semi != null) this.pluckBass(this.hz(semi - 12), w, 0.18, 0.65);
+    } else if (kind === 2) {
+      this.clap(w);
+      this.shaker(w, 0.35);
+    }
+  },
+  bgmTitle() {
+    if (this.useCustomBgm && this.customBgm) return '🎵 ' + (this.customBgm.name || 'オリジナルBGM');
+    return this.BGM_TITLES[this.bgmKey] || this.bgmKey;
+  },
   startBgm() {
     if (!this.ctx || this.bgmTimer) return;
     this.nextT = this.ctx.currentTime + 0.15; this.step = 0;
@@ -1249,9 +1272,29 @@ const Sound = {
       if (this.AGO[st]) this.agogo(w, this.AGO[st] === 2);
     }
   },
+  schedCustom(c) {
+    const B = this.customBgm;
+    if (!B || !B.bars || !B.bars.length) return;
+    const s16 = 60 / clamp(B.bpm || 112, 60, 200) / 4;
+    if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05;
+    const totalSteps = B.bars.length * 16;
+    while (this.nextT < c.currentTime + this.ahead) {
+      const idx = this.step % totalSteps;
+      const bar = B.bars[Math.floor(idx / 16)], st = idx % 16;
+      const w = Math.max(0, this.nextT - c.currentTime);
+      const notes = bar.notes && bar.notes[st];
+      if (Array.isArray(notes)) {
+        for (let i = 0; i < notes.length; i++) this.playCustomNote(B.inst, notes[i], w, s16 * 1.4);
+      }
+      if (bar.kick && bar.kick[st]) this.playCustomDrum(1, w, Array.isArray(notes) && notes.length ? notes[0] : 0);
+      if (bar.clap && bar.clap[st]) this.playCustomDrum(2, w);
+      this.nextT += s16; this.step++;
+    }
+  },
   sched() {
     const c = this.ctx;
     if (!c || c.state !== 'running') return;
+    if (this.useCustomBgm && this.customBgm) { this.schedCustom(c); return; }
     const ex = this.EXTRA_SONGS[this.bgmKey];
     const bpm = ex ? ex.bpm : this.BPM;
     // FORM：A（0）→ A'（1）→ B（2）→ A'（1）
