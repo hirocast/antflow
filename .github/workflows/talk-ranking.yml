@@ -1,0 +1,122 @@
+name: Weekly Popular Talk Ranking
+
+on:
+  schedule:
+    # 毎週日曜 20:00 JST (11:00 UTC)
+    - cron: '0 11 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  publish-ranking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish top 5 popular talks to notice issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const vm = require('vm');
+
+          const [owner, repo] = process.env.REPO.split('/');
+          const headers = {
+            'Authorization': `Bearer ${process.env.GH_TOKEN}`,
+            'Accept': 'application/vnd.github+json',
+            'User-Agent': 'antflow-talk-ranking',
+            'Content-Type': 'application/json'
+          };
+
+          // base.js からセリフ -> ステージ名の逆引きマップを作成
+          function buildStageMap() {
+            const map = new Map();
+            try {
+              const code = fs.readFileSync('base.js', 'utf8');
+              const ctx = {
+                console, Math, Date, JSON, Array, Object, Set, Map,
+                window: {}, document: {}, localStorage: { getItem: () => null, setItem: () => {} },
+                AF_LOADED: []
+              };
+              ctx.window = ctx;
+              vm.runInContext(code + '\nthis._TALK_STAGE = typeof TALK_STAGE !== "undefined" ? TALK_STAGE : {};', vm.createContext(ctx));
+              const ts = ctx._TALK_STAGE || {};
+              for (const [stageName, obj] of Object.entries(ts)) {
+                if (!obj || typeof obj !== 'object') continue;
+                for (const k of ['hi', 'p', 'c', 'j', 'q']) {
+                  if (!Array.isArray(obj[k])) continue;
+                  for (const line of obj[k]) {
+                    if (line && !map.has(line)) map.set(line, stageName);
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn('Stage map build skipped:', e.message);
+            }
+            return map;
+          }
+
+          (async () => {
+            const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?labels=talk-likes&state=open&per_page=1`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch talk-likes: ' + res.status);
+            const list = await res.json();
+            const iss = Array.isArray(list) && list[0] ? list[0] : null;
+            if (!iss || !iss.body) { console.log('No talk-likes issue yet.'); return; }
+
+            const m = iss.body.match(/<!--\s*LIKES_JSON:([\s\S]*?)-->/);
+            if (!m) { console.log('No LIKES_JSON found.'); return; }
+            let counts = {};
+            try { counts = JSON.parse(m[1]) || {}; } catch {}
+            const top = Object.entries(counts)
+              .filter(([, c]) => Number(c) > 0)
+              .sort((a, b) => Number(b[1]) - Number(a[1]))
+              .slice(0, 5);
+            if (!top.length) { console.log('No likes recorded yet.'); return; }
+
+            const stageMap = buildStageMap();
+            const medals = ['🥇 1位', '🥈 2位', '🥉 3位', '4位', '5位'];
+            const lines = top.map(([talk, cnt], i) => {
+              const st = stageMap.get(talk);
+              return `${medals[i]}（${cnt}いいね）「${talk}」${st ? '（' + st + '）' : ''}`;
+            });
+
+            const now = new Date(Date.now() + 9 * 3600 * 1000); // JST
+            const mm = now.getUTCMonth() + 1;
+            const dd = now.getUTCDate();
+            const titlePrefix = '[お知らせ] 🏆 人気のセリフランキング';
+            const title = `${titlePrefix}（${mm}/${dd}発表）`;
+            const body =
+              'みんなの「♥ いいね」で決まった人気セリフ TOP5 を発表するよ！\n\n' +
+              lines.join('\n') + '\n\n' +
+              'お気に入りのセリフを見つけたら、リザルトやアルバムから「♡」を押して応援してね！';
+
+            // 過去の自動ランキングお知らせがあればクローズして最新のみ残す
+            const nRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?labels=notice&state=open&per_page=20`, { headers });
+            if (nRes.ok) {
+              const notices = await nRes.json();
+              for (const n of (Array.isArray(notices) ? notices : [])) {
+                if (String(n.title || '').startsWith(titlePrefix)) {
+                  await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${n.number}`, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify({ state: 'closed' })
+                  });
+                }
+              }
+            }
+
+            const pRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ title, labels: ['notice'], body })
+            });
+            if (!pRes.ok) throw new Error('Failed to post notice: ' + pRes.status);
+            const created = await pRes.json();
+            console.log('Published ranking notice #' + created.number);
+          })();
+          EOF
