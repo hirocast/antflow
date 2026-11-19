@@ -140,6 +140,15 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 #ov-clear .chip,#ov-clear .teaser{margin:4px 0;padding:5px 10px}
 #ov-clear .cfrow{margin-top:6px}
 #ov-clear .big{padding:9px 10px;font-size:14px;margin-top:6px}
+.restalk{display:none;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:6px 10px;margin:5px 0;text-align:left;font-size:11px;font-weight:800;color:var(--ink)}
+.restalk.on{display:block}
+.restalk-h{display:flex;justify-content:space-between;align-items:center;gap:6px;color:#c0507a;font-weight:900;margin-bottom:4px}
+.restalk-list{display:flex;flex-wrap:wrap;gap:4px;max-height:54px;overflow:auto;margin-bottom:4px}
+.restalk-chip{background:#fff;border:1.5px solid #ffd3e2;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:800;color:var(--ink)}
+.restalk-bg{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:5px;padding-top:4px;border-top:1.5px dashed #ffd3e2;font-size:11px}
+.restalk-bg b{color:#d08a00}
+.restalk-bg .hit{color:#e46a92;font-weight:900}
+.restalk-btn{border:none;border-radius:9px;padding:3px 9px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;font:900 10px var(--rf);cursor:pointer;box-shadow:0 2px 0 #d4507c}
 .al small.bs{color:#ffa000;font-size:11px;font-weight:900}
 .qsay{background:#fff;border-radius:14px;padding:8px 12px;border:2px solid #ffd3e2;font-weight:800;font-size:13px!important}
 #qCv{display:block;width:100%;max-width:300px;aspect-ratio:300/170;margin:0 auto;border-radius:18px;border:3px solid #fff;box-shadow:0 4px 0 #d9b07a;cursor:pointer}
@@ -308,7 +317,10 @@ body.wide .fb{max-width:none}
   const tf = $('#ov-title .fine');
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
-  $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div>');
+  $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div><div class="restalk" id="resTalkBox"></div>');
+  $('#resTalkBox').addEventListener('click', e => {
+    if (e.target.closest('[data-bingo-go]')) { Sound.tap(); openBingo('clear'); }
+  });
   const cr = document.createElement('div'); cr.className = 'cfrow';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
@@ -532,12 +544,48 @@ function grantReward(r) {
   if (r.s) save.scanT += r.s;
   if (r.t) save.tickets += r.t;
 }
+function bingoSnapshot() {
+  return BINGO_CARDS.map(card => {
+    const st = bingoCardStatus(card);
+    let filled = 0, reach = 0;
+    for (let i = 0; i < 25; i++) if (st.cells[i].done) filled++;
+    for (const line of BINGO_LINES) {
+      let d = 0;
+      for (const idx of line) if (st.cells[idx].done) d++;
+      if (d === 4) reach++;
+    }
+    return { filled, lines: st.lineCount, reach, ready: st.unclaimedLines.length + (st.unclaimedComp ? 1 : 0) };
+  });
+}
+function calcBingoImpact(before) {
+  const after = bingoSnapshot();
+  let newCells = 0, newLines = 0, newReach = 0, readyCards = 0;
+  for (let i = 0; i < after.length; i++) {
+    const b = before && before[i] ? before[i] : { filled: 0, lines: 0, reach: 0 };
+    newCells += Math.max(0, after[i].filled - b.filled);
+    newLines += Math.max(0, after[i].lines - b.lines);
+    newReach += Math.max(0, after[i].reach - b.reach);
+    if (after[i].ready > 0) readyCards++;
+  }
+  const curIdx = clamp(save.bingo.card || 0, 0, after.length - 1);
+  const curBefore = before && before[curIdx] ? before[curIdx] : { filled: 0, lines: 0 };
+  const curAfter = after[curIdx] || { filled: 0, lines: 0 };
+  return {
+    newCells, newLines, newReach, readyCards, curIdx,
+    curFilled: curAfter.filled,
+    curCellDiff: Math.max(0, curAfter.filled - curBefore.filled),
+    curLineDiff: Math.max(0, curAfter.lines - curBefore.lines)
+  };
+}
 let lastBingoToast = 0;
 window.isTalkSeen = text => seenTalkSet.has(text);
 window.onTalkShown = text => {
   if (!text || seenTalkSet.has(text)) return;
   seenTalkSet.add(text);
   save.seenTalk.push(text);
+  if (G.run && Array.isArray(G.run.newTalks) && G.run.newTalks.indexOf(text) < 0) {
+    G.run.newTalks.push(text);
+  }
   const dot = $('#bingoDot');
   let hasAny = false;
   for (const card of BINGO_CARDS) if (bingoCardStatus(card).hasReward) { hasAny = true; break; }
@@ -785,7 +833,7 @@ function applyLevel(id, L) {
   // アリの歩く速さ。ANT_RATE を変えると全体の速さが変わる（1＝前の速さ、0.5＝半分）
   const ANT_RATE = 0.65;
   G.antSpeed = clamp((L.W + L.H) * 0.36, 8, 42) * ANT_RATE;
-  G.run = { started: false, done: false, time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0, freeU: G.perk.freeUndo, freeH: G.perk.freeHint };
+  G.run = { started: false, done: false, time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0, freeU: G.perk.freeUndo, freeH: G.perk.freeHint, newTalks: [], bingoSnap: bingoSnapshot() };
   G.par = parTimes(L); G.waitIds = new Set(); G.timerShown = -9;
   endFever(); G.fever.g = 0;
   G.gold = pickGold(L);
@@ -986,6 +1034,31 @@ function showClear() {
   $('#clearName').textContent = '「' + G.level.name + '」がかんせい！';
   G.lastShare = { pos, name: G.level.name, stars: st, sec: t, custom: isCustom, url: isCustom && G.level.shareUrl ? G.level.shareUrl : 'https://hirocast.github.io/antflow/' };
   $('#clearSay').textContent = '🐜「' + talkLine(st === 3 ? 'star3' : 'clear') + '」';
+  const talkBox = $('#resTalkBox');
+  if (talkBox) {
+    const newTalks = Array.isArray(R.newTalks) ? R.newTalks : [];
+    const imp = calcBingoImpact(R.bingoSnap);
+    if (newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0) {
+      const shown = newTalks.slice(0, 6);
+      const more = newTalks.length - shown.length;
+      const chips = shown.map(s => '<span class="restalk-chip">「' + s.replace(/[<>&"]/g, '') + '」</span>').join('') +
+        (more > 0 ? '<span class="restalk-chip">ほか +' + more + 'こ</span>' : '');
+      const bgParts = [];
+      if (imp.newLines > 0) bgParts.push('<span class="hit">🎉 ビンゴ達成 +' + imp.newLines + 'ライン！</span>');
+      else if (imp.newReach > 0) bgParts.push('<span class="hit">🔥 リーチ +' + imp.newReach + '！</span>');
+      if (imp.newCells > 0) bgParts.push('マス <b>+' + imp.newCells + '</b>（カード' + (imp.curIdx + 1) + ': ' + imp.curFilled + '/25）');
+      else if (imp.newLines > 0 || imp.newReach > 0) bgParts.push('カード' + (imp.curIdx + 1) + ': ' + imp.curFilled + '/25');
+      const btnHtml = (imp.readyCards > 0 || imp.newCells > 0) ? '<button type="button" class="restalk-btn" data-bingo-go="1">' + (imp.readyCards > 0 ? '🎁 報酬をうけとる' : '🎯 ビンゴを見る') + '</button>' : '';
+      talkBox.innerHTML =
+        '<div class="restalk-h"><span>💬 新しくみつけたセリフ（' + newTalks.length + 'こ）</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>' +
+        (chips ? '<div class="restalk-list">' + chips + '</div>' : '') +
+        '<div class="restalk-bg"><span>🎯 ' + (bgParts.length ? bgParts.join(' ／ ') : 'ビンゴ進捗：カード' + (imp.curIdx + 1) + ' ' + imp.curFilled + '/25') + '</span>' + btnHtml + '</div>';
+      talkBox.classList.add('on');
+    } else {
+      talkBox.classList.remove('on');
+      talkBox.innerHTML = '';
+    }
+  }
   const cv = $('#revealCv'), S = Math.round(Math.min(innerWidth * 0.36, innerHeight * 0.21, 144));
   cv.style.width = cv.style.height = S + 'px'; cv.width = cv.height = Math.round(S * dpr);
   G.reveal = { t: 0, art: isCustom ? G.level.art : getArt(id), g: cv.getContext('2d'), S };
