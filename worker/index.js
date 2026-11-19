@@ -70,15 +70,18 @@ async function recordRateLimit(ip, token) {
   }));
 }
 
-const UID_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-async function makeAnonId(ip, clientId) {
-  if (/^[2-9A-HJ-KM-NP-Z]{6}$/.test(String(clientId || ''))) return String(clientId);
+const ANON_ADJ = ['あまい','きらり','ふわ','ぴょん','もこ','ぽか','そよ','ほし','にじ','いちご','さくら','みるく','みつ','そら','みんと','ちょこ','れもん','もも','りんご','めろん','ばにら','はーと','おひさ','つき','みず','のんびり','げんき','わくわく','るんるん','すたー','ぴこ','ぷち'];
+const ANON_NOUN = ['あり','ありんこ','ねこ','うさぎ','くま','りす','ひよこ','ぱんだ','ぺんぎん','こあら','かえる','いるか','きつね','たぬき','わんこ','にゃんこ','あめ','どーなつ','ぷりん','けーき','まかろん','くっきー','ぱふぇ','もち','だんご','たいやき','たると','わっふる','べりー','ほいっぷ','しゅがー','みっくす'];
+async function makeAnonName(ip, clientAnon) {
+  const ca = String(clientAnon || '').trim().slice(0, 16);
+  if (/^[\u3040-\u309F\u30A0-\u30FFー]{4,8}#\d{2}$/.test(ca) && !hasNgWord(ca)) return ca;
   const data = new TextEncoder().encode('antflow-anon:' + String(ip || 'unknown'));
   const digest = await crypto.subtle.digest('SHA-256', data);
   const arr = new Uint8Array(digest);
-  let out = '';
-  for (let i = 0; i < 6; i++) out += UID_CHARS[arr[i] % UID_CHARS.length];
-  return out;
+  const a = ANON_ADJ[arr[0] % ANON_ADJ.length];
+  const n = ANON_NOUN[arr[1] % ANON_NOUN.length];
+  const num = ((arr[2] << 8) | arr[3]) % 90 + 10;
+  return a + n + '#' + num;
 }
 
 async function checkDuplicateIssue(env, kind, token, contentHash) {
@@ -144,8 +147,7 @@ export default {
     const name = String(body.name || '').trim().slice(0, 20);
     let rawAuthor = String(body.author || '').trim().slice(0, 16);
     if (!rawAuthor || rawAuthor === '名無しのありんこ' || rawAuthor === '名無し') {
-      const anonId = await makeAnonId(ip, body.clientId);
-      rawAuthor = '名無しのありんこ#' + anonId;
+      rawAuthor = await makeAnonName(ip, body.clientId);
     }
     const author = rawAuthor;
     const baseAuthor = String(body.baseAuthor || '').trim().slice(0, 16);

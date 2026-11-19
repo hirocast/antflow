@@ -53,17 +53,17 @@
   const mkHistory = [];
   let mkCol = 0, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
   let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '';
-  const UID_KEY = 'antflow-uid-v1';
-  const UID_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  const UID_KEY = 'antflow-anon-name-v1';
+  const ANON_ADJ = ['あまい','きらり','ふわ','ぴょん','もこ','ぽか','そよ','ほし','にじ','いちご','さくら','みるく','みつ','そら','みんと','ちょこ','れもん','もも','りんご','めろん','ばにら','はーと','おひさ','つき','みず','のんびり','げんき','わくわく','るんるん','すたー','ぴこ','ぷち'];
+  const ANON_NOUN = ['あり','ありんこ','ねこ','うさぎ','くま','りす','ひよこ','ぱんだ','ぺんぎん','こあら','かえる','いるか','きつね','たぬき','わんこ','にゃんこ','あめ','どーなつ','ぷりん','けーき','まかろん','くっきー','ぱふぇ','もち','だんご','たいやき','たると','わっふる','べりー','ほいっぷ','しゅがー','みっくす'];
   function getClientUid() {
     try {
       let u = localStorage.getItem(UID_KEY);
-      if (u && /^[2-9A-HJ-KM-NP-Z]{6}$/.test(u)) return u;
-      u = '';
-      for (let i = 0; i < 6; i++) u += UID_CHARS[Math.floor(Math.random() * UID_CHARS.length)];
+      if (u && /^[\u3040-\u309F\u30A0-\u30FFー]{4,8}#\d{2}$/.test(u)) return u;
+      u = ANON_ADJ[Math.floor(Math.random() * ANON_ADJ.length)] + ANON_NOUN[Math.floor(Math.random() * ANON_NOUN.length)] + '#' + Math.floor(10 + Math.random() * 90);
       localStorage.setItem(UID_KEY, u);
       return u;
-    } catch (e) { return 'A2B3C4'; }
+    } catch (e) { return 'いちごあり#42'; }
   }
   function stageContentHash(grid, w, h) {
     let h1 = 2166136261 >>> 0;
@@ -1259,7 +1259,7 @@
       if (apiUrl) {
         $('#postApiBox').style.display = 'block';
         $('#postGhBox').style.display = 'none';
-        $('#postNick').placeholder = 'ニックネーム（空欄なら「名無しのありんこ#' + uid + '」）';
+        $('#postNick').placeholder = 'ニックネーム（空欄なら「' + uid + '」）';
         try { $('#postNick').value = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
         $('#postSummary').textContent = '「' + name + '」（' + mkW + '×' + mkH + (bgmName ? '・🎵' + bgmName : '') + (mkBaseAuthor ? '・元:' + mkBaseAuthor : '') + '）';
         $('#bPostGo').textContent = '📮 みんなに公開する！';
