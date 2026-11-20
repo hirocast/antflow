@@ -273,12 +273,32 @@
     w.close();
     return new Uint8Array(await new Response(cs.readable).arrayBuffer());
   }
-  async function inflateRawBytes(bytes) {
+  async function inflateRawBytes(bytes, maxBytes = 65536) {
     const ds = new DecompressionStream('deflate-raw');
     const w = ds.writable.getWriter();
-    w.write(bytes);
-    w.close();
-    return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+    w.write(bytes).catch(() => {});
+    w.close().catch(() => {});
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+          await reader.cancel().catch(() => {});
+          throw new Error('Decompressed stage payload too large');
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+    return out;
   }
   function parseTalkField(str) {
     return String(str || '').split(/[/／\n]+/).map(s => s.trim().slice(0, 28)).filter(Boolean).slice(0, 5);
@@ -410,6 +430,7 @@
   }
   async function decodeCustomStage(token) {
     try {
+      if (typeof token !== 'string' || token.length < 8 || token.length > 16000) return null;
       const bytes = fromB64Url(token);
       if (bytes.length < 6) return null;
       const ver = bytes[0];
@@ -1317,10 +1338,11 @@
         '<h3></h3>' +
         '<small class="fine" style="display:block;margin-bottom:4px"></small>' +
         '<div class="body" style="white-space:pre-line;font-weight:700"></div>' +
-        (cur.rewardText ? '<div class="rw">🎁 うけとった報酬：' + cur.rewardText + '</div>' : '');
+        (cur.rewardText ? '<div class="rw"></div>' : '');
       detEl.querySelector('h3').textContent = cur.title;
       detEl.querySelector('small').textContent = (cur.badge || '') + (dStr ? ' · ' + dStr : '');
       detEl.querySelector('.body').textContent = cur.body;
+      if (cur.rewardText) detEl.querySelector('.rw').textContent = '🎁 うけとった報酬：' + cur.rewardText;
     }
     function openInbox() {
       seedOfficialNews();
@@ -1888,6 +1910,7 @@
     function loadRefSource(url, isBlob) {
       const im = $('#mkRefImg');
       if (!im) return;
+      im.referrerPolicy = 'no-referrer';
       im.onload = () => {
         if (mkRefBlobUrl && mkRefBlobUrl !== url) { try { URL.revokeObjectURL(mkRefBlobUrl); } catch (e) {} mkRefBlobUrl = ''; }
         if (isBlob) mkRefBlobUrl = url;
@@ -1928,7 +1951,7 @@
     $('#bRefUrlGo').addEventListener('click', () => {
       Sound.tap();
       const u = ($('#mkRefUrlIn').value || '').trim();
-      if (!/^https?:\/\/\S+$/i.test(u)) { toast('http:// または https:// の画像URLを入れてね'); return; }
+      if (!/^https:\/\/\S+$/i.test(u)) { toast('https:// で始まる画像URLを入れてね'); return; }
       loadRefSource(u, false);
     });
     $('#bRefToggle').addEventListener('click', () => {

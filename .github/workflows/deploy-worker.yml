@@ -6,7 +6,11 @@ on:
       - main
     paths:
       - 'worker/**'
+      - '.github/workflows/deploy-worker.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
@@ -15,9 +19,100 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure RATE_LIMIT_KV namespace binding
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const accountId = process.env.CF_ACCOUNT_ID;
+          const token = process.env.CF_API_TOKEN;
+          const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          };
+          const TITLE = 'antflow-rate-limit';
+
+          (async () => {
+            const listRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces?per_page=100`, { headers });
+            const listData = await listRes.json().catch(() => ({}));
+            if (!listRes.ok || !listData.success) {
+              console.warn('Skipping RATE_LIMIT_KV auto-binding (KV API unavailable or token lacks KV permission):', listRes.status);
+              return;
+            }
+            let ns = (listData.result || []).find(n => n.title === TITLE);
+            if (!ns) {
+              const createRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ title: TITLE })
+              });
+              const createData = await createRes.json().catch(() => ({}));
+              if (!createRes.ok || !createData.success || !createData.result?.id) {
+                console.warn('Failed to create RATE_LIMIT_KV namespace:', createRes.status);
+                return;
+              }
+              ns = createData.result;
+              console.log('Created KV namespace:', TITLE);
+            } else {
+              console.log('Found existing KV namespace:', TITLE);
+            }
+            const tomlPath = 'worker/wrangler.toml';
+            let toml = fs.readFileSync(tomlPath, 'utf8');
+            if (!toml.includes('binding = "RATE_LIMIT_KV"')) {
+              toml += `\n[[kv_namespaces]]\nbinding = "RATE_LIMIT_KV"\nid = "${ns.id}"\n`;
+              fs.writeFileSync(tomlPath, toml, 'utf8');
+              console.log('Bound RATE_LIMIT_KV in runner wrangler.toml');
+            }
+          })();
+          EOF
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
+
+      - name: Ensure ANON_SECRET on Cloudflare Worker
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node - <<'EOF'
+          const crypto = require('crypto');
+          const accountId = process.env.CF_ACCOUNT_ID;
+          const token = process.env.CF_API_TOKEN;
+          const scriptName = 'antflow';
+          const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          };
+
+          (async () => {
+            const listRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/${scriptName}/secrets`, { headers });
+            const listData = await listRes.json().catch(() => ({}));
+            if (!listRes.ok || !listData.success) {
+              console.warn('Could not list worker secrets:', listRes.status);
+              return;
+            }
+            const exists = (listData.result || []).some(s => s.name === 'ANON_SECRET');
+            if (exists) {
+              console.log('ANON_SECRET is already configured.');
+              return;
+            }
+            const secretValue = crypto.randomBytes(32).toString('hex');
+            const putRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/${scriptName}/secrets`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify({ name: 'ANON_SECRET', text: secretValue, type: 'secret_text' })
+            });
+            const putData = await putRes.json().catch(() => ({}));
+            if (!putRes.ok || !putData.success) {
+              console.warn('Failed to set ANON_SECRET:', putRes.status);
+              return;
+            }
+            console.log('Provisioned ANON_SECRET on Cloudflare Worker.');
+          })();
+          EOF

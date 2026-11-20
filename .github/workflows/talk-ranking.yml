@@ -33,9 +33,10 @@ jobs:
             'Content-Type': 'application/json'
           };
 
-          // base.js からセリフ -> ステージ名の逆引きマップを作成
-          function buildStageMap() {
-            const map = new Map();
+          // base.js から公式セリフ一覧とセリフ -> ステージ名の逆引きマップを作成
+          function buildTalkCatalog() {
+            const stageMap = new Map();
+            const officialTalks = new Set();
             try {
               const code = fs.readFileSync('base.js', 'utf8');
               const ctx = {
@@ -44,21 +45,45 @@ jobs:
                 AF_LOADED: []
               };
               ctx.window = ctx;
-              vm.runInContext(code + '\nthis._TALK_STAGE = typeof TALK_STAGE !== "undefined" ? TALK_STAGE : {};', vm.createContext(ctx));
+              vm.runInContext(
+                code +
+                '\nthis._TALK_STAGE = typeof TALK_STAGE !== "undefined" ? TALK_STAGE : {};' +
+                '\nthis._TALK = typeof TALK !== "undefined" ? TALK : {};' +
+                '\nthis._TALK_THEME = typeof TALK_THEME !== "undefined" ? TALK_THEME : {};' +
+                '\nthis._TALK_COLOR = typeof TALK_COLOR !== "undefined" ? TALK_COLOR : [];' +
+                '\nthis._COLOR_NAME = typeof COLOR_NAME !== "undefined" ? COLOR_NAME : [];',
+                vm.createContext(ctx)
+              );
               const ts = ctx._TALK_STAGE || {};
               for (const [stageName, obj] of Object.entries(ts)) {
                 if (!obj || typeof obj !== 'object') continue;
                 for (const k of ['hi', 'p', 'c', 'j', 'q']) {
                   if (!Array.isArray(obj[k])) continue;
                   for (const line of obj[k]) {
-                    if (line && !map.has(line)) map.set(line, stageName);
+                    if (line) {
+                      officialTalks.add(line);
+                      if (!stageMap.has(line)) stageMap.set(line, stageName);
+                    }
+                  }
+                }
+              }
+              for (const arr of Object.values(ctx._TALK || {})) {
+                if (Array.isArray(arr)) arr.forEach(s => { if (s) officialTalks.add(s); });
+              }
+              for (const arr of Object.values(ctx._TALK_THEME || {})) {
+                if (Array.isArray(arr)) arr.forEach(s => { if (s) officialTalks.add(s); });
+              }
+              if (Array.isArray(ctx._TALK_COLOR) && Array.isArray(ctx._COLOR_NAME)) {
+                for (const tpl of ctx._TALK_COLOR) {
+                  for (const cn of ctx._COLOR_NAME) {
+                    officialTalks.add(String(tpl).replace('{c}', cn));
                   }
                 }
               }
             } catch (e) {
-              console.warn('Stage map build skipped:', e.message);
+              throw new Error('Failed to build official talk catalog: ' + e.message);
             }
-            return map;
+            return { stageMap, officialTalks };
           }
 
           (async () => {
@@ -72,13 +97,14 @@ jobs:
             if (!m) { console.log('No LIKES_JSON found.'); return; }
             let counts = {};
             try { counts = JSON.parse(m[1]) || {}; } catch {}
+
+            const { stageMap, officialTalks } = buildTalkCatalog();
             const top = Object.entries(counts)
-              .filter(([, c]) => Number(c) > 0)
+              .filter(([talk, c]) => officialTalks.has(talk) && Number(c) > 0)
               .sort((a, b) => Number(b[1]) - Number(a[1]))
               .slice(0, 5);
-            if (!top.length) { console.log('No likes recorded yet.'); return; }
+            if (!top.length) { console.log('No official talk likes recorded yet.'); return; }
 
-            const stageMap = buildStageMap();
             const medals = ['🥇 1位', '🥈 2位', '🥉 3位', '4位', '5位'];
             const lines = top.map(([talk, cnt], i) => {
               const st = stageMap.get(talk);

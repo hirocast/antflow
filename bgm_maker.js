@@ -362,6 +362,7 @@
 
   function decodeBgm(tok) {
     try {
+      if (typeof tok !== 'string' || tok.length < 4 || tok.length > 16000) return null;
       let b64 = tok.replace(/-/g, '+').replace(/_/g, '/');
       while (b64.length % 4) b64 += '=';
       const bin = atob(b64);
@@ -369,6 +370,18 @@
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const min = JSON.parse(new TextDecoder().decode(bytes));
       if (!min || !Array.isArray(min.r) || !min.r.length) return null;
+      const sanitizeStepNotes = arr => {
+        if (!Array.isArray(arr)) return [];
+        const out = [];
+        for (let j = 0; j < arr.length && out.length < 9; j++) {
+          const v = Number(arr[j]);
+          if (Number.isFinite(v)) {
+            const iv = Math.round(v);
+            if (iv >= -12 && iv <= 24 && out.indexOf(iv) < 0) out.push(iv);
+          }
+        }
+        return out;
+      };
       return cloneSong({
         name: min.n || 'おともだちのBGM',
         bpm: min.b || 116,
@@ -376,12 +389,12 @@
         singer: min.sg || 'custom',
         allowUse: !!min.au,
         allowRemix: !!min.ar,
-        bars: min.r.map(rb => ({
-          notes: Array.from({ length: 16 }, (_, idx) => Array.isArray(rb.n && rb.n[idx]) ? rb.n[idx].filter(v => Number.isFinite(v)) : []),
-          ties: Array.from({ length: 16 }, (_, idx) => Array.isArray(rb.t && rb.t[idx]) ? rb.t[idx].filter(v => Number.isFinite(v)) : []),
-          kick: Array.from({ length: 16 }, (_, idx) => (rb.k && rb.k[idx] === '1') ? 1 : 0),
-          clap: Array.from({ length: 16 }, (_, idx) => (rb.c && rb.c[idx] === '1') ? 1 : 0),
-          lyric: rb.l ? String(rb.l).slice(0, 24) : ''
+        bars: min.r.slice(0, 8).map(rb => ({
+          notes: Array.from({ length: 16 }, (_, idx) => sanitizeStepNotes(rb && rb.n && rb.n[idx])),
+          ties: Array.from({ length: 16 }, (_, idx) => sanitizeStepNotes(rb && rb.t && rb.t[idx])),
+          kick: Array.from({ length: 16 }, (_, idx) => (rb && rb.k && rb.k[idx] === '1') ? 1 : 0),
+          clap: Array.from({ length: 16 }, (_, idx) => (rb && rb.c && rb.c[idx] === '1') ? 1 : 0),
+          lyric: rb && rb.l ? String(rb.l).slice(0, 24) : ''
         }))
       });
     } catch (e) {
@@ -557,8 +570,8 @@
     }
     list.innerHTML = arr.map((s, i) =>
       '<div class="bgm-item">' +
-        '<b>' + String(s.name || '無題').replace(/[<>&"]/g, '') + '</b>' +
-        '<small>BPM' + s.bpm + ' / ' + (s.bars ? s.bars.length : 1) + '小節</small>' +
+        '<b>' + String(s.name || '無題').replace(/[&<>"']/g, '') + '</b>' +
+        '<small>BPM' + clamp(Number(s.bpm) || 112, 70, 170) + ' / ' + (Array.isArray(s.bars) ? Math.min(8, Math.max(1, s.bars.length)) : 1) + '小節</small>' +
         '<button type="button" class="bgm-mini" data-act="load" data-i="' + i + '">ひらく</button>' +
         '<button type="button" class="bgm-mini" data-act="arrange" data-i="' + i + '">✏️ アレンジ</button>' +
         '<button type="button" class="bgm-mini use" data-act="use" data-i="' + i + '">使う</button>' +

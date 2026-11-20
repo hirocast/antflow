@@ -3,7 +3,14 @@
 
 const REPO_OWNER = 'hirocast';
 const REPO_NAME = 'antflow';
+const SITE_URL = 'https://hirocast.github.io/antflow/';
 const RATE_LIMIT_SEC = 60;
+const BURST_WINDOW_MS = 60 * 1000;
+const BURST_MAX_REQ = 24;
+
+const FORBIDDEN_KEYS = new Set([
+  '__proto__', 'constructor', 'prototype', 'toString', 'valueOf', 'hasOwnProperty'
+]);
 
 const NG_WORDS = [
   '死ね', 'しね', '殺す', 'ころす', 'バカ', 'ばか', 'アホ', 'あほ', 'クズ', 'くず',
@@ -11,31 +18,154 @@ const NG_WORDS = [
   'アダルト', '暴力', '薬物', '大麻', 'fuck', 'shit', 'bitch', 'porn', 'sex', 'nude'
 ];
 
+// Isolate内インメモリレート制限ストア（*.workers.dev では caches.default が no-op になるため）
+// env.RATE_LIMIT_KV がバインドされている場合は KV も併用する
+const MEM_RL = new Map();
+const MEM_BURST = new Map();
+const MEM_RL_MAX = 4000;
+
+function sweepMap(map, now) {
+  if (map.size < MEM_RL_MAX) return;
+  for (const [k, exp] of map) {
+    const t = typeof exp === 'number' ? exp : (exp && exp.resetAt) || 0;
+    if (t <= now) map.delete(k);
+  }
+  while (map.size >= MEM_RL_MAX) {
+    const first = map.keys().next().value;
+    if (first === undefined) break;
+    map.delete(first);
+  }
+}
+
+async function rlHas(env, key) {
+  const now = Date.now();
+  const exp = MEM_RL.get(key);
+  if (exp !== undefined) {
+    if (exp > now) return true;
+    MEM_RL.delete(key);
+  }
+  if (env && env.RATE_LIMIT_KV) {
+    try {
+      const v = await env.RATE_LIMIT_KV.get(key);
+      if (v !== null) return true;
+    } catch {}
+  }
+  return false;
+}
+
+async function rlSet(env, key, ttlSec) {
+  const now = Date.now();
+  sweepMap(MEM_RL, now);
+  MEM_RL.set(key, now + ttlSec * 1000);
+  if (env && env.RATE_LIMIT_KV) {
+    try {
+      await env.RATE_LIMIT_KV.put(key, '1', { expirationTtl: Math.max(60, ttlSec) });
+    } catch {}
+  }
+}
+
+async function rlDel(env, key) {
+  MEM_RL.delete(key);
+  if (env && env.RATE_LIMIT_KV) {
+    try {
+      await env.RATE_LIMIT_KV.delete(key);
+    } catch {}
+  }
+}
+
+function checkBurstLimit(ip) {
+  const now = Date.now();
+  sweepMap(MEM_BURST, now);
+  const key = String(ip || 'unknown');
+  const cur = MEM_BURST.get(key);
+  if (!cur || cur.resetAt <= now) {
+    MEM_BURST.set(key, { count: 1, resetAt: now + BURST_WINDOW_MS });
+    return false;
+  }
+  cur.count += 1;
+  return cur.count > BURST_MAX_REQ;
+}
+
+function safeDict(raw) {
+  const out = Object.create(null);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw)) {
+    if (!FORBIDDEN_KEYS.has(k)) out[k] = v;
+  }
+  return out;
+}
+
 function hasNgWord(str) {
   const s = String(str || '');
-  if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|@/i.test(s)) return true;
+  if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|[@＠]/i.test(s)) return true;
   const norm = s.toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
   return NG_WORDS.some(w => norm.includes(w));
 }
 
-function corsHeaders(request, env) {
-  const origin = request.headers.get('Origin') || '';
-  const allowed = (env.ALLOWED_ORIGINS || 'https://hirocast.github.io,http://localhost,http://127.0.0.1')
+function cleanMdLine(v, max) {
+  return String(v || '')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/<!--|-->/g, '')
+    .replace(/<\/?details\b[^>]*>/gi, '')
+    .replace(/```+/g, "'''")
+    .replace(/@(?=[A-Za-z0-9_-])/g, '＠')
+    .replace(/[<>`]/g, '')
+    .trim()
+    .slice(0, max);
+}
+
+function cleanMdBlock(v, max) {
+  return String(v || '')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/<!--|-->/g, '')
+    .replace(/<\/?details\b[^>]*>/gi, '')
+    .replace(/```+/g, "'''")
+    .replace(/@(?=[A-Za-z0-9_-])/g, '＠')
+    .trim()
+    .slice(0, max);
+}
+
+function clampInt(val, min, max, fallback) {
+  const n = Math.round(Number(val));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function getAllowedOrigins(env) {
+  return (env.ALLOWED_ORIGINS || 'https://hirocast.github.io')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  let allowOrigin = allowed[0] || '*';
-  if (allowed.includes('*')) {
-    allowOrigin = '*';
-  } else if (origin && allowed.some(a => origin === a || origin.startsWith(a + ':'))) {
-    allowOrigin = origin;
-  }
-  return {
-    'Access-Control-Allow-Origin': allowOrigin,
+}
+
+function isAllowedOrigin(origin, env) {
+  if (!origin) return false;
+  const allowed = getAllowedOrigins(env);
+  if (allowed.includes('*')) return true;
+  return allowed.some(a => {
+    if (origin === a) return true;
+    if ((a === 'http://localhost' || a === 'http://127.0.0.1') && origin.startsWith(a + ':')) {
+      const port = origin.slice(a.length + 1);
+      return /^\d{1,5}$/.test(port);
+    }
+    return false;
+  });
+}
+
+function corsHeaders(request, env) {
+  const origin = request.headers.get('Origin') || '';
+  const headers = {
+    'Vary': 'Origin',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400'
   };
+  if (isAllowedOrigin(origin, env)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  return headers;
 }
 
 function jsonRes(data, status, headers) {
@@ -45,39 +175,102 @@ function jsonRes(data, status, headers) {
   });
 }
 
-async function checkRateLimit(ip, token) {
-  const cache = caches.default;
-  const ipKey = new Request('https://antflow-rl.internal/ip/' + encodeURIComponent(ip || 'unknown'));
-  const hitIp = await cache.match(ipKey);
-  if (hitIp) return '連続投稿制限：少し待ってから投稿してね';
+async function parseJsonPost(request, env, cors, maxBytes) {
+  const origin = request.headers.get('Origin') || '';
+  if (!isAllowedOrigin(origin, env)) {
+    return { errorRes: jsonRes({ ok: false, error: '許可されていない送信元です' }, 403, cors) };
+  }
+  const ct = (request.headers.get('Content-Type') || '').toLowerCase();
+  if (!ct.startsWith('application/json')) {
+    return { errorRes: jsonRes({ ok: false, error: 'Content-Type must be application/json' }, 415, cors) };
+  }
+  const cl = Number(request.headers.get('Content-Length'));
+  if (Number.isFinite(cl) && cl > maxBytes) {
+    return { errorRes: jsonRes({ ok: false, error: '送信データが大きすぎます' }, 413, cors) };
+  }
+  let text;
+  try {
+    text = await request.text();
+  } catch {
+    return { errorRes: jsonRes({ ok: false, error: 'Invalid body' }, 400, cors) };
+  }
+  if (new TextEncoder().encode(text).length > maxBytes) {
+    return { errorRes: jsonRes({ ok: false, error: '送信データが大きすぎます' }, 413, cors) };
+  }
+  try {
+    const body = JSON.parse(text);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return { errorRes: jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors) };
+    }
+    return { body };
+  } catch {
+    return { errorRes: jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors) };
+  }
+}
 
-  const tokKey = new Request('https://antflow-rl.internal/tok/' + encodeURIComponent(token.slice(0, 64)));
-  const hitTok = await cache.match(tokKey);
-  if (hitTok) return '同じ作品は連続で投稿できません';
+function validateImageDataUrl(rawImg) {
+  const m = /^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(rawImg);
+  if (!m) return false;
+  const fmt = m[1];
+  const b64 = m[2];
+  if (b64.length < 16) return false;
+  let head;
+  try {
+    // 先頭16バイト相当の Base64（24文字）をデコードしてマジックバイトを検証
+    const bin = atob(b64.slice(0, 24));
+    head = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) head[i] = bin.charCodeAt(i);
+  } catch {
+    return false;
+  }
+  if (head.length < 12) return false;
+  if (fmt === 'jpeg' || fmt === 'jpg') {
+    return head[0] === 0xFF && head[1] === 0xD8 && head[2] === 0xFF;
+  }
+  if (fmt === 'png') {
+    return head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47 &&
+      head[4] === 0x0D && head[5] === 0x0A && head[6] === 0x1A && head[7] === 0x0A;
+  }
+  if (fmt === 'webp') {
+    return head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46 &&
+      head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50;
+  }
+  return false;
+}
 
+async function checkRateLimit(env, ip, token) {
+  if (await rlHas(env, 'post:ip:' + (ip || 'unknown'))) {
+    return '連続投稿制限：少し待ってから投稿してね';
+  }
+  if (await rlHas(env, 'post:tok:' + token.slice(0, 64))) {
+    return '同じ作品は連続で投稿できません';
+  }
   return '';
 }
 
-async function recordRateLimit(ip, token) {
-  const cache = caches.default;
-  const ipKey = new Request('https://antflow-rl.internal/ip/' + encodeURIComponent(ip || 'unknown'));
-  await cache.put(ipKey, new Response('1', {
-    headers: { 'Cache-Control': 'public, max-age=' + RATE_LIMIT_SEC }
-  }));
-  const tokKey = new Request('https://antflow-rl.internal/tok/' + encodeURIComponent(token.slice(0, 64)));
-  await cache.put(tokKey, new Response('1', {
-    headers: { 'Cache-Control': 'public, max-age=600' }
-  }));
+async function recordRateLimit(env, ip, token) {
+  await rlSet(env, 'post:ip:' + (ip || 'unknown'), RATE_LIMIT_SEC);
+  await rlSet(env, 'post:tok:' + token.slice(0, 64), 600);
 }
 
 const ANON_ADJ = ['Sweet','Star','Sunny','Happy','Fluffy','Cozy','Mint','Choco','Berry','Peach','Lemon','Apple','Melon','Honey','Milk','Sugar','Moon','Sky','Cloud','Rain','Snow','Sakura','Mochi','Magic','Lucky','Cute','Tiny','Bouncy','Dreamy','Spark','Ruby','Pearl'];
 const ANON_NOUN = ['Ant','Cat','Bear','Fox','Bunny','Panda','Koala','Frog','Duck','Owl','Seal','Puppy','Kitty','Candy','Donut','Cake','Cookie','Tart','Waffle','Puff','Macaron','Mochi','Berry','Melon','Cloud','Star','Heart','Ribbon','Bell','Leaf','Drop','Pony'];
-async function makeAnonName(ip, clientAnon) {
+async function makeAnonName(env, ip, clientAnon) {
   const ca = String(clientAnon || '').trim().slice(0, 16);
   if (/^[A-Za-z]{4,13}#\d{2}$/.test(ca) && !hasNgWord(ca)) return ca;
-  const data = new TextEncoder().encode('antflow-anon:' + String(ip || 'unknown'));
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  const arr = new Uint8Array(digest);
+  const enc = new TextEncoder();
+  let arr;
+  if (env && env.ANON_SECRET) {
+    const key = await crypto.subtle.importKey(
+      'raw', enc.encode(String(env.ANON_SECRET)),
+      { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(String(ip || 'unknown')));
+    arr = new Uint8Array(sig);
+  } else {
+    const digest = await crypto.subtle.digest('SHA-256', enc.encode('antflow-anon:' + String(ip || 'unknown')));
+    arr = new Uint8Array(digest);
+  }
   const a = ANON_ADJ[arr[0] % ANON_ADJ.length];
   const n = ANON_NOUN[arr[1] % ANON_NOUN.length];
   const num = ((arr[2] << 8) | arr[3]) % 90 + 10;
@@ -116,27 +309,34 @@ async function checkDuplicateIssue(env, kind, token, contentHash) {
 }
 
 async function handleTalkLike(request, env, cors) {
-  let body;
-  try { body = await request.json(); } catch { return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors); }
-  const talk = String(body.talk || '').trim().replace(/[\r\n|<>`]/g, '').slice(0, 60);
-  const delta = body.delta === -1 ? -1 : 1;
-  if (!talk || hasNgWord(talk)) return jsonRes({ ok: false, error: 'Invalid talk' }, 400, cors);
+  const { body, errorRes } = await parseJsonPost(request, env, cors, 4096);
+  if (errorRes) return errorRes;
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const cache = caches.default;
-  const lkKey = new Request('https://antflow-rl.internal/like/' + encodeURIComponent(ip + ':' + talk));
+  if (checkBurstLimit(ip)) {
+    return jsonRes({ ok: false, error: 'アクセスが集中しています。少し待ってね' }, 429, cors);
+  }
+
+  const talk = cleanMdLine(body.talk, 60).replace(/[|\\[\]]/g, '').trim();
+  const delta = body.delta === -1 ? -1 : 1;
+  if (!talk || FORBIDDEN_KEYS.has(talk) || hasNgWord(talk)) {
+    return jsonRes({ ok: false, error: 'Invalid talk' }, 400, cors);
+  }
+
+  const lkKey = 'like:' + ip + ':' + talk;
   if (delta === 1) {
-    if (await cache.match(lkKey)) {
+    if (await rlHas(env, lkKey)) {
       return jsonRes({ ok: true, skipped: true }, 200, cors);
     }
-    await cache.put(lkKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=86400' } }));
+    await rlSet(env, lkKey, 86400);
   } else {
-    const ulKey = new Request('https://antflow-rl.internal/unlike/' + encodeURIComponent(ip + ':' + talk));
-    if (await cache.match(ulKey)) {
+    const ulKey = 'unlike:' + ip + ':' + talk;
+    if (await rlHas(env, ulKey)) {
       return jsonRes({ ok: true, skipped: true }, 200, cors);
     }
-    await cache.delete(lkKey);
-    await cache.put(ulKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=10' } }));
+    // いいね記録がないIPからの無制限な減算連打を抑制（60秒クールダウン）
+    await rlDel(env, lkKey);
+    await rlSet(env, ulKey, 60);
   }
 
   const ghHeaders = {
@@ -150,24 +350,24 @@ async function handleTalkLike(request, env, cors) {
   const existing = await listRes.json();
   const iss = Array.isArray(existing) && existing[0] ? existing[0] : null;
 
-  let counts = {};
+  let counts = Object.create(null);
   if (iss && iss.body) {
     const m = iss.body.match(/<!--\s*LIKES_JSON:([\s\S]*?)-->/);
     if (m) {
-      try { counts = JSON.parse(m[1]) || {}; } catch {}
+      try { counts = safeDict(JSON.parse(m[1])); } catch {}
     }
   }
   const next = Math.max(0, (Number(counts[talk]) || 0) + delta);
   if (next > 0) counts[talk] = next;
   else delete counts[talk];
 
-  const sorted = Object.entries(counts).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 200);
+  const sorted = Object.entries(counts).filter(([k, c]) => !FORBIDDEN_KEYS.has(k) && Number(c) > 0).sort((a, b) => b[1] - a[1]).slice(0, 200);
   const compact = Object.fromEntries(sorted);
 
   let md = '### 💬 人気のセリフ ランキング（自動集計）\n';
   md += '<!-- LIKES_JSON:' + JSON.stringify(compact) + ' -->\n\n';
   md += '| 順位 | いいね | セリフ |\n| --- | ---: | --- |\n';
-  sorted.forEach(([t, c], i) => { md += `| ${i + 1} | ${c} | ${t} |\n`; });
+  sorted.forEach(([t, c], i) => { md += `| ${i + 1} | ${c} | ${cleanMdLine(t, 60).replace(/\|/g, '')} |\n`; });
 
   if (iss) {
     await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${iss.number}`, {
@@ -187,14 +387,14 @@ async function handleTalkLike(request, env, cors) {
 
 async function readStageStatsIssue(ghHeaders) {
   const listRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=stage-stats&state=open&per_page=1`, { headers: ghHeaders });
-  if (!listRes.ok) return { ok: false, iss: null, stats: {} };
+  if (!listRes.ok) return { ok: false, iss: null, stats: Object.create(null) };
   const existing = await listRes.json();
   const iss = Array.isArray(existing) && existing[0] ? existing[0] : null;
-  let stats = {};
+  let stats = Object.create(null);
   if (iss && iss.body) {
     const m = iss.body.match(/<!--\s*STAGE_STATS_JSON:([\s\S]*?)-->/);
     if (m) {
-      try { stats = JSON.parse(m[1]) || {}; } catch {}
+      try { stats = safeDict(JSON.parse(m[1])); } catch {}
     }
   }
   return { ok: true, iss, stats };
@@ -212,46 +412,55 @@ async function handleStageStatsGet(env, cors) {
 }
 
 async function handleStageStatPost(request, env, cors) {
-  let body;
-  try { body = await request.json(); } catch { return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors); }
-  const hash = String(body.hash || '').trim();
-  const event = String(body.event || '').trim();
-  const clientId = String(body.clientId || '').trim().slice(0, 32);
-  const sec = Number(body.sec);
-  if (!/^[A-Za-z0-9_-]{6,32}$/.test(hash)) return jsonRes({ ok: false, error: 'Invalid hash' }, 400, cors);
-  if (!['play', 'clear', 'like', 'unlike', 'up', 'down'].includes(event)) return jsonRes({ ok: false, error: 'Invalid event' }, 400, cors);
+  const { body, errorRes } = await parseJsonPost(request, env, cors, 4096);
+  if (errorRes) return errorRes;
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const actor = clientId || ip;
-  const cache = caches.default;
+  if (checkBurstLimit(ip)) {
+    return jsonRes({ ok: false, error: 'アクセスが集中しています。少し待ってね' }, 429, cors);
+  }
 
+  const hash = String(body.hash || '').trim();
+  const event = String(body.event || '').trim();
+  const sec = Number(body.sec);
+  if (!/^[A-Za-z0-9_-]{6,32}$/.test(hash) || FORBIDDEN_KEYS.has(hash)) {
+    return jsonRes({ ok: false, error: 'Invalid hash' }, 400, cors);
+  }
+  if (!['play', 'clear', 'like', 'unlike', 'up', 'down'].includes(event)) {
+    return jsonRes({ ok: false, error: 'Invalid event' }, 400, cors);
+  }
+
+  // クライアント自己申告の clientId ではなく IP ベースでレート制限・重複防止を行う
+  const actor = ip;
   if (event === 'play') {
-    const cdKey = new Request('https://antflow-rl.internal/st-play-cd/' + encodeURIComponent(actor + ':' + hash));
-    if (await cache.match(cdKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
-    await cache.put(cdKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=5' } }));
+    const cdKey = 'st-play-cd:' + actor + ':' + hash;
+    if (await rlHas(env, cdKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await rlSet(env, cdKey, 10);
   } else if (event === 'clear') {
-    const cdKey = new Request('https://antflow-rl.internal/st-clr-cd/' + encodeURIComponent(actor + ':' + hash));
-    if (await cache.match(cdKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
-    await cache.put(cdKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=5' } }));
+    const cdKey = 'st-clr-cd:' + actor + ':' + hash;
+    if (await rlHas(env, cdKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await rlSet(env, cdKey, 10);
   } else if (event === 'like') {
-    const lkKey = new Request('https://antflow-rl.internal/st-like/' + encodeURIComponent(actor + ':' + hash));
-    if (await cache.match(lkKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
-    await cache.put(lkKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=2592000' } }));
+    const lkKey = 'st-like:' + actor + ':' + hash;
+    if (await rlHas(env, lkKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await rlSet(env, lkKey, 86400);
   } else if (event === 'unlike') {
-    const lkKey = new Request('https://antflow-rl.internal/st-like/' + encodeURIComponent(actor + ':' + hash));
-    await cache.delete(lkKey);
+    const ulKey = 'st-unlike-cd:' + actor + ':' + hash;
+    if (await rlHas(env, ulKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await rlDel(env, 'st-like:' + actor + ':' + hash);
+    await rlSet(env, ulKey, 60);
   } else if (event === 'up' || event === 'down') {
-    const vKey = new Request('https://antflow-rl.internal/st-vote/' + encodeURIComponent(actor + ':' + hash));
-    if (await cache.match(vKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
-    await cache.put(vKey, new Response(event, { headers: { 'Cache-Control': 'public, max-age=2592000' } }));
+    const vKey = 'st-vote:' + actor + ':' + hash;
+    if (await rlHas(env, vKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
+    await rlSet(env, vKey, 86400);
   }
 
   let isUniquePlay = false;
   if (event === 'play') {
-    const uKey = new Request('https://antflow-rl.internal/st-uniq/' + encodeURIComponent(actor + ':' + hash));
-    if (!(await cache.match(uKey))) {
+    const uKey = 'st-uniq:' + actor + ':' + hash;
+    if (!(await rlHas(env, uKey))) {
       isUniquePlay = true;
-      await cache.put(uKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=2592000' } }));
+      await rlSet(env, uKey, 86400);
     }
   }
 
@@ -264,29 +473,42 @@ async function handleStageStatPost(request, env, cors) {
   const { ok, iss, stats } = await readStageStatsIssue(ghHeaders);
   if (!ok) return jsonRes({ ok: false, error: 'GitHub read failed' }, 502, cors);
 
-  const cur = Object.assign({ u: 0, p: 0, c: 0, ts: 0, bt: 0, lk: 0, up: 0, dn: 0 }, stats[hash] || {});
+  const prev = (stats[hash] && typeof stats[hash] === 'object') ? stats[hash] : {};
+  const cur = {
+    u: Number(prev.u) || 0,
+    p: Number(prev.p) || 0,
+    c: Number(prev.c) || 0,
+    ts: Number(prev.ts) || 0,
+    bt: Number(prev.bt) || 0,
+    lk: Number(prev.lk) || 0,
+    up: Number(prev.up) || 0,
+    dn: Number(prev.dn) || 0
+  };
   if (event === 'play') {
-    cur.p = (Number(cur.p) || 0) + 1;
-    if (isUniquePlay) cur.u = (Number(cur.u) || 0) + 1;
+    cur.p += 1;
+    if (isUniquePlay) cur.u += 1;
   } else if (event === 'clear') {
-    cur.c = (Number(cur.c) || 0) + 1;
+    cur.c += 1;
     if (Number.isFinite(sec) && sec >= 0.1 && sec <= 36000) {
       const s1 = Math.round(sec * 10) / 10;
-      cur.ts = Math.round(((Number(cur.ts) || 0) + s1) * 10) / 10;
-      cur.bt = (Number(cur.bt) || 0) > 0 ? Math.round(Math.min(cur.bt, s1) * 10) / 10 : s1;
+      cur.ts = Math.round((cur.ts + s1) * 10) / 10;
+      cur.bt = cur.bt > 0 ? Math.round(Math.min(cur.bt, s1) * 10) / 10 : s1;
     }
   } else if (event === 'like') {
-    cur.lk = (Number(cur.lk) || 0) + 1;
+    cur.lk += 1;
   } else if (event === 'unlike') {
-    cur.lk = Math.max(0, (Number(cur.lk) || 0) - 1);
+    cur.lk = Math.max(0, cur.lk - 1);
   } else if (event === 'up') {
-    cur.up = (Number(cur.up) || 0) + 1;
+    cur.up += 1;
   } else if (event === 'down') {
-    cur.dn = (Number(cur.dn) || 0) + 1;
+    cur.dn += 1;
   }
   stats[hash] = cur;
 
-  const entries = Object.entries(stats).sort((a, b) => (b[1].p || 0) - (a[1].p || 0)).slice(0, 300);
+  const entries = Object.entries(stats)
+    .filter(([k]) => !FORBIDDEN_KEYS.has(k) && /^[A-Za-z0-9_-]{6,32}$/.test(k))
+    .sort((a, b) => (b[1].p || 0) - (a[1].p || 0))
+    .slice(0, 300);
   const compact = Object.fromEntries(entries);
   let md = '### 📊 投稿ステージ統計（自動集計）\n';
   md += '<!-- STAGE_STATS_JSON:' + JSON.stringify(compact) + ' -->\n\n';
@@ -320,20 +542,27 @@ const FEEDBACK_CATS = {
 };
 
 async function handleFeedback(request, env, cors) {
-  let body;
-  try { body = await request.json(); } catch { return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors); }
+  const { body, errorRes } = await parseJsonPost(request, env, cors, 100000);
+  if (errorRes) return errorRes;
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const catKey = FEEDBACK_CATS[body.category] ? body.category : 'idea';
+  if (checkBurstLimit(ip)) {
+    return jsonRes({ ok: false, error: '連続送信制限：少し待ってから送ってね' }, 429, cors);
+  }
+
+  const catKey = Object.prototype.hasOwnProperty.call(FEEDBACK_CATS, body.category) ? body.category : 'idea';
   const catLabel = FEEDBACK_CATS[catKey];
-  const cleanLine = (v, max) => String(v || '').trim().replace(/[\r\n]+/g, ' ').slice(0, max);
 
   const symptoms = Array.isArray(body.symptoms)
-    ? body.symptoms.map(s => cleanLine(s, 36)).filter(Boolean).slice(0, 6)
+    ? body.symptoms.map(s => cleanMdLine(s, 36)).filter(Boolean).slice(0, 6)
     : [];
-  const scene = cleanLine(body.scene, 40);
+  const scene = cleanMdLine(body.scene, 40);
 
-  const message = String(body.message || '').trim().replace(/\r\n/g, '\n').slice(0, 500);
+  if (symptoms.some(s => hasNgWord(s)) || (scene && hasNgWord(scene))) {
+    return jsonRes({ ok: false, error: '入力内容に使えない言葉やURLが含まれています' }, 400, cors);
+  }
+
+  const message = cleanMdBlock(body.message, 500);
   const canSkipMsg = (catKey === 'bug' || catKey === 'maker') && symptoms.length > 0;
   if (!canSkipMsg && message.length < 2) {
     return jsonRes({ ok: false, error: '内容を入力してね（2文字以上）' }, 400, cors);
@@ -342,44 +571,43 @@ async function handleFeedback(request, env, cors) {
     return jsonRes({ ok: false, error: '使えない言葉やURL・メールアドレスが入っています' }, 400, cors);
   }
 
-  let nick = cleanLine(body.nick, 16);
+  let nick = cleanMdLine(body.nick, 16);
   if (!nick || nick === '名無しのありんこ' || nick === '名無し') {
-    nick = await makeAnonName(ip, body.clientId);
+    nick = await makeAnonName(env, ip, body.clientId);
   } else if (hasNgWord(nick)) {
     return jsonRes({ ok: false, error: 'ニックネームに使えない言葉やURLが入っています' }, 400, cors);
   }
 
-  const cache = caches.default;
-  const fbKey = new Request('https://antflow-rl.internal/fb/' + encodeURIComponent(ip));
-  if (await cache.match(fbKey)) {
+  const fbKey = 'fb:ip:' + ip;
+  if (await rlHas(env, fbKey)) {
     return jsonRes({ ok: false, error: '連続送信制限：少し待ってから送ってね（60秒）' }, 429, cors);
   }
 
-  const appVer = cleanLine(body.version, 24) || 'unknown';
-  const device = cleanLine(body.device, 120) || 'unknown';
-  const progress = cleanLine(body.progress, 80) || '-';
+  const appVer = cleanMdLine(body.version, 24) || 'unknown';
+  const device = cleanMdLine(body.device, 120) || 'unknown';
+  const progress = cleanMdLine(body.progress, 80) || '-';
 
   let imageData = '';
   let imageInfo = '';
   if (body.image) {
     const rawImg = String(body.image).trim();
-    if (!/^data:image\/(?:jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(rawImg)) {
-      return jsonRes({ ok: false, error: '画像の形式が正しくありません（JPEG/PNG/WebPのみ）' }, 400, cors);
-    }
     if (rawImg.length > 52000) {
       return jsonRes({ ok: false, error: '画像サイズが大きすぎます（自動で圧縮されますが別の画像でお試しください）' }, 400, cors);
     }
+    if (!validateImageDataUrl(rawImg)) {
+      return jsonRes({ ok: false, error: '画像の形式が正しくありません（JPEG/PNG/WebPのみ）' }, 400, cors);
+    }
     imageData = rawImg;
-    imageInfo = cleanLine(body.imageInfo, 48) || Math.round(rawImg.length * 0.75 / 1024) + 'KB';
+    imageInfo = cleanMdLine(body.imageInfo, 48) || Math.round(rawImg.length * 0.75 / 1024) + 'KB';
   }
 
   // 自動収集された診断情報（任意・個人情報なし）
   let diagSection = '';
-  if (body.diag && typeof body.diag === 'object') {
+  if (body.diag && typeof body.diag === 'object' && !Array.isArray(body.diag)) {
     const d = body.diag;
     const rows = [];
     const addRow = (k, v, max = 140) => {
-      const s = cleanLine(v, max);
+      const s = cleanMdLine(v, max);
       if (s) rows.push(`- ${k}: ${s}`);
     };
     addRow('報告元の画面', d.origin, 140);
@@ -393,7 +621,7 @@ async function handleFeedback(request, env, cors) {
     addRow('読込済みJS / 保存領域', d.health, 120);
     addRow('直近の画面遷移', d.trail, 220);
     addRow('直近の操作ログ', d.actions, 240);
-    const errs = Array.isArray(d.errors) ? d.errors.map(e => cleanLine(e, 180)).filter(Boolean).slice(0, 6) : [];
+    const errs = Array.isArray(d.errors) ? d.errors.map(e => cleanMdLine(e, 180)).filter(Boolean).slice(0, 6) : [];
     rows.push(`- JSエラー記録: ${errs.length ? errs.length + '件' : 'なし'}`);
     if (rows.length) {
       diagSection =
@@ -410,6 +638,15 @@ async function handleFeedback(request, env, cors) {
   const titlePrefix = catKey === 'bug' ? '不具合' : catKey === 'maker' ? 'つくる' : '要望';
   const title = `[${titlePrefix}][${symTag}] ${titleBody}`;
 
+  const fbToken = env.FEEDBACK_GITHUB_TOKEN || env.GITHUB_TOKEN;
+  const rawFbRepo = String(env.FEEDBACK_REPO || '').trim();
+  const fbRepo = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(rawFbRepo)
+    ? rawFbRepo
+    : (env.FEEDBACK_GITHUB_TOKEN ? `${REPO_OWNER}/antflow-feedback` : `${REPO_OWNER}/${REPO_NAME}`);
+  const extractHint = fbRepo === `${REPO_OWNER}/${REPO_NAME}`
+    ? '`node scripts/extract_feedback_img.mjs <Issue番号>`'
+    : `\`node scripts/extract_feedback_img.mjs <Issue番号> --repo ${fbRepo}\``;
+
   const issueBody =
     '### 💌 ユーザーからの要望・不具合連絡\n' +
     `- カテゴリ: ${catLabel}\n` +
@@ -419,7 +656,7 @@ async function handleFeedback(request, env, cors) {
     `- アプリ版: ${appVer}\n` +
     `- 進行度: ${progress}\n` +
     `- 端末情報: ${device}\n` +
-    (imageData ? `- スクショ添付: あり（${imageInfo}）※ \`node scripts/extract_feedback_img.mjs <Issue番号>\` で画像表示可\n` : '') +
+    (imageData ? `- スクショ添付: あり（${imageInfo}）※ ${extractHint} で画像表示可\n` : '') +
     '\n#### 内容\n' +
     (message || '（クイック選択・自動診断情報のみでの報告）') + '\n' +
     diagSection +
@@ -429,10 +666,10 @@ async function handleFeedback(request, env, cors) {
   const isMakerRelated = catKey === 'maker' || !!body.isMaker || /メーカー|みんなの絵|みんなのBGM/.test(scene);
   if (isMakerRelated) labels.push('maker-feedback');
   if (catKey === 'bug' || symptoms.some(s => s.includes('不具合'))) labels.push('bug');
-  const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
+  const ghRes = await fetch(`https://api.github.com/repos/${fbRepo}/issues`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+      'Authorization': `Bearer ${fbToken}`,
       'Accept': 'application/vnd.github+json',
       'User-Agent': 'antflow-post-worker',
       'Content-Type': 'application/json'
@@ -441,12 +678,12 @@ async function handleFeedback(request, env, cors) {
   });
 
   if (!ghRes.ok) {
-    const errText = await ghRes.text();
-    return jsonRes({ ok: false, error: '送信に失敗しました (' + ghRes.status + ')', detail: errText.slice(0, 200) }, 502, cors);
+    console.error('GitHub feedback error:', ghRes.status);
+    return jsonRes({ ok: false, error: '送信に失敗しました (' + ghRes.status + ')' }, 502, cors);
   }
 
   const created = await ghRes.json();
-  await cache.put(fbKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=' + RATE_LIMIT_SEC } }));
+  await rlSet(env, fbKey, RATE_LIMIT_SEC);
   return jsonRes({ ok: true, number: created.number, author: nick, hasImage: !!imageData }, 201, cors);
 }
 
@@ -463,7 +700,7 @@ export default {
     }
 
     if (!env.GITHUB_TOKEN) {
-      return jsonRes({ ok: false, error: 'Server not configured (missing GITHUB_TOKEN)' }, 500, cors);
+      return jsonRes({ ok: false, error: 'Server not configured' }, 500, cors);
     }
 
     if (request.method === 'GET' && url.pathname === '/stage-stats') {
@@ -483,37 +720,37 @@ export default {
       return jsonRes({ ok: false, error: 'Not Found' }, 404, cors);
     }
 
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors);
-    }
+    const { body, errorRes } = await parseJsonPost(request, env, cors, 32768);
+    if (errorRes) return errorRes;
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    if (checkBurstLimit(ip)) {
+      return jsonRes({ ok: false, error: '連続投稿制限：少し待ってから投稿してね' }, 429, cors);
+    }
+
     const kind = body.kind === 'bgm' ? 'bgm' : (body.kind === 'stage' ? 'stage' : '');
-    const name = String(body.name || '').trim().slice(0, 20);
-    let rawAuthor = String(body.author || '').trim().slice(0, 16);
+    const name = cleanMdLine(body.name, 20);
+    let rawAuthor = cleanMdLine(body.author, 16);
     if (!rawAuthor || rawAuthor === '名無しのありんこ' || rawAuthor === '名無し') {
-      rawAuthor = await makeAnonName(ip, body.clientId);
+      rawAuthor = await makeAnonName(env, ip, body.clientId);
     }
     const author = rawAuthor;
-    const baseAuthor = String(body.baseAuthor || '').trim().slice(0, 16);
+    const baseAuthor = cleanMdLine(body.baseAuthor, 16);
     const contentHash = /^[A-Za-z0-9_-]{6,32}$/.test(String(body.contentHash || '')) ? String(body.contentHash) : '';
     const token = String(body.token || '').trim();
-    const siteUrl = String(body.siteUrl || 'https://hirocast.github.io/antflow/').split('?')[0];
-    const meta = body.meta && typeof body.meta === 'object' ? body.meta : {};
+    const meta = body.meta && typeof body.meta === 'object' && !Array.isArray(body.meta) ? body.meta : {};
+    const bgmName = meta.bgmName ? cleanMdLine(meta.bgmName, 20) : '';
 
     if (!kind) return jsonRes({ ok: false, error: '投稿の種類が正しくありません' }, 400, cors);
     if (!name) return jsonRes({ ok: false, error: '作品名を入力してね' }, 400, cors);
     if (!/^[A-Za-z0-9_-]{8,12000}$/.test(token)) {
       return jsonRes({ ok: false, error: '作品データが正しくありません' }, 400, cors);
     }
-    if (hasNgWord(name) || hasNgWord(author) || (baseAuthor && hasNgWord(baseAuthor))) {
+    if (hasNgWord(name) || hasNgWord(author) || (baseAuthor && hasNgWord(baseAuthor)) || (bgmName && hasNgWord(bgmName))) {
       return jsonRes({ ok: false, error: '名前・作者名に使えない言葉やURLが入っています' }, 400, cors);
     }
 
-    const rlErr = await checkRateLimit(ip, token);
+    const rlErr = await checkRateLimit(env, ip, token);
     if (rlErr) return jsonRes({ ok: false, error: rlErr }, 429, cors);
 
     const dupErr = await checkDuplicateIssue(env, kind, token, contentHash);
@@ -522,13 +759,12 @@ export default {
     let title = '';
     let issueBody = '';
     if (kind === 'stage') {
-      const w = Number(meta.w) || 16;
-      const h = Number(meta.h) || 16;
-      const talkCount = Number(meta.talkCount) || 0;
-      const bgmName = meta.bgmName ? String(meta.bgmName).slice(0, 20) : '';
+      const w = clampInt(meta.w, 8, 64, 16);
+      const h = clampInt(meta.h, 8, 64, 16);
+      const talkCount = clampInt(meta.talkCount, 0, 25, 0);
       const allowRemix = !!meta.allowRemix;
       const allowOfficial = !!meta.allowOfficial;
-      const playUrl = siteUrl + '?stage=' + token;
+      const playUrl = SITE_URL + '?stage=' + token;
       title = `[作品投稿] ${name} (${w}x${h})`;
       issueBody =
         '### オリジナルステージ投稿\n' +
@@ -543,11 +779,11 @@ export default {
         (contentHash ? `- 内容ID: ${contentHash}\n` : '') +
         `- プレイURL: ${playUrl}\n`;
     } else {
-      const bpm = Number(meta.bpm) || 116;
-      const bars = Number(meta.bars) || 2;
+      const bpm = clampInt(meta.bpm, 70, 170, 116);
+      const bars = clampInt(meta.bars, 1, 8, 2);
       const allowUse = !!meta.allowUse;
       const allowRemix = !!meta.allowRemix;
-      const playUrl = siteUrl + '?bgm=' + token;
+      const playUrl = SITE_URL + '?bgm=' + token;
       title = `[BGM投稿] ${name} (BPM${bpm})`;
       issueBody =
         '### オリジナルBGM投稿\n' +
@@ -573,12 +809,12 @@ export default {
     });
 
     if (!ghRes.ok) {
-      const errText = await ghRes.text();
-      return jsonRes({ ok: false, error: 'GitHub投稿に失敗しました (' + ghRes.status + ')', detail: errText.slice(0, 200) }, 502, cors);
+      console.error('GitHub post error:', ghRes.status);
+      return jsonRes({ ok: false, error: 'GitHub投稿に失敗しました (' + ghRes.status + ')' }, 502, cors);
     }
 
     const created = await ghRes.json();
-    await recordRateLimit(ip, token);
+    await recordRateLimit(env, ip, token);
 
     return jsonRes({ ok: true, number: created.number, url: created.html_url, author }, 201, cors);
   }

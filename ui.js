@@ -3433,7 +3433,8 @@ layout();
       : el.dataset.hub ? ('hub:' + el.dataset.hub)
       : el.dataset.tab ? ('tab:' + el.dataset.tab)
       : el.dataset.cv ? ('vote:' + el.dataset.cv)
-      : (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 14);
+      : el.dataset.cat ? ('cat:' + el.dataset.cat)
+      : (el.className && typeof el.className === 'string' ? ('.' + el.className.trim().split(/\s+/)[0].slice(0, 20)) : el.tagName.toLowerCase());
     if (tag) pushAct(tag);
   }, { capture: true, passive: true });
 
@@ -3491,7 +3492,7 @@ layout();
     '</div>' +
     '<input id="fbNick" class="fb-in" type="text" maxlength="16" placeholder="ニックネーム（空欄でもOK）">' +
     '<div class="fb-note">' +
-      '<div>・アカウント不要で送れます。本名・連絡先・スクショ内の通知など<b>個人情報が映り込まないよう</b>ご注意ください。</div>' +
+      '<div>・アカウント不要で送れます。<b>送信内容と添付スクショは開発管理用の公開GitHubページに記録されます</b>。本名・連絡先・スクショ内の通知など個人情報が映り込まないようご注意ください。</div>' +
       '<div>・原因調査のため、直前の画面・端末種別・画面サイズ・プレイ中の面・操作/エラー履歴などの技術情報のみ自動で添えられます（個人情報は送信されません）。</div>' +
       '<div>・不具合は確認のうえ改善に努めますが、<b>端末や環境によっては改善できない場合もあります</b>。</div>' +
       '<div>・<b>基本的には個別の返信は行っておりません</b>（対応内容はホームの「最近のアップデート」やおてがみ箱でお知らせします）。</div>' +
