@@ -2988,7 +2988,7 @@ function syncUpdatesToInbox(data) {
       id: 'upd-' + h.version,
       kind: 'update',
       badge: '🚀 アップデート',
-      title: '【更新】' + (h.title || data.headline || '最新アップデート'),
+      title: '【更新】' + (h.title || data.headline || '最新アップデート') + (h.version ? '（' + h.version + '）' : ''),
       body,
       at: parseUpdDate(h.date, data.date) + (hist.length - i) * 1000,
       read: i > 0
@@ -3006,14 +3006,15 @@ function renderUpdateBox() {
   if (!box) return;
   const d = appUpd.data, curVer = window.AF_APP_VER || '';
   const shortDate = d && d.date ? d.date.replace(/^\d{4}\//, '') : '';
+  const verLabel = [shortDate, d && d.version ? d.version : curVer].filter(Boolean).join(' · ');
   box.classList.toggle('has-new', appUpd.hasUpdate);
   let html = '<div class="upd-top"><div class="upd-left">';
   if (appUpd.hasUpdate) {
     html += '<span class="upd-badge">🔴 NEW! 更新あり</span>';
-    if (shortDate) html += '<span style="font-size:10.5px;font-weight:900;color:#c03060">' + escUpd(shortDate) + '版</span>';
+    if (verLabel) html += '<span style="font-size:10.5px;font-weight:900;color:#c03060">' + escUpd(verLabel) + '</span>';
     html += '</div><button type="button" class="upd-btn" id="bTitleUpdate">🔄 今すぐ更新！</button></div>';
   } else if (appUpd.checked && d) {
-    html += '<span class="upd-badge">✨ 最新版' + (shortDate ? ' ' + escUpd(shortDate) : '') + '</span>';
+    html += '<span class="upd-badge">✨ 最新版' + (verLabel ? ' ' + escUpd(verLabel) : '') + '</span>';
     html += '</div><button type="button" class="upd-hist-btn" data-upd="hist">🆕 最近のアップデート ' + (appUpd.openHist ? '▲' : '▼') + '</button></div>';
   } else {
     html += '<span class="upd-badge">✨ 更新を確認中…</span></div></div>';
@@ -3030,17 +3031,18 @@ function renderUpdateBox() {
     html += '<div class="upd-notes">';
     if (appUpd.justUpdated && !appUpd.openHist) {
       const notes = Array.isArray(d.notes) ? d.notes : [];
-      html += '<div class="upd-hl">🎉 最新版（' + escUpd(shortDate || curVer) + '）にアップデートしました！<button type="button" class="upd-ok" data-upd="ok">OK</button></div>';
+      html += '<div class="upd-hl">🎉 最新版（' + escUpd(verLabel || curVer) + '）にアップデートしました！<button type="button" class="upd-ok" data-upd="ok">OK</button></div>';
       if (notes.length) html += '<ul class="upd-ul">' + notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>';
     } else {
-      const hist = Array.isArray(d.history) && d.history.length ? d.history : [{ date: shortDate, title: d.headline || '最新アップデート', notes: d.notes || [] }];
+      const hist = Array.isArray(d.history) && d.history.length ? d.history : [{ version: d.version, date: shortDate, title: d.headline || '最新アップデート', notes: d.notes || [] }];
       const shown = appUpd.showAllHist ? hist : hist.slice(0, 5);
       html += '<div class="upd-hl">🚀 どんどん進化中！' + (appUpd.showAllHist ? 'すべてのアップデート履歴' : '最近のアップデート') + '</div>';
-      html += shown.map(h =>
-        '<div class="upd-hitem"><b>' + (h.date ? '[' + escUpd(h.date) + '] ' : '') + escUpd(h.title || '') + '</b>' +
-        (Array.isArray(h.notes) && h.notes.length ? '<ul class="upd-ul">' + h.notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>' : '') +
-        '</div>'
-      ).join('');
+      html += shown.map(h => {
+        const tag = [h.date, h.version].filter(Boolean).join(' · ');
+        return '<div class="upd-hitem"><b>' + (tag ? '[' + escUpd(tag) + '] ' : '') + escUpd(h.title || '') + '</b>' +
+          (Array.isArray(h.notes) && h.notes.length ? '<ul class="upd-ul">' + h.notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>' : '') +
+          '</div>';
+      }).join('');
       if (hist.length > 5) {
         html += '<div style="margin-top:6px;text-align:center"><button type="button" class="upd-hist-btn" data-upd="more">' +
           (appUpd.showAllHist ? '▲ 最新の5件だけ表示' : '📜 古い履歴もすべて見る（あと' + (hist.length - 5) + '件）') + '</button></div>';
