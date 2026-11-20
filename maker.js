@@ -1222,6 +1222,12 @@
   }
 
   /* ---- エディタ UI 構築 ---- */
+  let contestBackOv = 'title';
+  function openContestGuide(fromOv) {
+    buildMakerUI();
+    contestBackOv = fromOv || 'title';
+    showOv('contest');
+  }
   function buildMakerUI() {
     if (mkBuilt) return;
     mkBuilt = true;
@@ -1368,7 +1374,6 @@
       '.inbox-btn-home{position:relative;width:100%;margin:6px 0 2px;padding:7px 12px;border:2px solid #fff;border-radius:14px;background:linear-gradient(#fff7fb,#ffe5f0);box-shadow:0 3px 0 #e6bfd0;font:900 12px var(--rf);color:#c0507a;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}';
     document.head.appendChild(style);
 
-    let contestBackOv = 'title';
     const cov = document.createElement('div');
     cov.className = 'ov';
     cov.id = 'ov-contest';
@@ -1396,10 +1401,6 @@
       '</div>';
     document.body.appendChild(cov);
 
-    function openContestGuide(fromOv) {
-      contestBackOv = fromOv || 'title';
-      showOv('contest');
-    }
     $('#bCtMake').addEventListener('click', () => { Sound.tap(); openMaker(); });
     $('#bCtGal').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bCtClose').addEventListener('click', () => { Sound.tap(); showOv(contestBackOv); });
