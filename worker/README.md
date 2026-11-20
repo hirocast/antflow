@@ -58,7 +58,7 @@ const POST_API_URL = 'https://antflow-post-worker.xxxxx.workers.dev/post';
   - `POST /like-talk` : セリフのいいね加算・減算（`talk-likes` ラベル Issue に保存）
   - `GET /stage-stats` : 投稿ステージの統計一覧取得（`stage-stats` ラベル Issue から取得）
   - `POST /stage-stat` : 投稿ステージの統計イベント送信（`play` / `clear` / `like` / `unlike` / `up` / `down`）
-  - `POST /feedback` : ユーザー要望・不具合報告の無登録送信（`feedback` ラベル付き GitHub Issue 作成）
+  - `POST /feedback` : ユーザー要望・不具合報告の無登録送信（任意の自動圧縮スクショ添付対応、`feedback` ラベル付き GitHub Issue 作成。添付画像は `node scripts/extract_feedback_img.mjs <Issue番号>` で抽出可）
 
 ### GitHub Actions（`.github/workflows/`）
 1. **`deploy-worker.yml`（Deploy Cloudflare Worker）**

@@ -93,6 +93,16 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .fb-hist{margin-top:10px;padding-top:8px;border-top:2px dotted #ffd3e2;text-align:left}
 .fb-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px;font-size:11px;line-height:1.45}
 .fb-hitem b{color:#c0507a;font-size:10.5px;display:block;margin-bottom:2px}
+.fb-imgrow{display:flex;align-items:center;gap:8px;margin-top:7px}
+.fb-imgbtn{flex:1;border:2px dashed #f0a8c4;border-radius:12px;padding:8px 10px;background:#fff8fb;color:#b8406e;font:800 12px var(--rf);cursor:pointer;text-align:center}
+.fb-imgbtn:active{background:#ffeaf3}
+.fb-prev{display:none;align-items:center;gap:8px;margin-top:7px;padding:6px 8px;background:#fff;border:2px solid #ffd3e2;border-radius:12px;text-align:left}
+.fb-prev.on{display:flex}
+.fb-prev img{width:52px;height:52px;object-fit:cover;border-radius:8px;border:1.5px solid #ffd3e2;flex:0 0 auto}
+.fb-prev .meta{flex:1;min-width:0;font-size:11px;font-weight:800;color:var(--ink)}
+.fb-del{border:none;border-radius:9px;padding:5px 9px;background:#ffe4ee;color:#c03060;font:900 11px var(--rf);cursor:pointer;flex:0 0 auto}
+.fb-note{margin:8px 0 4px;padding:7px 9px;background:#fff8fb;border:1.5px solid #ffd8e6;border-radius:12px;text-align:left;font-size:10.5px;line-height:1.55;color:#7a5a6a;font-weight:700}
+.fb-note div+div{margin-top:2px}
 .tinfo span,.tinfo-btn{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
 .tinfo-btn{border:none;font-family:var(--rf);color:var(--ink);cursor:pointer}
 .tinfo-btn:active{transform:translateY(2px);box-shadow:none}
@@ -432,7 +442,7 @@ function handleTalkLikeClick(e) {
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
   const titleFine = $('#ov-title .fine');
-  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big sec" id="bTitleFeedback" style="margin-top:8px">💬 要望・アイデアを送る</button><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
+  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big sec" id="bTitleFeedback" style="margin-top:8px">💬 要望・不具合を送る</button><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
   // あそびかた：ページめくり式に作りかえる
   $('#ov-help .help').innerHTML =
     '<div class="hpic" id="hPic"><canvas id="hCv"></canvas><b class="hnum" id="hNum"></b></div>' +
@@ -3265,33 +3275,50 @@ layout();
   });
 })();
 
-/* ================= ユーザー要望・ご意見ポスト ================= */
+/* ================= ユーザー要望・不具合ポスト ================= */
 (function initFeedback() {
   const FB_API = (window.AF_FEEDBACK_API || 'https://antflow.hiroshi-artcast.workers.dev/feedback').trim();
   const FB_SENT_KEY = 'antflow-fb-sent-v1';
   const FB_NICK_KEY = 'antflow-fb-nick-v1';
   const CATS = [
     ['idea', '💡 新機能アイデア'],
-    ['stage', '🎨 ステージ・曲の希望'],
     ['bug', '🐛 不具合・重い報告'],
+    ['stage', '🎨 ステージ・曲の希望'],
     ['other', '💌 感想・応援']
   ];
-  let selCat = 'idea', prevOv = 'title', sending = false;
+  const PLACEHOLDERS = {
+    idea: '例：こんな新機能があったら楽しそう！／ここがもっと使いやすいと嬉しい',
+    bug: '例：〇〇の画面でボタンが押せない／表示が崩れる／急に重くなる（起きた場面やスクショがあると助かります）',
+    stage: '例：〇〇のステージを作ってほしい！／こんなBGMを追加してほしい！',
+    other: '例：ここが楽しかった！／ありんこ隊への応援メッセージなど'
+  };
+  let selCat = 'idea', prevOv = 'title', sending = false, attachedImg = null;
 
   const ov = document.createElement('div');
   ov.className = 'ov';
   ov.id = 'ov-feedback';
   ov.innerHTML =
     '<div class="card">' +
-    '<h2 style="font-size:18px;padding:6px 18px">💬 要望・ご意見ポスト</h2>' +
-    '<p class="fine" style="margin:2px 0 6px;line-height:1.5">アントフローはみんなの声でどんどん進化するよ！<br>ほしい機能・遊びたい絵・使いにくい所など気軽に送ってね✨</p>' +
+    '<h2 style="font-size:18px;padding:6px 18px">💬 要望・不具合ポスト</h2>' +
+    '<p class="fine" style="margin:2px 0 6px;line-height:1.5">ほしい機能・遊びたい絵・動かない／表示がおかしい等の不具合を気軽に送ってね！<br>状況がわかるスクショも1枚添えられます📷</p>' +
     '<div class="fb-cats" id="fbCats">' +
     CATS.map(([k, lbl], i) => '<button type="button" class="fb-cat' + (i === 0 ? ' on' : '') + '" data-cat="' + k + '">' + lbl + '</button>').join('') +
     '</div>' +
-    '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="例：〇〇のステージを作ってほしい！／ここが押しにくい／こんな新機能があったら楽しそう！"></textarea>' +
+    '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="' + PLACEHOLDERS.idea + '"></textarea>' +
     '<div class="fb-cnt"><span id="fbCnt">0</span> / 500</div>' +
+    '<input type="file" id="fbFile" accept="image/*" style="display:none">' +
+    '<div class="fb-imgrow"><button type="button" class="fb-imgbtn" id="bFbPick">📷 スクショ・画像を添える（任意・1枚）</button></div>' +
+    '<div class="fb-prev" id="fbPrev">' +
+      '<img id="fbPrevImg" alt="添付画像プレビュー">' +
+      '<div class="meta"><div id="fbPrevName">スクショ添付済み</div><div id="fbPrevInfo" style="font-size:10px;color:#8a6a7a;font-weight:700"></div></div>' +
+      '<button type="button" class="fb-del" id="bFbDel">✕ 外す</button>' +
+    '</div>' +
     '<input id="fbNick" class="fb-in" type="text" maxlength="16" placeholder="ニックネーム（空欄でもOK）">' +
-    '<p class="fine" style="font-size:10.5px;margin:5px 0 2px">※ アカウント不要・そのまま送れます（本名・連絡先などの個人情報は書かないでね）</p>' +
+    '<div class="fb-note">' +
+      '<div>・アカウント不要で送れます。本名・連絡先・スクショ内の通知など<b>個人情報が映り込まないよう</b>ご注意ください。</div>' +
+      '<div>・不具合は確認のうえ改善に努めますが、<b>端末や環境によっては改善できない場合もあります</b>。</div>' +
+      '<div>・<b>基本的には個別の返信は行っておりません</b>（対応内容はホームの「最近のアップデート」やおてがみ箱でお知らせします）。</div>' +
+    '</div>' +
     '<button class="big" id="bFbSend">📮 送る！</button>' +
     '<button class="big sec" id="bFbClose">とじる</button>' +
     '<div class="fb-hist" id="fbHist" style="display:none"></div>' +
@@ -3311,10 +3338,11 @@ layout();
     if (!el) return;
     if (!list.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = 'block';
-    el.innerHTML = '<div class="upd-hl">📝 あなたが送った要望（最近の5件）</div>' + list.map(x => {
+    el.innerHTML = '<div class="upd-hl">📝 あなたが送った要望・報告（最近の5件）</div>' + list.map(x => {
       const cat = (CATS.find(c => c[0] === x.cat) || CATS[0])[1];
       const dt = x.at ? new Date(x.at).toLocaleDateString('ja-JP') : '';
-      return '<div class="fb-hitem"><b>' + escUpd(cat) + (dt ? ' · ' + escUpd(dt) : '') + '</b>' + escUpd(x.msg) + '</div>';
+      const imgTag = x.hasImg ? ' · 📷画像あり' : '';
+      return '<div class="fb-hitem"><b>' + escUpd(cat) + (dt ? ' · ' + escUpd(dt) : '') + imgTag + '</b>' + escUpd(x.msg) + '</div>';
     }).join('');
   }
   function detectDevice() {
@@ -3322,6 +3350,53 @@ layout();
     const os = /Android/i.test(ua) ? 'Android' : /iPhone|iPad|iPod/i.test(ua) ? 'iOS' : 'PC';
     const inApp = /Line\/|LIFF|Instagram|FBAN|FBAV|Twitter|MicroMessenger|GSA\//i.test(ua) ? ' (アプリ内)' : '';
     return os + inApp + ' / ' + innerWidth + 'x' + innerHeight + ' (DPR ' + (window.devicePixelRatio || 1).toFixed(1) + ')';
+  }
+  function clearAttachment() {
+    attachedImg = null;
+    const f = $('#fbFile'), pv = $('#fbPrev'), im = $('#fbPrevImg'), btn = $('#bFbPick');
+    if (f) f.value = '';
+    if (pv) pv.classList.remove('on');
+    if (im) im.removeAttribute('src');
+    if (btn) btn.textContent = '📷 スクショ・画像を添える（任意・1枚）';
+  }
+  function compressFeedbackImage(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || (file.type && !file.type.startsWith('image/'))) {
+        reject(new Error('画像ファイルを選んでね'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('この画像は読み込めませんでした（PNG/JPEGでお試しください）'));
+        img.onload = () => {
+          const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+          if (!w || !h) { reject(new Error('画像サイズを取得できませんでした')); return; }
+          const cv = document.createElement('canvas');
+          const ctx = cv.getContext('2d');
+          const attempts = [[720, 0.72], [720, 0.58], [600, 0.55], [480, 0.50], [380, 0.45], [320, 0.40]];
+          for (const [maxSide, q] of attempts) {
+            const scale = Math.min(1, maxSide / Math.max(w, h));
+            const nw = Math.max(1, Math.round(w * scale));
+            const nh = Math.max(1, Math.round(h * scale));
+            cv.width = nw; cv.height = nh;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, nw, nh);
+            ctx.drawImage(img, 0, 0, nw, nh);
+            const dataUrl = cv.toDataURL('image/jpeg', q);
+            if (dataUrl && dataUrl.length <= 48000) {
+              const kb = Math.max(1, Math.round(dataUrl.length * 0.75 / 1024));
+              resolve({ dataUrl, info: nw + 'x' + nh + ' / 約' + kb + 'KB' });
+              return;
+            }
+          }
+          reject(new Error('画像サイズが大きすぎました。別の画像でお試しください'));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
   function openFeedback(from) {
     prevOv = from || G.overlay || 'title';
@@ -3339,10 +3414,33 @@ layout();
     Sound.tap();
     selCat = b.dataset.cat;
     $('#fbCats').querySelectorAll('.fb-cat').forEach(x => x.classList.toggle('on', x.dataset.cat === selCat));
+    const ta = $('#fbText');
+    if (ta && PLACEHOLDERS[selCat]) ta.placeholder = PLACEHOLDERS[selCat];
   });
   $('#fbText').addEventListener('input', () => {
     const el = $('#fbCnt');
     if (el) el.textContent = String($('#fbText').value.length);
+  });
+  on('#bFbPick', () => { const f = $('#fbFile'); if (f) f.click(); });
+  on('#bFbDel', () => { clearAttachment(); toast('画像をはずしたよ'); });
+  $('#fbFile').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const btn = $('#bFbPick');
+    if (btn) btn.textContent = '📷 画像を自動で小さく変換中…';
+    try {
+      const res = await compressFeedbackImage(file);
+      attachedImg = res;
+      const im = $('#fbPrevImg'), inf = $('#fbPrevInfo'), pv = $('#fbPrev');
+      if (im) im.src = res.dataUrl;
+      if (inf) inf.textContent = res.info + '（送信用に自動圧縮）';
+      if (pv) pv.classList.add('on');
+      if (btn) btn.textContent = '📷 別のスクショ・画像に変更する';
+      toast('📷 スクショを添付したよ！');
+    } catch (err) {
+      clearAttachment();
+      toast('⚠️ ' + (err && err.message ? err.message : '画像を添付できませんでした'), 3400);
+    }
   });
   on('#bTitleFeedback', () => openFeedback('title'));
   on('#bSetFeedback', () => openFeedback('settings'));
@@ -3351,36 +3449,42 @@ layout();
     if (sending) return;
     const ta = $('#fbText'), ni = $('#fbNick'), btn = $('#bFbSend');
     const msg = (ta ? ta.value : '').trim();
-    if (msg.length < 2) { toast('要望やアイデアを2文字以上で書いてね！'); if (ta) ta.focus(); return; }
+    if (msg.length < 2) { toast('内容を2文字以上で書いてね！'); if (ta) ta.focus(); return; }
     const nick = (ni ? ni.value : '').trim();
     try { if (nick) localStorage.setItem(FB_NICK_KEY, nick); } catch (e) {}
     sending = true;
     btn.disabled = true; btn.textContent = '📮 送信中…';
     try {
       const progress = 'クリア ' + gotCount() + '/' + TOTAL + '面' + (G.level && G.level.name ? '（現在:' + G.level.name + '）' : '');
+      const payload = {
+        category: selCat,
+        message: msg,
+        nick,
+        version: window.AF_APP_VER || '',
+        progress,
+        device: detectDevice()
+      };
+      if (attachedImg) {
+        payload.image = attachedImg.dataUrl;
+        payload.imageInfo = attachedImg.info;
+      }
       const res = await fetch(FB_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          category: selCat,
-          message: msg,
-          nick,
-          version: window.AF_APP_VER || '',
-          progress,
-          device: detectDevice()
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
         toast('⚠️ ' + (data.error || '送信に失敗しました。少し待って試してね'), 3400);
         return;
       }
-      saveSent({ cat: selCat, msg, at: Date.now() });
+      saveSent({ cat: selCat, msg, hasImg: !!attachedImg, at: Date.now() });
       if (ta) ta.value = '';
       if ($('#fbCnt')) $('#fbCnt').textContent = '0';
+      clearAttachment();
       renderHist();
       Sound.albumIn();
-      toast('🎉 届いたよ！読んで今後のアップデートに活かすね✨', 3800);
+      toast('🎉 届いたよ！確認して今後の改善に活かすね✨', 3800);
     } catch (e) {
       toast('⚠️ 通信エラー：ネット環境を確認してもう一度試してね', 3400);
     } finally {

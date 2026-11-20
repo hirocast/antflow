@@ -350,17 +350,33 @@ async function handleFeedback(request, env, cors) {
   const device = String(body.device || '').trim().replace(/[\r\n]/g, '').slice(0, 80) || 'unknown';
   const progress = String(body.progress || '').trim().replace(/[\r\n]/g, '').slice(0, 60) || '-';
 
+  let imageData = '';
+  let imageInfo = '';
+  if (body.image) {
+    const rawImg = String(body.image).trim();
+    if (!/^data:image\/(?:jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(rawImg)) {
+      return jsonRes({ ok: false, error: '画像の形式が正しくありません（JPEG/PNG/WebPのみ）' }, 400, cors);
+    }
+    if (rawImg.length > 52000) {
+      return jsonRes({ ok: false, error: '画像サイズが大きすぎます（自動で圧縮されますが別の画像でお試しください）' }, 400, cors);
+    }
+    imageData = rawImg;
+    imageInfo = String(body.imageInfo || '').trim().replace(/[\r\n]/g, '').slice(0, 40) || Math.round(rawImg.length * 0.75 / 1024) + 'KB';
+  }
+
   const firstLine = message.split('\n')[0].trim().slice(0, 32);
-  const title = `[要望][${catLabel.replace(/^[^\s]+\s*/, '')}] ${firstLine}${message.length > 32 ? '…' : ''}`;
+  const title = `[${catKey === 'bug' ? '不具合' : '要望'}][${catLabel.replace(/^[^\s]+\s*/, '')}] ${firstLine}${message.length > 32 ? '…' : ''}`;
   const issueBody =
-    '### 💌 ユーザーからの要望・ご意見\n' +
+    '### 💌 ユーザーからの要望・不具合連絡\n' +
     `- カテゴリ: ${catLabel}\n` +
     `- 投稿者: ${nick}\n` +
     `- アプリ版: ${appVer}\n` +
     `- 進行度: ${progress}\n` +
-    `- 端末情報: ${device}\n\n` +
-    '#### 内容\n' +
-    message + '\n';
+    `- 端末情報: ${device}\n` +
+    (imageData ? `- スクショ添付: あり（${imageInfo}）※ \`node scripts/extract_feedback_img.mjs <Issue番号>\` で画像表示可\n` : '') +
+    '\n#### 内容\n' +
+    message + '\n' +
+    (imageData ? `\n<!-- FEEDBACK_IMG:${imageData} -->\n` : '');
 
   const labels = catKey === 'bug' ? ['feedback', 'bug'] : ['feedback'];
   const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
@@ -381,7 +397,7 @@ async function handleFeedback(request, env, cors) {
 
   const created = await ghRes.json();
   await cache.put(fbKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=' + RATE_LIMIT_SEC } }));
-  return jsonRes({ ok: true, number: created.number, author: nick }, 201, cors);
+  return jsonRes({ ok: true, number: created.number, author: nick, hasImage: !!imageData }, 201, cors);
 }
 
 export default {
