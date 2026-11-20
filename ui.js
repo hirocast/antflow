@@ -55,8 +55,8 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 #bScan{background:#a66be0;box-shadow:0 4px 0 #7f4ab8}
 #bScan.on{background:var(--mint);box-shadow:0 4px 0 var(--mintd)}
 #bScan.on em.price{background:linear-gradient(#d4ffe9,#5fcf9f);color:#145a38;box-shadow:0 2px 0 #3fae7f}
-.ov{background:rgba(50,30,80,.56)}
-.card{border:4px solid #ffb6cd;background:linear-gradient(#fffdf6,#fff3df);box-shadow:0 0 0 3px #fff,0 10px 24px rgba(60,30,70,.3)}
+.ov{background:rgba(50,30,80,.56);-webkit-backdrop-filter:none;backdrop-filter:none}
+.card{border:4px solid #ffb6cd;background:linear-gradient(#fffdf6,#fff3df);box-shadow:0 0 0 3px #fff,0 10px 24px rgba(60,30,70,.28)}
 .card h2{display:inline-block;padding:6px 24px;border-radius:16px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;box-shadow:0 4px 0 #d4507c;text-shadow:0 2px 0 rgba(0,0,0,.15);margin:0 0 10px}
 .card h3{margin:14px 0 6px;font-size:15px;color:#c0507a}
 #toast{position:fixed;bottom:110px;z-index:50}
@@ -1043,7 +1043,7 @@ function popText(el, text) {
   el.innerHTML = '';
   [...text].forEach((ch, i) => {
     const s = document.createElement('span');
-    s.textContent = ch; s.style.color = POP[i % POP.length]; s.style.animationDelay = (i * 0.07) + 's,' + (0.6 + i * 0.1) + 's';
+    s.textContent = ch; s.style.color = POP[i % POP.length]; s.style.animationDelay = (i * 0.06) + 's';
     el.appendChild(s);
   });
 }
@@ -2844,7 +2844,9 @@ function runAppUpdate() {
     toast('🔄 最新版を取得しています…', 5000);
     const files = [location.pathname, 'index.html', 'style.css', ...(window.AF_FILES || [])];
     await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
-    location.reload();
+    const u = new URL(location.href);
+    u.searchParams.set('u', String(Date.now()));
+    location.replace(u.toString());
   });
 }
 on('#bAppUpdate', runAppUpdate);
