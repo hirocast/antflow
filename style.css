@@ -3,7 +3,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0;overflow:hidden;color:var(--ink);font-family:var(--rf);user-select:none;-webkit-user-select:none;touch-action:none}
 body{background-color:#fff0f5;background-image:radial-gradient(#ffd6e5 2.2px,transparent 2.8px),radial-gradient(#d4efff 2.2px,transparent 2.8px);background-size:30px 30px;background-position:0 0,15px 15px}
-#app{position:fixed;top:0;bottom:0;left:0;right:0;margin:0 auto;max-width:640px;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#app{position:fixed;top:0;bottom:0;left:0;right:0;margin:0 auto;max-width:640px;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:max(2px,calc(env(safe-area-inset-bottom,0px) - 28px))}
 header{flex:0 0 60px;display:flex;align-items:center;gap:6px;padding:0 8px}
 .lv{display:flex;flex-direction:column;line-height:1.12;background:#fff;border-radius:16px;padding:4px 10px;box-shadow:0 3px 0 #f3c6d6;min-width:96px}
 .lv b{font-size:17px;font-weight:900;color:var(--pinkd)}
@@ -18,7 +18,7 @@ header{flex:0 0 60px;display:flex;align-items:center;gap:6px;padding:0 8px}
 .badge.on{display:block;animation:bump .7s ease infinite alternate}
 #stage{flex:1;position:relative;min-height:0}
 #game{position:absolute;top:0;left:0;width:100%;height:100%;display:block}
-footer{flex:0 0 76px;display:flex;gap:8px;justify-content:center;align-items:center;padding:0 10px 8px;position:relative;z-index:2;transform:translateZ(0)}
+footer{flex:0 0 64px;display:flex;gap:8px;justify-content:center;align-items:flex-end;padding:0 10px 4px;position:relative;z-index:2;transform:translateZ(0)}
 .fb{flex:1;max-width:120px;height:58px;padding-top:4px;border:none;border-radius:20px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--rf);cursor:pointer;text-shadow:0 1px 0 rgba(0,0,0,.18)}
 .fb span{font-size:21px;font-weight:900;line-height:1}
 .fb small{font-size:10.5px;font-weight:800;white-space:nowrap;letter-spacing:-0.02em}

@@ -353,7 +353,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  .lv{padding:2px 9px;min-width:78px}
  .lv b{font-size:15px}
  .lv .st{font-size:10px}
- footer{flex-basis:62px;padding-bottom:6px}
+ footer{flex-basis:54px;padding-bottom:2px}
  .fb{height:48px;border-radius:18px}
  .fb span{font-size:18px}
  .fb small{font-size:10px}
@@ -365,7 +365,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  .lv .st,#leftTxt{display:none}
  .ib{width:34px;height:34px;font-size:16px;border-radius:12px}
  .coin{height:32px;font-size:13px}
- footer{flex-basis:50px;padding-bottom:4px}
+ footer{flex-basis:46px;padding-bottom:2px}
  .fb{height:40px;flex-direction:row;gap:4px}
  .fb span{font-size:16px}
 }
