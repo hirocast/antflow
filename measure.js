@@ -155,17 +155,18 @@ function renderMeasure() {
     if (r.outer >= M_EASY) cnt.outer++;
     if (r.human != null && r.human >= M_EASY) cnt.human++;
     if (!f.length) cnt.hard++;
+    const nInt = v => (Number(v) | 0);
     html += '<tr' + (stale ? ' class="old" title="ステージが作り直されたため、古い結果です"' : '') + '>' +
-      '<td>' + pos + '</td><td>' + id + '</td><td class="l">' + name + '</td><td>' + r.W + '</td><td>★' + starsAt(pos) + '</td>' +
+      '<td>' + pos + '</td><td>' + id + '</td><td class="l">' + name + '</td><td>' + nInt(r.W) + '</td><td>★' + starsAt(pos) + '</td>' +
       '<td' + cls(!r.ok, r.ok) + '>' + (r.ok ? '○' : '✕') + '</td>' +
-      '<td>' + r.colors + '</td><td' + cls(r.reach0 * 2 >= r.colors, false) + '>' + r.reach0 + '/' + r.colors + '</td>' +
-      '<td>' + r.layers + '</td><td>' + r.split + '</td><td>' + r.boxes + '</td><td>' + r.wait + '</td>' +
-      '<td title="' + mEsc(r.trace) + '"' + cls(false, r.minSlots >= SLOT_COUNT - 1) + '>' + (r.sure ? '' : '≤') + r.minSlots + '</td>' +
+      '<td>' + nInt(r.colors) + '</td><td' + cls(nInt(r.reach0) * 2 >= nInt(r.colors), false) + '>' + nInt(r.reach0) + '/' + nInt(r.colors) + '</td>' +
+      '<td>' + nInt(r.layers) + '</td><td>' + nInt(r.split) + '</td><td>' + nInt(r.boxes) + '</td><td>' + nInt(r.wait) + '</td>' +
+      '<td title="' + mEsc(r.trace) + '"' + cls(false, nInt(r.minSlots) >= SLOT_COUNT - 1) + '>' + (r.sure ? '' : '≤') + nInt(r.minSlots) + '</td>' +
       '<td' + cls(r.greedy, !r.greedy) + '>' + (r.greedy ? '○' : '✕') + '</td>' +
       '<td' + rate(r.outer) + '>' + pc(r.outer) + '</td>' +
       '<td' + rate(r.random) + '>' + pc(r.random) + '</td>' +
       '<td' + rate(r.human) + '>' + pc(r.human) + '</td>' +
-      '<td class="l' + (f.length ? '' : ' m-ok') + '">' + (f.length ? f.join('・') : '◎ 歯ごたえあり') + '</td></tr>';
+      '<td class="l' + (f.length ? '' : ' m-ok') + '">' + mEsc(f.length ? f.join('・') : '◎ 歯ごたえあり') + '</td></tr>';
   }
   box.innerHTML = html + '</tbody></table>';
   $('#mSum').textContent = '測定済み ' + cnt.done + ' / ' + TOTAL + ' 面 ｜ 生成合格 ' + cnt.ok + ' ｜ 全部優先で解ける ' + cnt.greedy +

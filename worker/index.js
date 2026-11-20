@@ -108,6 +108,11 @@ function hasNgWord(str) {
   return NG_WORDS.some(w => norm.includes(w));
 }
 
+function isReservedAuthor(str) {
+  const norm = String(str || '').normalize('NFKC').toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
+  return /(hirocast|antflow|公式|運営|管理者|admin|official|moderator|staff)/.test(norm);
+}
+
 function cleanMdLine(v, max) {
   let s = String(v || '')
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
@@ -845,7 +850,7 @@ async function handleFeedback(request, env, cors) {
   let nick = cleanMdLine(body.nick, 16);
   if (!nick || nick === '名無しのありんこ' || nick === '名無し') {
     nick = await makeAnonName(env, ip, body.clientId);
-  } else if (hasNgWord(nick)) {
+  } else if (hasNgWord(nick) || isReservedAuthor(nick)) {
     return jsonRes({ ok: false, error: 'ニックネームに使えない言葉やURLが入っています' }, 400, cors);
   }
 
@@ -1026,7 +1031,7 @@ export default {
     if (!/^[A-Za-z0-9_-]{8,12000}$/.test(token)) {
       return jsonRes({ ok: false, error: '作品データが正しくありません' }, 400, cors);
     }
-    if (hasNgWord(name) || hasNgWord(author) || (baseAuthor && hasNgWord(baseAuthor)) || (bgmName && hasNgWord(bgmName))) {
+    if (hasNgWord(name) || hasNgWord(author) || isReservedAuthor(author) || (baseAuthor && hasNgWord(baseAuthor)) || (bgmName && hasNgWord(bgmName))) {
       return jsonRes({ ok: false, error: '名前・作者名に使えない言葉やURLが入っています' }, 400, cors);
     }
 

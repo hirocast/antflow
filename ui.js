@@ -2940,7 +2940,7 @@ async function execAppUpdateNow() {
   if (b) { b.disabled = true; b.textContent = '🔄 更新中…'; }
   if (bt) { bt.disabled = true; bt.textContent = '🔄 更新中…'; }
   toast('🔄 最新版を取得しています…', 5000);
-  const files = [location.pathname, 'index.html', 'version.json', 'style.css', ...(window.AF_FILES || [])];
+  const files = [location.pathname, 'index.html', 'version.json', 'style.css', 'boot.js', 'boot_check.js', ...(window.AF_FILES || [])];
   await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
   const u = new URL(location.href);
   u.searchParams.set('u', String(Date.now()));

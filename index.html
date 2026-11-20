@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://api.github.com https://antflow.hiroshi-artcast.workers.dev; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://api.github.com https://antflow.hiroshi-artcast.workers.dev; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#ffe3ee">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -25,7 +25,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20261120m">
+<link rel="stylesheet" href="style.css?v=20261120n">
 </head>
 <body>
 <div id="app">
@@ -147,64 +147,18 @@
 
 <canvas id="fx"></canvas>
 
-<script>
-// 読み込みチェック：各 .js の最後の行で、自分のファイル名を AF_LOADED に登録する
-window.AF_APP_VER = '20261120m';
-window.AF_LOADED = [];
-window.AF_ERR_LOG = [];
-window.AF_pushErr = function (msg) {
-  try {
-    var s = String(msg || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 180);
-    if (!s) return;
-    if (window.AF_ERR_LOG.length && window.AF_ERR_LOG[window.AF_ERR_LOG.length - 1].m === s) return;
-    window.AF_ERR_LOG.push({ t: Date.now(), m: s });
-    if (window.AF_ERR_LOG.length > 8) window.AF_ERR_LOG.shift();
-  } catch (e) {}
-};
-window.AF_FILES = ['base.js', 'arts.js', 'raster.js', 'logic.js', 'sound.js', 'render.js', 'ui.js', 'maker.js', 'bgm_maker.js', 'measure.js'];
-window.AF_bootErr = function (msg) {
-  window.AF_pushErr(msg);
-  var c = document.querySelector('#ov-title .card');
-  if (!c || c.querySelectorAll('.bootErr').length >= 4) return;
-  var p = document.createElement('p');
-  p.className = 'bootErr';
-  p.textContent = msg;
-  c.appendChild(p);
-};
-window.addEventListener('error', function (e) {
-  var msg = e.message || '不明';
-  if (/^Script error\.?$/i.test(msg)) {
-    window.AF_bootErr('エラー：詳しい内容はブラウザに隠されました（F12キーの開発者ツール →「Console」で確認できます）');
-    return;
-  }
-  var file = e.filename ? e.filename.split('/').pop().split('?')[0] : '';
-  var where = file ? '（' + file + ' の ' + e.lineno + '行目）' : '';
-  window.AF_bootErr('エラー：' + msg + where);
-});
-window.addEventListener('unhandledrejection', function (e) {
-  var r = e && e.reason;
-  var msg = (r && r.message) ? r.message : String(r || 'Promise rejection');
-  window.AF_pushErr('Promiseエラー：' + msg);
-});
-</script>
-<script src="base.js?v=20261120m"></script>
-<script src="arts.js?v=20261120m"></script>
-<script src="raster.js?v=20261120m"></script>
-<script src="logic.js?v=20261120m"></script>
-<script src="sound.js?v=20261120m"></script>
-<script src="render.js?v=20261120m"></script>
-<script src="ui.js?v=20261120m"></script>
-<script src="maker.js?v=20261120m"></script>
-<script src="bgm_maker.js?v=20261120m"></script>
+<script src="boot.js?v=20261120n"></script>
+<script src="base.js?v=20261120n"></script>
+<script src="arts.js?v=20261120n"></script>
+<script src="raster.js?v=20261120n"></script>
+<script src="logic.js?v=20261120n"></script>
+<script src="sound.js?v=20261120n"></script>
+<script src="render.js?v=20261120n"></script>
+<script src="ui.js?v=20261120n"></script>
+<script src="maker.js?v=20261120n"></script>
+<script src="bgm_maker.js?v=20261120n"></script>
 <!-- 開発用：難しさの測定（不要になったら、この行と AF_FILES の 'measure.js' を消す） -->
-<script src="measure.js?v=20261120m"></script>
-<script>
-(function () {
-  var miss = window.AF_FILES.filter(function (f) { return window.AF_LOADED.indexOf(f) < 0; });
-  if (miss.length) {
-    window.AF_bootErr('最初に読み込めなかったファイル：' + miss[0] + '（同じフォルダにあるか、最後まで保存できているかを確認してください）');
-  }
-})();
-</script>
+<script src="measure.js?v=20261120n"></script>
+<script src="boot_check.js?v=20261120n"></script>
 </body>
 </html>
