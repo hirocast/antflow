@@ -533,7 +533,9 @@
       return null;
     } catch (e) { return null; }
   }
-  async function stageShareUrl(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff, genIdx) {
+  async function stageShareUrl(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff, genIdx, issueNum) {
+    const num = Number(issueNum) | 0;
+    if (num > 0) return location.origin + location.pathname + '?p=' + num;
     const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx);
     return location.origin + location.pathname + '?stage=' + token;
   }
@@ -544,6 +546,40 @@
     const compact = s.replace(/\s+/g, '');
     if (/^[A-Za-z0-9_-]{8,}$/.test(compact)) return compact;
     return '';
+  }
+  function extractStageRef(input) {
+    const s = String(input || '').trim();
+    const pm = s.match(/[?&]p=(\d{1,7})\b/);
+    if (pm) return { kind: 'p', id: pm[1] };
+    const tok = extractStageToken(s);
+    if (tok) return { kind: 'tok', token: tok };
+    return null;
+  }
+  async function fetchStageByIssueNum(num) {
+    if (!/^\d{1,7}$/.test(String(num || ''))) return null;
+    try {
+      const res = await fetch('https://api.github.com/repos/hirocast/antflow/issues/' + num);
+      if (!res.ok) return null;
+      const iss = await res.json();
+      const body = String((iss && iss.body) || '');
+      const m = body.match(/[?&]stage=([A-Za-z0-9_-]+)/);
+      if (!m) return null;
+      const art = await decodeCustomStage(m[1]);
+      if (!art || validateStageName(art.name) || hasNgCustomTalk(art.talk)) return null;
+      if (art.bgm && (validateStageName(art.bgm.name) || (Array.isArray(art.bgm.bars) && art.bgm.bars.some(b => b && b.lyric && validateStageName(b.lyric))))) return null;
+      const am = body.match(/^- 作者:\s*(.+)$/m);
+      const rawAuthor = am ? am[1].trim().slice(0, 16) : '';
+      const ghLogin = iss.user && iss.user.login ? String(iss.user.login).slice(0, 15) : '';
+      if (rawAuthor ? validateStageName(rawAuthor) : (ghLogin && validateStageName(ghLogin))) return null;
+      art.author = rawAuthor || (ghLogin ? '@' + ghLogin : '投稿作品');
+      const bm = body.match(/^- 元作者:\s*(.+)$/m);
+      const baseAuthor = bm ? bm[1].trim().slice(0, 16) : '';
+      if (baseAuthor && validateStageName(baseAuthor.replace(/^@/, ''))) return null;
+      art.baseAuthor = baseAuthor;
+      art.award = detectIssueAward(iss);
+      art.issueNum = Number(num);
+      return art;
+    } catch (e) { return null; }
   }
 
   /* ---- パズル生成してプレイ開始 ---- */
@@ -638,7 +674,10 @@
     const talk = normalizeCustomTalk(art.talk);
     const bgmToken = art.bgmToken || '';
     const customBgm = art.bgm || (bgmToken && window.AF_bgmTools ? window.AF_bgmTools.decodeBgm(bgmToken) : null);
-    const shareUrl = baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix, diff, genIdx));
+    const issueNum = Number(art.issueNum) | 0;
+    const shareUrl = issueNum > 0
+      ? (location.origin + location.pathname + '?p=' + issueNum)
+      : (baseUrl + (art.token || encodeCustomStageV1(art.name, art.grid, art.W, art.H, talk, bgmToken, art.allowRemix, diff, genIdx)));
     const customHash = stageContentHash(art.grid, art.W, art.H);
     const L = {
       id: 0, custom: true, customHash, art: Object.assign({}, art, { diff, genIdx }), shareUrl,
@@ -647,7 +686,7 @@
       W: art.W, H: art.H, grid: art.grid, cols: c.cols, solution: c.solution, total,
       metrics: { stars: di.stars }
     };
-    if (!art.token) {
+    if (!art.token && !(issueNum > 0)) {
       stageShareUrl(art.name, art.grid, art.W, art.H, null, talk, bgmToken, art.allowRemix, diff, genIdx).then(u => {
         L.shareUrl = u;
         if (G.lastShare && G.lastShare.custom) G.lastShare.url = u;
@@ -802,14 +841,33 @@
   function loadMyStages() {
     try { return JSON.parse(localStorage.getItem(MY_KEY) || '[]'); } catch (e) { return []; }
   }
-  async function saveMyStage(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff, genIdx) {
+  async function saveMyStage(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff, genIdx, issueNum) {
     const list = loadMyStages();
     const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx);
+    const prev = list.find(x => x.token === token);
+    const num = (Number(issueNum) | 0) || (prev && Number(prev.issueNum)) || 0;
     const filtered = list.filter(x => x.token !== token);
-    filtered.unshift({ name, w, h, token, at: Date.now() });
+    const entry = { name, w, h, token, at: Date.now() };
+    if (num > 0) entry.issueNum = num;
+    filtered.unshift(entry);
     if (filtered.length > 20) filtered.length = 20;
     try { localStorage.setItem(MY_KEY, JSON.stringify(filtered)); } catch (e) {}
     return token;
+  }
+  function setStageIssueNum(token, issueNum) {
+    const num = Number(issueNum) | 0;
+    if (!token || num <= 0) return;
+    const list = loadMyStages();
+    let changed = false;
+    for (const item of list) {
+      if (item.token === token && item.issueNum !== num) {
+        item.issueNum = num;
+        changed = true;
+      }
+    }
+    if (changed) {
+      try { localStorage.setItem(MY_KEY, JSON.stringify(list)); } catch (e) {}
+    }
   }
 
   /* ---- みんなのステージ一覧（GitHub Issues + マイ作品） ---- */
@@ -826,10 +884,12 @@
       if (v >= 0) { g.fillStyle = HEX[v]; g.fillRect(2 + x * c, 2 + y * c, c + 0.3, c + 0.3); }
     }
   }
-  async function shareStageArt(name, grid, w, h, talk, preToken, bgmToken, allowRemix, diff, genIdx) {
+  async function shareStageArt(name, grid, w, h, talk, preToken, bgmToken, allowRemix, diff, genIdx, issueNum) {
     const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx);
-    await saveMyStage(name, grid, w, h, token, talk, bgmToken, allowRemix, diff, genIdx);
-    const url = await stageShareUrl(name, grid, w, h, token, talk, bgmToken, allowRemix, diff, genIdx);
+    const saved = loadMyStages().find(x => x.token === token);
+    const num = (Number(issueNum) | 0) || (saved && Number(saved.issueNum)) || 0;
+    if (saved || !issueNum) await saveMyStage(name, grid, w, h, token, talk, bgmToken, allowRemix, diff, genIdx, num);
+    const url = await stageShareUrl(name, grid, w, h, token, talk, bgmToken, allowRemix, diff, genIdx, num);
     const text = 'アントフローでオリジナルステージ「' + name + '」を作ったよ！遊んでみてね🐜🍬\n#アントフロー';
     if (navigator.share) {
       try {
@@ -969,6 +1029,7 @@
       for (const item of myList) {
         const art = await decodeCustomStage(item.token);
         if (!art) continue;
+        if (item.issueNum) art.issueNum = Number(item.issueNum) || 0;
         const h = stageContentHash(art.grid, art.W, art.H);
         mine.appendChild(makeGalCard(art, 'マイ作品', null, true, stats[h] || null, h));
       }
@@ -1000,6 +1061,8 @@
         art.author = author;
         art.baseAuthor = baseAuthor;
         art.award = detectIssueAward(iss);
+        art.issueNum = iss.number;
+        setStageIssueNum(m[1], iss.number);
         entries.push({ art, author, id, hash: h, stat: stats[h] || null });
       }
       const renderPub = () => {
@@ -1098,7 +1161,7 @@
       stBox.innerHTML = '<span>' + t2.line1 + '</span><span>' + t2.line2 + '</span>';
     });
     acts.appendChild(lkBtn);
-    if (isMine) {
+    if (isMine || art.issueNum) {
       const sh = document.createElement('span');
       sh.className = 'galshare';
       sh.textContent = '🔗 シェア';
@@ -1106,7 +1169,7 @@
         e.stopPropagation();
         e.preventDefault();
         Sound.tap();
-        await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token, art.bgmToken, art.allowRemix, art.diff, art.genIdx);
+        await shareStageArt(art.name, art.grid, art.W, art.H, art.talk, art.token, art.bgmToken, art.allowRemix, art.diff, art.genIdx, art.issueNum);
       });
       acts.appendChild(sh);
     }
@@ -2323,6 +2386,7 @@
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+          if (data.number) setStageIssueNum(pendingPost.token, data.number);
           recordPost(pendingPost.token);
           pendingPost = null;
           toast('🎉 みんなに投稿したよ！');
@@ -2360,9 +2424,9 @@
     $('#bGalClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
     $('#bStImpGo').addEventListener('click', async () => {
       Sound.tap();
-      const tok = extractStageToken($('#stImpTxt').value);
-      if (!tok) { toast('ステージURLが見つかりませんでした'); return; }
-      const art = await decodeCustomStage(tok);
+      const ref = extractStageRef($('#stImpTxt').value);
+      if (!ref) { toast('ステージURLが見つかりませんでした'); return; }
+      const art = ref.kind === 'p' ? await fetchStageByIssueNum(ref.id) : await decodeCustomStage(ref.token);
       if (!art) { toast('ステージデータが途中で切れているか、正しくありません'); return; }
       loadCustomLevel(art);
     });
@@ -2527,8 +2591,10 @@
     } catch (e) {}
   }, 1200);
 
-  // URL に ?stage=... があればそのオリジナルステージを起動
-  const stParam = new URLSearchParams(location.search).get('stage');
+  // URL に ?stage=... または ?p=... があればそのオリジナルステージを起動
+  const sp = new URLSearchParams(location.search);
+  const stParam = sp.get('stage');
+  const pParam = sp.get('p');
   if (stParam) {
     (async () => {
       const art = await decodeCustomStage(stParam);
@@ -2541,6 +2607,15 @@
           $('#stImpTxt').value = '';
           showOv('stageerr');
         }, 80);
+      }
+    })();
+  } else if (pParam && /^\d{1,7}$/.test(pParam)) {
+    (async () => {
+      const art = await fetchStageByIssueNum(pParam);
+      if (art) {
+        setTimeout(() => loadCustomLevel(art), 50);
+      } else {
+        setTimeout(() => { toast('ステージが見つかりませんでした'); }, 120);
       }
     })();
   }

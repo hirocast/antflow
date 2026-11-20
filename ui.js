@@ -4054,6 +4054,177 @@ layout();
   syncQuickFbVis();
 })();
 
+/* ================= セーブデータ引継ぎ・バックアップ ================= */
+(function initSaveTransfer() {
+  const TRANSFER_KEYS = [
+    SAVE_KEY,
+    'antflow-my-stages-v1',
+    'antflow-my-bgms-v1',
+    'antflow-active-bgm-v1',
+    'antflow-inbox-v1',
+    'antflow-contest-claimed-v1',
+    'antflow-talk-likes-v1',
+    'antflow-stage-likes-v1',
+    'antflow-stage-votes-v1',
+    'antflow-fb-camp-v1',
+    'antflow-nick-v1',
+    'antflow-fb-nick-v1',
+    'antflow-anon-name-v1',
+    'antflow-seen-ver'
+  ];
+  const ALLOW_SET = new Set(TRANSFER_KEYS);
+
+  function fnv1aHex(str) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return ('00000000' + h.toString(16)).slice(-8);
+  }
+  function toB64Url(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function fromB64Url(str) {
+    let s = String(str || '').trim().replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    const bin = atob(s);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  async function encodeSaveCode() {
+    const data = Object.create(null);
+    for (const k of TRANSFER_KEYS) {
+      try {
+        const v = localStorage.getItem(k);
+        if (v !== null) data[k] = v;
+      } catch (e) {}
+    }
+    const rawJson = JSON.stringify(data);
+    const envelope = JSON.stringify({ v: 1, t: Date.now(), h: fnv1aHex(rawJson), raw: rawJson });
+    const bytes = new TextEncoder().encode(envelope);
+    if (typeof CompressionStream === 'function') {
+      try {
+        const cs = new CompressionStream('deflate-raw');
+        const w = cs.writable.getWriter();
+        w.write(bytes);
+        w.close();
+        const comp = new Uint8Array(await new Response(cs.readable).arrayBuffer());
+        return 'AFSAVE1C:' + toB64Url(comp);
+      } catch (e) {}
+    }
+    return 'AFSAVE1R:' + toB64Url(bytes);
+  }
+  async function decodeSaveCode(code) {
+    const s = String(code || '').trim().replace(/\s+/g, '');
+    const m = /^(AFSAVE1C|AFSAVE1R):([A-Za-z0-9_-]+)$/.exec(s);
+    if (!m) throw new Error('引継ぎコードの形式が正しくありません');
+    const bytes = fromB64Url(m[2]);
+    let rawBytes = bytes;
+    if (m[1] === 'AFSAVE1C') {
+      if (typeof DecompressionStream !== 'function') throw new Error('このブラウザでは圧縮コードを展開できません');
+      const ds = new DecompressionStream('deflate-raw');
+      const w = ds.writable.getWriter();
+      w.write(bytes).catch(() => {});
+      w.close().catch(() => {});
+      const reader = ds.readable.getReader();
+      const chunks = [];
+      let total = 0;
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          total += value.byteLength;
+          if (total > 524288) { await reader.cancel().catch(() => {}); throw new Error('データサイズが大きすぎます'); }
+          chunks.push(value);
+        }
+      } finally { reader.releaseLock(); }
+      rawBytes = new Uint8Array(total);
+      let off = 0;
+      for (const c of chunks) { rawBytes.set(c, off); off += c.byteLength; }
+    }
+    const env = JSON.parse(new TextDecoder().decode(rawBytes));
+    if (!env || env.v !== 1 || typeof env.raw !== 'string' || fnv1aHex(env.raw) !== env.h) {
+      throw new Error('引継ぎコードが途中で切れているか壊れています');
+    }
+    const data = JSON.parse(env.raw);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('データが不正です');
+    return data;
+  }
+
+  const updBtn = $('#bAppUpdate');
+  if (updBtn) {
+    updBtn.insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTransfer">💾 セーブデータの引継ぎ・保存</button>');
+  }
+
+  const ov = document.createElement('div');
+  ov.className = 'ov';
+  ov.id = 'ov-transfer';
+  ov.innerHTML =
+    '<div class="card">' +
+    '<h2>💾 セーブデータの引継ぎ</h2>' +
+    '<p class="fine" id="trSum" style="margin-bottom:8px"></p>' +
+    '<div style="background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:10px;margin:6px 0;text-align:left">' +
+      '<div style="font:900 12px var(--rf);color:#c0507a;margin-bottom:4px">① 今のデータを保存する（引き継ぐ前）</div>' +
+      '<p class="fine" style="margin:0 0 6px;line-height:1.45">機種変更・LINEブラウザからの移動・もしもの時のバックアップに使えるよ。</p>' +
+      '<button type="button" class="big mint" id="bTrCopy" style="margin-top:2px">📋 引継ぎコードをコピーする</button>' +
+    '</div>' +
+    '<div style="background:#fff;border:2px solid #cfe6ff;border-radius:14px;padding:10px;margin:8px 0;text-align:left">' +
+      '<div style="font:900 12px var(--rf);color:#2a5c8a;margin-bottom:4px">② 保存したコードから復元する</div>' +
+      '<textarea id="trInput" rows="3" style="width:100%;box-sizing:border-box;border:1.5px solid #cfe6ff;border-radius:10px;padding:6px 8px;font:600 11px monospace;color:var(--ink);resize:vertical" placeholder="ここに AFSAVE1... の引継ぎコードを貼り付け…"></textarea>' +
+      '<button type="button" class="big" id="bTrLoad" style="margin-top:6px">📥 このコードで復元する</button>' +
+    '</div>' +
+    '<button type="button" class="big sec" id="bTrClose">とじる</button>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  function openTransfer() {
+    let myStagesCnt = 0;
+    try { myStagesCnt = (JSON.parse(localStorage.getItem('antflow-my-stages-v1') || '[]') || []).length; } catch (e) {}
+    $('#trSum').textContent = '現在の記録：クリア ' + gotCount() + '面 · 🪙' + save.coins + ' · マイ作品 ' + myStagesCnt + '件';
+    showOv('transfer');
+  }
+  on('#bSetTransfer', () => { Sound.tap(); openTransfer(); });
+  on('#bTrClose', () => { Sound.tap(); showOv('settings'); });
+  on('#bTrCopy', async () => {
+    Sound.tap();
+    try {
+      const code = await encodeSaveCode();
+      $('#trInput').value = code;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code);
+        toast('📋 引継ぎコードをコピーしたよ！メモ帳やLINEに保存してね', 3600);
+      } else {
+        $('#trInput').focus(); $('#trInput').select();
+        toast('下の欄に出たコードをコピーして保存してね', 3600);
+      }
+    } catch (e) {
+      toast('⚠️ コードの作成に失敗しました');
+    }
+  });
+  on('#bTrLoad', async () => {
+    Sound.tap();
+    const raw = ($('#trInput').value || '').trim();
+    if (!raw) { toast('引継ぎコードを貼り付けてね'); return; }
+    try {
+      const data = await decodeSaveCode(raw);
+      if (!confirm('現在のセーブデータを上書きして復元しますか？（この操作は取り消せません）')) return;
+      for (const [k, v] of Object.entries(data)) {
+        if (ALLOW_SET.has(k) && typeof v === 'string') {
+          try { localStorage.setItem(k, v); } catch (e) {}
+        }
+      }
+      toast('✅ 復元しました！再読み込みします…', 2000);
+      setTimeout(() => location.reload(), 600);
+    } catch (e) {
+      toast('⚠️ ' + (e && e.message ? e.message : '引継ぎコードが正しくありません'), 3400);
+    }
+  });
+})();
+
 requestAnimationFrame(frame);
 
 AF_LOADED.push('ui.js');
