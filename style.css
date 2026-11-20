@@ -45,9 +45,9 @@ footer{flex:0 0 76px;display:flex;gap:8px;justify-content:center;align-items:cen
 @keyframes cardPop{from{transform:scale(.94)}to{transform:none}}
 .card h2{margin:0 0 8px;font-size:21px;font-weight:900;color:var(--pinkd)}
 .card p{margin:6px 0;font-size:14px;line-height:1.6}
-.ttl,.ctitle{font-size:36px;font-weight:900;margin:2px 0 4px}
-.ctitle{font-size:46px;line-height:1}
-.ttl span,.ctitle span{display:inline-block;-webkit-text-stroke:1.5px #fff;text-shadow:0 3px 0 rgba(90,61,92,.2);animation:popL .55s cubic-bezier(.3,1.5,.5,1) both}
+.ttl,.ctitle{font-size:32px;font-weight:900;margin:0 0 2px}
+.ctitle{font-size:46px;line-height:1;margin:2px 0 4px}
+.ttl span,.ctitle span{display:inline-block;paint-order:stroke fill;-webkit-text-stroke:3.5px #fff;filter:drop-shadow(0 2px 1px rgba(90,61,92,.36));animation:popL .55s cubic-bezier(.3,1.5,.5,1) both}
 @keyframes popL{0%{transform:scale(0) rotate(-30deg);opacity:0}100%{transform:none;opacity:1}}
 @keyframes wave{50%{transform:translateY(-4px)}}
 .fine{font-size:12px!important;opacity:.65}
@@ -64,7 +64,8 @@ footer{flex:0 0 76px;display:flex;gap:8px;justify-content:center;align-items:cen
 .row i::after{content:'';position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s}
 .row input:checked+i{background:var(--mint)}
 .row input:checked+i::after{left:23px}
-#mascot,#loadCv{display:block;margin:0 auto;width:170px;height:130px}
+#loadCv{display:block;margin:0 auto;width:170px;height:130px}
+#mascot{display:block;margin:0 auto;width:136px;height:104px}
 #revealCv,#viewCv{display:block;margin:4px auto 0;border-radius:18px;background:#fff6e6}
 .cstars span{display:inline-block;color:#ffb300;font-size:22px;animation:popL .45s cubic-bezier(.3,1.7,.5,1) both}
 .chip{position:relative;display:flex;align-items:center;gap:8px;margin:8px 0 2px;padding:8px 12px;background:#fff4c9;border-radius:16px;border:2px solid #ffe08a;text-align:left}
@@ -110,4 +111,4 @@ body.dev .ib{width:34px;font-size:15px}
 .feedrow{display:flex;gap:8px;margin-top:10px}
 .feedrow .big{margin-top:0;flex:2}
 .feedrow #bFeedAll{flex:1;font-size:15px}
-@media (max-width:600px){#ov-title{background:#fffdf8}#ov-title .card{width:100vw;max-width:100vw;height:100%;max-height:100%;border:none;border-radius:0;box-shadow:none;padding:calc(env(safe-area-inset-top,0px) + 34px) 14px calc(env(safe-area-inset-bottom,0px) + 18px)}}
+@media (max-width:600px){#ov-title{background:#fffdf8}#ov-title .card{width:100vw;max-width:100vw;height:100%;max-height:100%;border:none;border-radius:0;box-shadow:none;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px calc(env(safe-area-inset-bottom,0px) + 18px)}}

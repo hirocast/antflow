@@ -63,8 +63,9 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;border-radius:22px;box-shadow:inset 0 0 42px rgba(255,160,130,.75);animation:fvg .45s ease-in-out infinite alternate}
 @keyframes fvg{from{opacity:.5}to{opacity:1}}
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
-#ov-title .home-h2{margin:0 0 4px;padding:4px 20px;font-size:17px}
-.upd-bar{background:#fff8fb;border:2px solid #ffd3e2;border-radius:16px;padding:7px 9px;margin:0 0 8px;text-align:left;box-shadow:0 2px 0 #f3d5e0}
+#ov-title .home-h2{display:none}
+#ov-title .card p{margin:4px 0;font-size:13px;line-height:1.5}
+.upd-bar{background:#fff8fb;border:2px solid #ffd3e2;border-radius:16px;padding:6px 9px;margin:0 0 6px;text-align:left;box-shadow:0 2px 0 #f3d5e0}
 .upd-bar.has-new{background:linear-gradient(180deg,#fff3f8,#ffe4ef);border-color:#ff7aa6;box-shadow:0 3px 0 #e46a92}
 .upd-top{display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap}
 .upd-left{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0}
@@ -438,6 +439,11 @@ function handleTalkLikeClick(e) {
     else if (act === 'bingo') openBingo('title');
   });
   $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMBingo"><i>🎯</i>ビンゴ<em class="dot" id="bingoDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
+  if ($('#bTitleHelp') && $('#bTitleAlbum')) {
+    const tr = document.createElement('div'); tr.className = 'cfrow'; tr.style.marginTop = '10px';
+    $('#bTitleHelp').parentNode.insertBefore(tr, $('#bTitleHelp'));
+    tr.appendChild($('#bTitleHelp')); tr.appendChild($('#bTitleAlbum'));
+  }
   const tf = $('#ov-title .fine');
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
@@ -1120,7 +1126,7 @@ function syncQuickFbVis() {
   const b = $('#bQuickFb');
   if (!b) return;
   const ov = G.overlay;
-  const hide = !ov || ov === 'feedback' || ov === 'confirm' || ov === 'load' || ov === 'daily';
+  const hide = !ov || ov === 'title' || ov === 'feedback' || ov === 'confirm' || ov === 'load' || ov === 'daily';
   b.classList.toggle('on', !hide);
 }
 function showOv(name) {
