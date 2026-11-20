@@ -334,57 +334,56 @@ let trayGrad = null, trayGradKey = '', trayCacheKey = '', nestCache = null, slot
    両方を計算して、横長のほうが絵が SIDE_MIN 倍以上大きくなるときだけ横長にする */
 const SIDE_MIN = 1.08;
 const q4 = v => Math.floor(v * 4) / 4;
-// 箱の大きさ h のトレイに必要な高さ（手前の箱＋うしろに3つ重ねてのぞかせる）
-const trayNeed = h => Math.round(h * 2.08 + 22);
+// 箱の大きさ h のトレイに最低限必要な高さ（手前の箱＋うしろに5つ重ねてのぞかせる）
+const trayNeed = h => Math.round(h * 2.55 + 22);
 // スロットの大きさ s の列に必要な高さ（箱からのぞくアリの頭もふくむ）
 const rowNeed = s => Math.round(s * 1.4 + 8);
-// たて長：スロット列の右はしに巣穴（巣穴の幅＝スロット約2.2こ分）
+// たて長：上から「絵」「スロット＋巣穴（横ならび）」「シンガー」「トレイ」（上へ寄せてトレイをできるだけ広くする）
 function planTall(W, H, n) {
   const fp = framePad, cw = Math.min((CW - 16) / n, 120), g = clamp(CW * 0.02, 4, 10);
   const sMax = clamp((CW - 24 - g * 5) / (SLOT_COUNT + 2.2), 24, 62);
-  let h = clamp(Math.min(cw * 0.62, CH * 0.09), 34, 60), s = clamp(Math.min(sMax, CH * 0.08), 24, sMax);
+  const singerGap = clamp(CH * 0.05, 30, 38);
+  let h = clamp(Math.min(cw * 0.62, CH * 0.085), 32, 58), s = clamp(Math.min(sMax, CH * 0.078), 24, sMax);
   let trayH = trayNeed(h), rowH = rowNeed(s);
-  const avail = CH - trayH - rowH - 10;
+  const avail = CH - trayH - rowH - singerGap - 12;
   const raw = Math.min((CW - 12 - fp * 2) / (W + 2), (avail - 8 - fp * 2) / (H + 2));
   const c = clamp(q4(raw), 3, 46), frameW = (W + 2) * c + fp * 2, frameH = (H + 2) * c + fp * 2;
-  // 絵が横幅いっぱいで止まったら、余った高さでトレイの箱 → スロットの順に大きくする
+  // 余った高さはスロット幅に少しだけ使い、残りはすべてトレイ（奥の箱表示）にまわす
   let spare = avail - frameH - 8;
   if (spare > 0) {
-    const h2 = clamp(h + spare * 0.6 / 2.08, h, Math.max(h, Math.min(66, cw * 0.62)));
-    spare -= trayNeed(h2) - trayH; h = h2; trayH = trayNeed(h);
+    const s2 = clamp(s + spare * 0.4 / 1.4, s, Math.max(s, sMax));
+    s = s2; rowH = rowNeed(s);
   }
-  if (spare > 0) {
-    const s2 = clamp(s + spare * 0.5 / 1.4, s, Math.max(s, sMax));
-    spare -= rowNeed(s2) - rowH; s = s2; rowH = rowNeed(s);
-  }
-  spare = Math.max(0, spare);
-  const top = 4 + spare * 0.35, rowTop = top + frameH + 14 + spare * 0.35;
+  const top = 4, rowTop = top + frameH + 8;
+  const slotY = rowTop + s * 0.74 + 4, slotBot = slotY + s * 0.64;
   const nr = s * 0.5, nestW = nr * 4.4, slotsW = s * SLOT_COUNT + g * (SLOT_COUNT - 1), left = (CW - slotsW - g - nestW) / 2;
   return {
     side: false, raw, c, h, s, g, cw, pw: 0,
     ox: (CW - frameW) / 2 + fp + c, oy: top + fp + c,
-    slotCX: left + slotsW / 2, slotY: rowTop + s * 0.74 + 4,
+    slotCX: left + slotsW / 2, slotY,
     nestRoom: nr, nestX: left + slotsW + g + nestW / 2, nestY: rowTop + rowH / 2 + nr * 0.1,
-    trayTop: CH - trayH, trayCX: CW / 2, panelL: 8, panelR: CW - 8
+    trayTop: Math.min(CH - trayH, slotBot + singerGap), trayCX: CW / 2, panelL: 8, panelR: CW - 8
   };
 }
-// 横長：左に絵、右の操作エリアに 巣穴 → スロット → トレイ（トレイは指の届く下）
+// 横長：左に絵、右の操作エリアに 巣穴 → スロット → シンガー → トレイ（上へ寄せてトレイを広く）
 function planWide(W, H, n) {
   if (CW < CH * 1.1 || CW < 460) return null;
   const fp = framePad, pw = clamp(CW * 0.34, 240, 440), pl = CW - pw;
   const cw = Math.min((pw - 16) / n, 120), g = clamp(pw * 0.025, 4, 12);
-  const h = clamp(Math.min(cw * 0.62, CH * 0.13), 30, 66);
-  const s = clamp(Math.min((pw - 24 - g * (SLOT_COUNT - 1)) / SLOT_COUNT, CH * 0.11), 24, 62);
-  const trayH = trayNeed(h), rowH = rowNeed(s), nr = clamp(Math.min(pw / 5, (CH - trayH - rowH - 16) / 2.6), 10, 40);
+  const singerGap = clamp(CH * 0.06, 28, 38);
+  const h = clamp(Math.min(cw * 0.62, CH * 0.12), 30, 58);
+  const s = clamp(Math.min((pw - 24 - g * (SLOT_COUNT - 1)) / SLOT_COUNT, CH * 0.10), 24, 62);
+  const trayH = trayNeed(h), rowH = rowNeed(s), nr = clamp(Math.min(pw / 5, (CH - trayH - rowH - singerGap - 16) / 2.6), 10, 40);
   const raw = Math.min((pl - 12 - fp * 2) / (W + 2), (CH - 12 - fp * 2) / (H + 2));
   const c = clamp(q4(raw), 3, 46), frameW = (W + 2) * c + fp * 2, frameH = (H + 2) * c + fp * 2;
-  const spare = Math.max(0, CH - trayH - rowH - nr * 2.5 - 12), rowTop = CH - trayH - rowH - spare * 0.25;
+  const nestY = 6 + nr * 1.4, rowTop = nestY + nr * 1.15 + 6;
+  const slotY = rowTop + s * 0.74 + 4, slotBot = slotY + s * 0.64;
   return {
     side: true, raw, c, h, s, g, cw, pw,
     ox: (pl - frameW) / 2 + fp + c, oy: (CH - frameH - 8) / 2 + fp + c,
-    slotCX: pl + pw / 2, slotY: rowTop + s * 0.74 + 4,
-    nestRoom: nr, nestX: pl + pw / 2, nestY: rowTop - spare * 0.25 - 4 - nr * 1.15,
-    trayTop: CH - trayH, trayCX: pl + pw / 2, panelL: pl + 2, panelR: CW - 8
+    slotCX: pl + pw / 2, slotY,
+    nestRoom: nr, nestX: pl + pw / 2, nestY,
+    trayTop: Math.min(CH - trayH, slotBot + singerGap), trayCX: pl + pw / 2, panelL: pl + 2, panelR: CW - 8
   };
 }
 function layout() {
@@ -401,7 +400,7 @@ function layout() {
   boardSide = P.side; cs = P.c; ox = P.ox; oy = P.oy;
   slotSize = P.s; slotGap = P.g; slotCX = P.slotCX; slotY = P.slotY;
   trayTop = P.trayTop; trayCX = P.trayCX; panelL = P.panelL; panelR = P.panelR;
-  colW = P.cw; headSize = P.h; trayHeadY = trayTop + headSize * 0.5 + 10; trayGap = headSize * 0.44;
+  colW = P.cw; headSize = P.h; trayHeadY = trayTop + headSize * 0.5 + 10; trayGap = headSize * 0.42;
   antPx = clamp(cs * 1.4, 13, 30); antU = antPx / 2;
   nestR = clamp(Math.min(P.nestRoom, antPx * 0.95 * NEST_SCALE), 10, 50);
   nestX = P.nestX; nestY = P.nestY;
@@ -1043,6 +1042,8 @@ function renderTrayTo(g, needHc) {
   g.fillStyle = 'rgba(160,100,40,.2)'; roundRect(g, L, trayTop + 5, TW, CH - trayTop - 6, 22); g.fill();
   g.fillStyle = trayGrad; roundRect(g, L, trayTop, TW, CH - trayTop - 8, 22); g.fill();
   g.strokeStyle = '#fff'; g.lineWidth = 3; g.stroke();
+  let maxShow = 1;
+  while (maxShow < TRAY_MAX && trayHeadY + (TY[maxShow] + 0.41 * TSC[maxShow]) * headSize <= CH - 12) maxShow++;
   for (let j = 0; j < G.s.cols.length; j++) {
     const col = G.s.cols[j], h = G.s.heads[j], rest = col.length - h;
     let x = trayX(j);
@@ -1053,14 +1054,15 @@ function renderTrayTo(g, needHc) {
       continue;
     }
     const off = G.trayOff[j], fr = trayGap > 0 ? off / trayGap : 0;
-    for (let k = Math.min(4, rest) - 1; k >= 0; k--) {
+    for (let k = Math.min(maxShow, rest) - 1; k >= 0; k--) {
       const b = col[h + k];
       let s = lerp(TSC[k], TSC[k + 1], fr) * headSize;
       if (k === 0 && G.press && G.press.j === j && !G.press.previewed) s *= 0.92;
       if (k === 0 && G.queued && G.queued.j === j) s *= 1 + 0.05 * Math.sin(G.rt * 20);
       if (k === 0 && needHc && !G.hc) G.hc = headCounts(G.s);
-      const y = trayHeadY + k * trayGap + off, dim = k === 0 && save.settings.dim && !G.hc[j];
-      drawBox(x, y, s, b.c, b.n, { alpha: lerp(TAL[k], TAL[k + 1], fr) * (dim ? 0.5 : 1), numY: k > 0 ? 0.22 : 0.1 }, g);
+      const y = trayHeadY + lerp(TY[k], TY[k + 1], fr) * headSize, dim = k === 0 && save.settings.dim && !G.hc[j];
+      const al = (k === maxShow - 1 ? 1 - fr : 1) * (dim ? 0.5 : 1);
+      drawBox(x, y, s, b.c, b.n, { alpha: al, numY: k > 0 ? 0.22 : 0.1 }, g);
       if (dim && g === ctx) drawZz(x + s * 0.42, y - s * 0.4, s);
       if (k === 0 && G.scanId === G.levelId && (G.hc[j] || 0) >= b.n) {
         const p = 0.5 + 0.5 * Math.sin(G.rt * 6);
@@ -1086,10 +1088,11 @@ function renderTrayTo(g, needHc) {
         g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, x, y + s * 0.38 + th / 2);
       }
     }
-    // のこりの箱の数：4つ目の箱の右に出す（トレイを低くしたので下には置かない）
-    if (rest > 4) {
+    // のこりの箱の数：見えているいちばん奥の箱の右に出す
+    if (rest > maxShow) {
+      const kLast = maxShow - 1;
       g.fillStyle = 'rgba(120,70,30,.75)'; g.font = fnt(800, Math.max(10, headSize * 0.24)); g.textAlign = 'left'; g.textBaseline = 'middle';
-      g.fillText('+' + (rest - 4), x + headSize * 0.34, trayHeadY + 3 * trayGap);
+      g.fillText('+' + (rest - maxShow), x + TSC[kLast] * headSize * 0.54 + 2, trayHeadY + TY[kLast] * headSize);
     }
   }
 }

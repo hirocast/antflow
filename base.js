@@ -10,7 +10,10 @@ const SYM = ['●','▲','■','◆','★','✚','○','▼','◎','✦','♥','
 const LIGHT = new Set([2, 3, 6, 10, 11, 12, 13, 15, 18, 19, 20]);
 const POP = ['#ff8fb3','#ffd45e','#7cc4ff','#8fe0a6','#c6a8f0','#ff9a3c','#ff5a6a'];
 const DX = [1, -1, 0, 0], DY = [0, 0, 1, -1];
-const TSC = [1, 0.86, 0.74, 0.64, 0.55], TAL = [1, 1, 1, 1, 0];
+const TRAY_MAX = 16;
+const TSC = Array.from({ length: TRAY_MAX + 1 }, (_, k) => +(0.38 + 0.62 * Math.pow(0.78, k)).toFixed(3));
+const TY = [0];
+for (let k = 0; k < TRAY_MAX; k++) TY.push(+(TY[k] + 0.42 * TSC[k]).toFixed(3));
 const FONT = "'Hiragino Maru Gothic ProN','M PLUS Rounded 1c','Kosugi Maru','Arial Rounded MT Bold',system-ui,sans-serif";
 
 const $ = s => document.querySelector(s);
