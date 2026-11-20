@@ -381,15 +381,17 @@ async function handleFeedback(request, env, cors) {
       const s = cleanLine(v, max);
       if (s) rows.push(`- ${k}: ${s}`);
     };
+    addRow('報告元の画面', d.origin, 140);
     addRow('OS / ブラウザ', d.env, 140);
     addRow('機種ヒント', d.model, 60);
     addRow('画面・表示モード', d.display, 100);
     addRow('端末性能・通信', d.hw, 100);
     addRow('描画パフォーマンス', d.perf, 100);
-    addRow('直前の盤面・状態', d.stage, 160);
+    addRow('直前の盤面・状態', d.stage, 220);
     addRow('サウンド・設定', d.audio, 100);
     addRow('読込済みJS / 保存領域', d.health, 120);
     addRow('直近の画面遷移', d.trail, 220);
+    addRow('直近の操作ログ', d.actions, 240);
     const errs = Array.isArray(d.errors) ? d.errors.map(e => cleanLine(e, 180)).filter(Boolean).slice(0, 6) : [];
     rows.push(`- JSエラー記録: ${errs.length ? errs.length + '件' : 'なし'}`);
     if (rows.length) {

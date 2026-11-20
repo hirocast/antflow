@@ -122,6 +122,17 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .fb-thanks{display:none;margin:6px 0 2px;padding:9px 10px;background:linear-gradient(135deg,#ecfff4,#fffbe6);border:2px solid #59c988;border-radius:14px;text-align:center;font-size:12px;font-weight:900;line-height:1.5;color:#1b6d42}
 .fb-thanks.on{display:block}
 .fb-gift-tag{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:999px;background:linear-gradient(#ffe36e,#ffb830);color:#6e3a00;font-size:10.5px;font-weight:900;vertical-align:1px;box-shadow:0 1px 0 #d98d12}
+.hud-fb{flex:0 0 auto;border:2px solid #fff;border-radius:999px;padding:2px 8px;background:linear-gradient(#fff5f9,#ffd8e8);color:#b83060;font:900 10.5px/1.2 var(--rf);box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
+.hud-fb:active{transform:translateY(1px);box-shadow:none}
+.hud-fb b{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#ff5c93;color:#fff;font-size:10px;line-height:1}
+.quick-fb{position:fixed;top:calc(env(safe-area-inset-top,0px) + 5px);right:8px;z-index:25;border:2px solid #fff;border-radius:999px;padding:4px 10px 4px 6px;background:linear-gradient(#fff7fa,#ffdbe9);color:#b83060;font:900 11px/1 var(--rf);box-shadow:0 3px 0 rgba(90,61,92,.22),0 4px 10px rgba(90,61,92,.14);cursor:pointer;display:none;align-items:center;gap:4px;white-space:nowrap}
+.quick-fb.on{display:inline-flex}
+.quick-fb:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(90,61,92,.22)}
+.quick-fb b{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#ff5c93;color:#fff;font-size:11px;line-height:1}
+.quick-fb .qdot{width:7px;height:7px;border-radius:50%;background:#ffb800;border:1.5px solid #fff;display:none;margin-left:-1px}
+.quick-fb.gift .qdot,.hud-fb.gift .qdot{display:inline-block}
+.hud-fb .qdot{width:6px;height:6px;border-radius:50%;background:#ffb800;border:1px solid #fff;display:none}
+.fb-ctx{margin:2px 0 6px;padding:6px 9px;background:#eef9ff;border:1.5px solid #bde3fa;border-radius:11px;text-align:left;font-size:10.5px;font-weight:800;line-height:1.45;color:#1b5b82}
 .tinfo span,.tinfo-btn{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
 .tinfo-btn{border:none;font-family:var(--rf);color:var(--ink);cursor:pointer}
 .tinfo-btn:active{transform:translateY(2px);box-shadow:none}
@@ -388,6 +399,7 @@ function handleTalkLikeClick(e) {
   $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b>'; return d; })(), $('#bAlbum'));
   $('header').insertBefore((() => { const b = document.createElement('button'); b.className = 'ib'; b.id = 'bHome'; b.setAttribute('aria-label', 'ホーム'); b.textContent = '🏠'; return b; })(), $('#bAlbum'));
   const tt = document.createElement('span'); tt.id = 'timeTxt'; $('.prog').appendChild(tt);
+  const hfb = document.createElement('button'); hfb.type = 'button'; hfb.className = 'hud-fb'; hfb.id = 'bHudFb'; hfb.setAttribute('aria-label', '要望・不具合報告'); hfb.innerHTML = '<b>!</b>報告<i class="qdot"></i>'; $('.prog').appendChild(hfb);
   const lts = document.createElement('small'); lts.id = 'lvTalkSub'; $('.lv').appendChild(lts);
   document.body.appendChild($('#toast'));
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
@@ -1093,6 +1105,13 @@ function pushCrumb(tag) {
   AF_BREADCRUMBS.push(tag);
   if (AF_BREADCRUMBS.length > 10) AF_BREADCRUMBS.shift();
 }
+function syncQuickFbVis() {
+  const b = $('#bQuickFb');
+  if (!b) return;
+  const ov = G.overlay;
+  const hide = !ov || ov === 'feedback' || ov === 'confirm' || ov === 'load' || ov === 'daily';
+  b.classList.toggle('on', !hide);
+}
 function showOv(name) {
   G.overlay = name;
   pushCrumb(name);
@@ -1104,12 +1123,14 @@ function showOv(name) {
     renderTitle();
     if (typeof checkAppUpdate === 'function') checkAppUpdate(false);
   }
+  syncQuickFbVis();
   updateCoins();
 }
 function hideOv() {
   G.overlay = null;
   pushCrumb('play' + (G.level ? '(Lv.' + posOf(G.levelId) + (G.level.custom ? '/自作' : '') + ')' : ''));
   document.querySelectorAll('.ov').forEach(o => o.classList.remove('show'));
+  syncQuickFbVis();
   updateCoins();
 }
 function popText(el, text) {
@@ -3348,14 +3369,70 @@ layout();
     ['maker', '🎨 メーカー・投稿'],
     ['other', '🎵 BGM・きせかえ他']
   ];
+  const OV_NAMES = {
+    play: '🎮 パズルプレイ中',
+    title: '🏠 ホーム画面',
+    settings: '⚙️ 設定',
+    album: '📒 アルバム',
+    view: '🖼️ アルバム拡大表示',
+    clear: '🎉 クリア画面',
+    jam: '💦 渋滞画面',
+    colony: '👑 女王さまのへや',
+    missions: '📋 きょうのミッション',
+    bingo: '🎯 セリフビンゴ',
+    skins: '🎀 きせかえ',
+    help: '📖 あそびかた',
+    maker: '🎨 ステージメーカー',
+    gallery: '🖼️ みんなの絵・マイ作品',
+    contest: '🏆 コンテスト',
+    award: '🏆 コンテスト表彰',
+    inbox: '📬 おてがみ箱',
+    bgm: '🎵 BGMメーカー',
+    'bgm-gal': '🎶 みんなのBGM',
+    'bgm-builtin': '🎼 公式BGM一覧',
+    'stage-bgm': '🎵 ステージBGM選択',
+    posthelp: '📤 ステージ投稿案内',
+    'bgm-posthelp': '📤 BGM投稿案内',
+    a2hs: '📲 ホーム画面に追加'
+  };
   const PLACEHOLDERS = {
     idea: '例：こんな新機能があったら楽しそう！／ここがもっと使いやすいと嬉しい',
     bug: 'くわしい状況があればひとこと（上の症状を選べば、書かずにそのまま送ってもOK！）',
     stage: '例：〇〇のステージを作ってほしい！／こんなBGMを追加してほしい！',
     other: '例：ここが楽しかった！／ありんこ隊への応援メッセージなど'
   };
-  let selCat = 'idea', selScene = 'title', prevOv = 'title', sending = false, attachedImg = null;
+  let selCat = 'idea', selScene = 'title', prevOv = 'title', sending = false, attachedImg = null, liveCtx = null;
   const selSyms = new Set();
+
+  // 直近の操作ログ（ボタンID等の技術タグのみ・入力文字や個人情報は一切記録しない）
+  const AF_ACT_LOG = [];
+  function pushAct(tag) {
+    if (!tag) return;
+    const last = AF_ACT_LOG[AF_ACT_LOG.length - 1];
+    const now = Date.now();
+    if (last && last.tag === tag && now - last.t < 800) return;
+    AF_ACT_LOG.push({ t: now, tag: String(tag).slice(0, 32) });
+    if (AF_ACT_LOG.length > 12) AF_ACT_LOG.shift();
+  }
+  document.addEventListener('click', e => {
+    const el = e.target && e.target.closest ? e.target.closest('button,[data-hub],[data-cat],[data-tab],[data-cv]') : null;
+    if (!el || el.id === 'bQuickFb' || el.id === 'bHudFb' || el.closest('#ov-feedback')) return;
+    const tag = el.id ? ('#' + el.id)
+      : el.dataset.hub ? ('hub:' + el.dataset.hub)
+      : el.dataset.tab ? ('tab:' + el.dataset.tab)
+      : el.dataset.cv ? ('vote:' + el.dataset.cv)
+      : (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 14);
+    if (tag) pushAct(tag);
+  }, { capture: true, passive: true });
+
+  // どのオーバーレイ画面からも1タップで開ける常設「! 報告」ボタン
+  const qfb = document.createElement('button');
+  qfb.type = 'button';
+  qfb.className = 'quick-fb';
+  qfb.id = 'bQuickFb';
+  qfb.setAttribute('aria-label', '要望・不具合報告');
+  qfb.innerHTML = '<b>!</b><span>要望・不具合</span><i class="qdot"></i>';
+  document.body.appendChild(qfb);
 
   const ov = document.createElement('div');
   ov.className = 'ov';
@@ -3363,6 +3440,7 @@ layout();
   ov.innerHTML =
     '<div class="card">' +
     '<h2 style="font-size:18px;padding:6px 18px">💬 要望・不具合ポスト</h2>' +
+    '<div class="fb-ctx" id="fbCtxBadge" style="display:none"></div>' +
     '<div class="fb-camp" id="fbCamp" style="display:none"></div>' +
     '<div class="fb-thanks" id="fbThanks"></div>' +
     '<p class="fine" style="margin:2px 0 6px;line-height:1.5">ほしい機能・遊びたい絵・動かない／表示がおかしい等の不具合を気軽に送ってね！<br>状況がわかるスクショも1枚添えられます📷</p>' +
@@ -3378,7 +3456,7 @@ layout();
       '<div class="fb-chips" id="fbScenes">' +
         BUG_SCENES.map(([k, lbl]) => '<button type="button" class="fb-chip" data-scene="' + k + '">' + lbl + '</button>').join('') +
       '</div>' +
-      '<div class="fb-auto-hint">✨ 端末・画面サイズ・遊んでいた面・エラー記録は自動で添えられるので手入力は不要です</div>' +
+      '<div class="fb-auto-hint">✨ 端末・画面サイズ・遊んでいた面・直前の画面とエラー記録は自動で添えられるので手入力は不要です</div>' +
     '</div>' +
     '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="' + PLACEHOLDERS.idea + '"></textarea>' +
     '<div class="fb-cnt"><span id="fbCnt">0</span> / 500</div>' +
@@ -3395,7 +3473,7 @@ layout();
     '<input id="fbNick" class="fb-in" type="text" maxlength="16" placeholder="ニックネーム（空欄でもOK）">' +
     '<div class="fb-note">' +
       '<div>・アカウント不要で送れます。本名・連絡先・スクショ内の通知など<b>個人情報が映り込まないよう</b>ご注意ください。</div>' +
-      '<div>・原因調査のため、端末種別・画面サイズ・プレイ中の面・エラー記録などの技術情報のみ自動で添えられます（個人情報は送信されません）。</div>' +
+      '<div>・原因調査のため、直前の画面・端末種別・画面サイズ・プレイ中の面・操作/エラー履歴などの技術情報のみ自動で添えられます（個人情報は送信されません）。</div>' +
       '<div>・不具合は確認のうえ改善に努めますが、<b>端末や環境によっては改善できない場合もあります</b>。</div>' +
       '<div>・<b>基本的には個別の返信は行っておりません</b>（対応内容はホームの「最近のアップデート」やおてがみ箱でお知らせします）。</div>' +
     '</div>' +
@@ -3427,6 +3505,9 @@ layout();
     const tag = cs.eligible ? '<span class="fb-gift-tag">🎁お礼あり</span>' : '';
     if (bTitle) bTitle.innerHTML = '💬 要望・不具合を送る' + tag;
     if (bSet) bSet.innerHTML = '💬 要望・不具合を送る' + tag;
+    const hfb = $('#bHudFb'), q = $('#bQuickFb');
+    if (hfb) hfb.classList.toggle('gift', cs.eligible);
+    if (q) q.classList.toggle('gift', cs.eligible);
     const box = $('#fbCamp');
     if (!box) return;
     if (!FB_CAMPAIGN.active) { box.style.display = 'none'; return; }
@@ -3468,27 +3549,78 @@ layout();
       return '<div class="fb-hitem"><b>' + escUpd(cat) + (dt ? ' · ' + escUpd(dt) : '') + imgTag + giftTag + '</b>' + escUpd(x.msg) + '</div>';
     }).join('');
   }
-  function guessScene() {
+  function sceneFromOv(ovId) {
+    if (!ovId || ovId === 'play' || ovId === 'clear' || ovId === 'jam' || ovId === 'load') return 'play';
+    if (ovId === 'maker' || ovId === 'gallery' || ovId === 'contest' || ovId === 'award' || ovId === 'posthelp' || ovId === 'stage-bgm') return 'maker';
+    if (ovId === 'title') return 'title';
+    return 'other';
+  }
+  function guessScene(originOv) {
+    if (originOv && originOv !== 'settings' && originOv !== 'feedback') return sceneFromOv(originOv);
     for (let i = AF_BREADCRUMBS.length - 1; i >= 0; i--) {
       const c = AF_BREADCRUMBS[i];
       if (c === 'feedback' || c === 'settings') continue;
-      if (c.startsWith('play') || c === 'clear' || c === 'jam' || c === 'load') return 'play';
-      if (c === 'maker' || c === 'gallery' || c === 'contest' || c === 'posthelp' || c === 'stage-bgm') return 'maker';
-      if (c === 'title') return 'title';
-      return 'other';
+      if (c.startsWith('play')) return 'play';
+      return sceneFromOv(c);
     }
     return prevOv === 'title' ? 'title' : 'play';
+  }
+  // 報告ボタンを押した瞬間の画面・盤面・操作状態を裏側で丸ごとスナップショット取得
+  function captureLiveContext(originOv) {
+    const key = originOv || 'play';
+    const baseName = OV_NAMES[key] || ('画面:' + key);
+    let sub = '';
+    if (key !== 'play') {
+      const ovEl = $('#ov-' + key);
+      if (ovEl) {
+        const tabs = [...ovEl.querySelectorAll('.on')].map(el => (el.textContent || '').trim().replace(/\s+/g, ' ')).filter(t => t && t.length <= 18).slice(0, 3);
+        if (tabs.length) sub = '選択中:' + tabs.join(' / ');
+      }
+    }
+    let stageNote = '';
+    if (G.level && G.s) {
+      const slots = (G.s.boxes || []).map(b => (KEYS[b.c] || b.c) + ':' + b.rem).join(',');
+      const stFlags = [];
+      if (G.loading) stFlags.push('読込中');
+      if (G.pendingWin) stFlags.push('クリア演出待ち');
+      if (G.pendingJam) stFlags.push('渋滞中');
+      stageNote = 'Lv.' + posOf(G.levelId) + ' ' + (G.level.name || '') +
+        ' (id:' + G.levelId + (G.level.custom ? '/自作' : '') +
+        ', ' + (G.level.W || G.s.W || '?') + 'x' + (G.level.H || G.s.H || '?') +
+        ', のこり:' + G.s.left + '/' + G.level.total +
+        ', スロット:' + G.s.boxes.length + '/' + SLOT_COUNT + (slots ? '[' + slots + ']' : '') +
+        ', アリ:' + (G.ants ? G.ants.length : 0) +
+        ', 速度:' + G.speed + 'x' +
+        ', undo:' + (G.undo ? G.undo.length : 0) +
+        (stFlags.length ? ', 状態:' + stFlags.join('/') : '') + ')';
+    }
+    let originFull = baseName;
+    if ((key === 'play' || key === 'clear' || key === 'jam') && G.level) {
+      originFull += '（Lv.' + posOf(G.levelId) + ' ' + (G.level.name || '') + (G.s ? '・のこり' + G.s.left : '') + '）';
+    } else if (sub) {
+      originFull += '（' + sub + '）';
+    }
+    const snapKind = (key === 'maker' && $('#mkCv') && $('#mkCv').width > 0)
+      ? 'maker'
+      : ((G.s && CW > 0 && $('#game') && $('#game').width > 0) ? 'game' : '');
+    return { key, originFull, stageNote, snapKind };
   }
   function syncBugPanelUI() {
     const isBug = selCat === 'bug';
     const box = $('#fbBugBox');
     if (box) box.classList.toggle('on', isBug);
+    $('#fbCats').querySelectorAll('.fb-cat').forEach(x => x.classList.toggle('on', x.dataset.cat === selCat));
     $('#fbSyms').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', selSyms.has(x.dataset.sym)));
     $('#fbScenes').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', x.dataset.scene === selScene));
     const ta = $('#fbText');
     if (ta && PLACEHOLDERS[selCat]) ta.placeholder = PLACEHOLDERS[selCat];
     const snap = $('#bFbSnap');
-    if (snap) snap.style.display = (G.s && CW > 0 && $('#game')) ? '' : 'none';
+    if (snap) {
+      const kind = liveCtx ? liveCtx.snapKind : '';
+      snap.style.display = kind ? '' : 'none';
+      if (kind === 'maker') snap.textContent = '🎨 作成中の絵を自動撮影';
+      else if (kind === 'game') snap.textContent = '🎮 プレイ盤面を自動撮影';
+    }
   }
   function parseUaEnv() {
     const ua = navigator.userAgent || '';
@@ -3548,19 +3680,7 @@ layout();
     const fps = afPerf.avgMs ? Math.min(120, Math.round(1000 / afPerf.avgMs)) : '-';
     const perf = '平均' + avg + 'ms (約' + fps + 'fps) / 80ms超:' + afPerf.slowCnt + '回 / 最大' + Math.round(afPerf.maxMs) + 'ms';
 
-    let stage = '未読込';
-    if (G.level && G.s) {
-      stage = 'Lv.' + posOf(G.levelId) + ' ' + (G.level.name || '') +
-        ' (id:' + G.levelId + (G.level.custom ? '/自作' : '') +
-        ', ' + (G.level.W || G.s.W || '?') + 'x' + (G.level.H || G.s.H || '?') +
-        ', のこり:' + G.s.left + '/' + G.level.total +
-        ', スロット:' + G.s.boxes.length + '/' + SLOT_COUNT +
-        ', アリ:' + (G.ants ? G.ants.length : 0) +
-        ', 速度:' + G.speed + 'x' +
-        ', 直前:' + (prevOv || 'play') + ')';
-    } else {
-      stage = '直前画面:' + (prevOv || 'title');
-    }
+    const stage = (liveCtx && liveCtx.stageNote) ? liveCtx.stageNote : ('直前画面:' + (prevOv || 'title'));
 
     const audio = 'BGM:' + (save.settings.bgm ? 'ON' : 'OFF') +
       ' / SE:' + (save.settings.se ? 'ON' : 'OFF') +
@@ -3580,8 +3700,13 @@ layout();
       const ago = Math.max(0, Math.round((now - (x.t || now)) / 1000));
       return '[-' + ago + 's] ' + x.m;
     });
+    const actions = AF_ACT_LOG.slice(-10).map(x => {
+      const ago = Math.max(0, Math.round((now - x.t) / 1000));
+      return x.tag + '(-' + ago + 's)';
+    }).join(' → ');
 
     return {
+      origin: liveCtx ? liveCtx.originFull : (OV_NAMES[prevOv] || prevOv || 'unknown'),
       env: os + ' / ' + br,
       model,
       display,
@@ -3591,6 +3716,7 @@ layout();
       audio,
       health,
       trail: AF_BREADCRUMBS.join(' → '),
+      actions,
       errors
     };
   }
@@ -3653,27 +3779,35 @@ layout();
     if (pv) pv.classList.add('on');
     if (btn) btn.textContent = '📷 別の画像に変更';
   }
-  function openFeedback(from) {
-    prevOv = from || G.overlay || 'title';
-    selScene = guessScene();
+  function openFeedback(from, opts) {
+    const curOv = from !== undefined ? from : (G.overlay || 'play');
+    prevOv = curOv || 'play';
+    liveCtx = captureLiveContext(prevOv);
+    selScene = guessScene(prevOv);
+    if (opts && opts.defaultCat) selCat = opts.defaultCat;
     const ni = $('#fbNick');
     if (ni && !ni.value) {
       try { ni.value = localStorage.getItem(FB_NICK_KEY) || ''; } catch (e) {}
     }
     const th = $('#fbThanks');
     if (th) { th.classList.remove('on'); th.innerHTML = ''; }
+    const ctxEl = $('#fbCtxBadge');
+    if (ctxEl && liveCtx) {
+      ctxEl.textContent = '📍 いまの画面を自動取得済み：' + liveCtx.originFull;
+      ctxEl.style.display = 'block';
+    }
     syncBugPanelUI();
     refreshFbCampaignUI();
     renderHist();
     showOv('feedback');
   }
+  window.AF_openFeedback = openFeedback;
 
   $('#fbCats').addEventListener('click', e => {
     const b = e.target.closest('[data-cat]');
     if (!b) return;
     Sound.tap();
     selCat = b.dataset.cat;
-    $('#fbCats').querySelectorAll('.fb-cat').forEach(x => x.classList.toggle('on', x.dataset.cat === selCat));
     syncBugPanelUI();
   });
   $('#fbSyms').addEventListener('click', e => {
@@ -3697,13 +3831,14 @@ layout();
   });
   on('#bFbPick', () => { const f = $('#fbFile'); if (f) f.click(); });
   on('#bFbSnap', () => {
-    const cv = $('#game');
-    if (!cv || !cv.width || !cv.height) { toast('プレイ盤面がまだ表示されていません'); return; }
+    const isMaker = liveCtx && liveCtx.snapKind === 'maker';
+    const cv = isMaker ? $('#mkCv') : $('#game');
+    if (!cv || !cv.width || !cv.height) { toast('撮影できる盤面がまだ表示されていません'); return; }
     try {
       const res = compressSourceToJpeg(cv, cv.width, cv.height);
-      res.info += ' (盤面自動撮影)';
-      showAttachedPreview(res, 'プレイ盤面を自動撮影');
-      toast('🎮 いまのプレイ盤面を自動撮影したよ！');
+      res.info += isMaker ? ' (メーカー自動撮影)' : ' (盤面自動撮影)';
+      showAttachedPreview(res, isMaker ? '作成中の絵を自動撮影' : 'プレイ盤面を自動撮影');
+      toast(isMaker ? '🎨 作成中の絵を自動撮影したよ！' : '🎮 いまのプレイ盤面を自動撮影したよ！');
     } catch (err) {
       toast('⚠️ ' + (err && err.message ? err.message : '撮影できませんでした'), 3000);
     }
@@ -3723,9 +3858,17 @@ layout();
       toast('⚠️ ' + (err && err.message ? err.message : '画像を添付できませんでした'), 3400);
     }
   });
-  on('#bTitleFeedback', () => openFeedback('title'));
+  on('#bTitleFeedback', () => openFeedback('title', { defaultCat: 'idea' }));
   on('#bSetFeedback', () => openFeedback('settings'));
-  on('#bFbClose', () => { if (prevOv && prevOv !== 'feedback') showOv(prevOv); else hideOv(); });
+  on('#bHudFb', () => openFeedback('play', { defaultCat: 'bug' }));
+  on('#bQuickFb', () => {
+    const cur = G.overlay || 'play';
+    openFeedback(cur, { defaultCat: cur === 'title' ? 'idea' : 'bug' });
+  });
+  on('#bFbClose', () => {
+    if (prevOv && prevOv !== 'feedback' && prevOv !== 'play') showOv(prevOv);
+    else hideOv();
+  });
   on('#bFbSend', async () => {
     if (sending) return;
     const ta = $('#fbText'), ni = $('#fbNick'), btn = $('#bFbSend');
@@ -3845,6 +3988,7 @@ layout();
   });
 
   refreshFbCampaignUI();
+  syncQuickFbVis();
 })();
 
 requestAnimationFrame(frame);
