@@ -1217,14 +1217,25 @@
       '.mkref-stage{position:absolute;inset:0;transform-origin:0 0;pointer-events:none;z-index:1;overflow:visible}' +
       '#mkRefImg{position:absolute;left:50%;top:50%;max-width:100%;max-height:100%;transform-origin:center center;display:none;pointer-events:none;user-select:none}' +
       '#mkCv{position:relative;z-index:2;display:block;width:100%;height:100%;background:transparent;touch-action:none;cursor:crosshair}' +
-      '.mkref{background:#fff7fb;border:2px solid #ffd3e2;border-radius:13px;padding:6px 8px;margin:4px 0;text-align:left}' +
-      '.mkref-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:2px 0}' +
+      '.mkref-active-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:5px;background:#fff7fb;border:2px solid #ffd3e2;border-radius:12px;padding:5px 8px;margin:4px 0}' +
+      '.mkref-active-bar button{border:2px solid #fff;border-radius:10px;padding:4px 9px;min-height:30px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
+      '.mkref-active-bar button.on{background:#ffe0ed;border-color:#ff8fb3;color:#c0507a}' +
+      '.mkref-desc{background:#fff7fb;border:2px solid #ffd3e2;border-radius:12px;padding:8px 10px;font:700 11.5px/1.55 var(--rf);color:var(--ink);text-align:left;margin:4px 0 8px}' +
+      '.mkref-sec{background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:10px;margin:6px 0;text-align:left}' +
+      '.mkref-sec-h{font:900 12.5px var(--rf);color:#c0507a;margin:0 0 4px}' +
+      '.mkref-hint{font:700 10.5px/1.45 var(--rf);color:#8a6578;margin:0 0 6px}' +
+      '.mkref-bigbtn{width:100%;border:2px solid #fff;border-radius:12px;padding:10px 12px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;font:900 12.5px var(--rf);cursor:pointer;box-shadow:0 3px 0 #d4507c}' +
+      '.mkref-bigbtn.sec{background:#fff;color:var(--ink);border-color:#ffd3e2;box-shadow:0 2px 0 #e5c6d3}' +
+      '.mkref-alpha-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:4px}' +
+      '.mkref-alpha-btn{border:2px solid #fff;border-radius:10px;padding:6px 4px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
+      '.mkref-alpha-btn.on{background:#ffe0ed;border-color:#ff8fb3;color:#c0507a}' +
+      '.mkref-row{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:2px 0}' +
       '.mkref-row button{border:2px solid #fff;border-radius:10px;padding:6px 9px;min-height:32px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
       '.mkref-row button.on{background:#ffe0ed;border-color:#ff8fb3;color:#c0507a}' +
       '.mkref-row span{font:900 10.5px var(--rf);color:#c0507a;min-width:30px;text-align:center}' +
       '.mkref-url{display:flex;gap:4px;margin-top:4px}' +
-      '.mkref-url input{flex:1;min-width:0;border:1.5px solid #f0c6d6;border-radius:10px;padding:5px 8px;font:700 11px var(--rf);color:var(--ink);background:#fff}' +
-      '.mkref-url button{flex:0 0 auto;border:2px solid #fff;border-radius:10px;padding:4px 10px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;font:900 11px var(--rf);cursor:pointer;box-shadow:0 2px 0 #d4507c}' +
+      '.mkref-url input{flex:1;min-width:0;border:1.5px solid #f0c6d6;border-radius:10px;padding:6px 8px;font:700 11px var(--rf);color:var(--ink);background:#fff}' +
+      '.mkref-url button{flex:0 0 auto;border:2px solid #fff;border-radius:10px;padding:4px 12px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;font:900 11px var(--rf);cursor:pointer;box-shadow:0 2px 0 #d4507c}' +
       '.mkpal{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:6px 0}' +
       '.mksw{width:30px;height:30px;border-radius:9px;border:2px solid #fff;box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;padding:0;font-size:14px;line-height:26px;background:#fff}' +
       '.mksw.on{outline:3px solid #5a3d5c;transform:scale(1.12)}' +
@@ -1499,25 +1510,11 @@
       '<button id="mkZIn" title="拡大">🔍＋</button>' +
       '<button id="mkPanBtn" disabled>✋ 移動</button>' +
       '</div>' +
-      '<div class="mkref" id="mkRefBar" style="display:none">' +
-      '<div class="mkref-row">' +
-      '<button type="button" id="bRefFile">📷 写真からえらぶ</button>' +
-      '<button type="button" id="bRefUrl">🌐 URLから</button>' +
-      '<button type="button" id="bRefToggle" style="display:none">👁️ 表示</button>' +
-      '<button type="button" id="bRefClear" style="display:none">✕ けす</button>' +
-      '</div>' +
-      '<div class="mkref-row" id="mkRefCtrl" style="display:none">' +
-      '<button type="button" id="bRefMove">✋ 位置</button>' +
-      '<button type="button" id="bRefOut">🔍−</button>' +
-      '<span id="mkRefZoomLbl">1.0x</span>' +
-      '<button type="button" id="bRefIn">🔍＋</button>' +
-      '<button type="button" id="bRefAlpha">💧 ふつう</button>' +
-      '</div>' +
-      '<div class="mkref-url" id="mkRefUrlBox" style="display:none">' +
-      '<input id="mkRefUrlIn" type="url" placeholder="画像のURL（https://...）">' +
-      '<button type="button" id="bRefUrlGo">読込</button>' +
-      '</div>' +
-      '<input id="mkRefFile" type="file" accept="image/*" style="display:none">' +
+      '<div class="mkref-active-bar" id="mkRefBar" style="display:none">' +
+      '<span id="mkRefBarMsg" style="font:900 11px var(--rf);color:#c0507a">🖼️ お手本</span>' +
+      '<button type="button" id="bRefToggle">👁️ 表示中</button>' +
+      '<button type="button" id="bRefMove">✋ 位置を動かす</button>' +
+      '<button type="button" id="bRefOpenModal">⚙️ お手本設定</button>' +
       '</div>' +
       '<div class="mkcv-wrap" id="mkCvWrap">' +
       '<div class="mkref-stage" id="mkRefStage"><img id="mkRefImg" alt=""></div>' +
@@ -1592,6 +1589,54 @@
       '<button class="big sec" id="bStBgmBack">🎨 つくるにもどる</button>' +
       '</div>';
     document.body.appendChild(bov);
+
+    const rov = document.createElement('div');
+    rov.className = 'ov';
+    rov.id = 'ov-ref';
+    rov.innerHTML =
+      '<div class="card">' +
+      '<h2>🖼️ お手本（なぞり絵）</h2>' +
+      '<div class="mkref-desc">' +
+      'キャンバスの下に画像をうっすら表示して、<b>なぞりながらドット絵を描ける</b>機能だよ！<br>' +
+      '<small style="color:#8a6578">※ お手本の画像はステージの保存・投稿には含まれません。</small>' +
+      '</div>' +
+      '<div class="mkref-sec">' +
+      '<div class="mkref-sec-h">① 画像をえらぶ</div>' +
+      '<div class="mkref-hint">スマホやPCに入っている写真・イラストをなぞり絵にします。</div>' +
+      '<button type="button" class="mkref-bigbtn" id="bRefFile">📷 スマホ・PCの写真・画像をえらぶ</button>' +
+      '<input id="mkRefFile" type="file" accept="image/*" style="display:none">' +
+      '<div class="mkref-hint" style="margin-top:10px">または、ネット上の画像URL（https://...）からも読み込めます。</div>' +
+      '<div class="mkref-url" id="mkRefUrlBox">' +
+      '<input id="mkRefUrlIn" type="url" placeholder="https://...（画像ファイルのURL）">' +
+      '<button type="button" id="bRefUrlGo">読込</button>' +
+      '</div>' +
+      '</div>' +
+      '<div class="mkref-sec" id="mkRefCtrl" style="display:none">' +
+      '<div class="mkref-sec-h">② お手本の調整</div>' +
+      '<div class="mkref-row" style="justify-content:space-between">' +
+      '<button type="button" id="bRefModalToggle" style="flex:1">👁️ キャンバスに表示中</button>' +
+      '<button type="button" id="bRefModalMove" style="flex:1">✋ キャンバスで位置を動かす</button>' +
+      '</div>' +
+      '<div class="mkref-row" style="margin-top:6px">' +
+      '<span style="min-width:48px;text-align:left">大きさ</span>' +
+      '<button type="button" id="bRefOut">🔍−</button>' +
+      '<span id="mkRefZoomLbl">1.0x</span>' +
+      '<button type="button" id="bRefIn">🔍＋</button>' +
+      '<button type="button" id="bRefReset" style="margin-left:auto">🔄 リセット</button>' +
+      '</div>' +
+      '<div style="margin-top:6px">' +
+      '<div style="font:900 10.5px var(--rf);color:#c0507a;margin-bottom:3px">うすさ（見えやすさ）</div>' +
+      '<div class="mkref-alpha-row">' +
+      '<button type="button" class="mkref-alpha-btn" data-alpha="0.35">💧 うすい</button>' +
+      '<button type="button" class="mkref-alpha-btn" data-alpha="0.55">💧 ふつう</button>' +
+      '<button type="button" class="mkref-alpha-btn" data-alpha="0.80">💧 こい</button>' +
+      '</div>' +
+      '</div>' +
+      '<button type="button" class="mkref-bigbtn sec" id="bRefClear" style="margin-top:10px;color:#c03060;padding:8px;font-size:12px">🗑️ お手本をけす</button>' +
+      '</div>' +
+      '<button class="big sec" id="bRefBack" style="margin-top:8px">🎨 つくるにもどる</button>' +
+      '</div>';
+    document.body.appendChild(rov);
 
     const gov = document.createElement('div');
     gov.className = 'ov';
@@ -1999,17 +2044,37 @@
     }
     function refreshRefUI() {
       const has = !!mkRefUrl;
-      $('#bRefToggle').style.display = has ? '' : 'none';
-      $('#bRefClear').style.display = has ? '' : 'none';
-      $('#mkRefCtrl').style.display = has ? 'flex' : 'none';
+      $('#mkRefBar').style.display = has ? 'flex' : 'none';
+      $('#mkRefCtrl').style.display = has ? 'block' : 'none';
       $('#bRefToggle').classList.toggle('on', mkRefOn);
       $('#bRefToggle').textContent = mkRefOn ? '👁️ 表示中' : '👁️ 非表示';
+      $('#bRefModalToggle').classList.toggle('on', mkRefOn);
+      $('#bRefModalToggle').textContent = mkRefOn ? '👁️ キャンバスに表示中' : '👁️ 非表示中';
       $('#bRefMove').classList.toggle('on', mkRefMove);
+      $('#bRefMove').textContent = mkRefMove ? '✅ 位置あわせ完了' : '✋ 位置を動かす';
+      $('#bRefModalMove').classList.toggle('on', mkRefMove);
+      $('#mkRefBarMsg').textContent = mkRefMove ? '✋ ドラッグで移動・ピンチで拡大' : '🖼️ お手本';
       $('#mkRefZoomLbl').textContent = mkRefScale.toFixed(1) + 'x';
-      $('#bRefAlpha').textContent = mkRefAlpha < 0.45 ? '💧 うすい' : mkRefAlpha > 0.65 ? '💧 こい' : '💧 ふつう';
+      document.querySelectorAll('.mkref-alpha-btn').forEach(b => {
+        b.classList.toggle('on', Math.abs(Number(b.dataset.alpha) - mkRefAlpha) < 0.05);
+      });
       $('#mkRefBtn').classList.toggle('on', has && mkRefOn);
       applyRefTransform();
       drawMaker();
+    }
+    function openRefModal() {
+      refreshRefUI();
+      showOv('ref');
+    }
+    function enableRefMove(on) {
+      mkRefMove = on;
+      if (mkRefMove) {
+        mkRefOn = true;
+        if (mkSelMode) { mkSelMode = false; commitSel(); $('#mkSelBtn').classList.remove('on'); }
+        if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
+        setTool('pen');
+      }
+      refreshRefUI();
     }
     function loadRefSource(url, isBlob) {
       const im = $('#mkRefImg');
@@ -2022,9 +2087,9 @@
         mkRefOn = true;
         mkRefMove = false;
         mkRefX = 0; mkRefY = 0; mkRefScale = 1;
-        $('#mkRefUrlBox').style.display = 'none';
         refreshRefUI();
-        toast('🖼️ お手本を読み込んだよ！拡大や位置調整もできるよ');
+        showOv('maker');
+        toast('🖼️ お手本を表示したよ！なぞって描いてね');
       };
       im.onerror = () => {
         if (isBlob) { try { URL.revokeObjectURL(url); } catch (e) {} }
@@ -2032,13 +2097,9 @@
       };
       im.src = url;
     }
-    $('#mkRefBtn').addEventListener('click', () => {
-      Sound.tap();
-      const bar = $('#mkRefBar');
-      const open = bar.style.display === 'none';
-      bar.style.display = open ? 'block' : 'none';
-      if (!open && mkRefMove) { mkRefMove = false; refreshRefUI(); }
-    });
+    $('#mkRefBtn').addEventListener('click', () => { Sound.tap(); openRefModal(); });
+    $('#bRefOpenModal').addEventListener('click', () => { Sound.tap(); openRefModal(); });
+    $('#bRefBack').addEventListener('click', () => { Sound.tap(); showOv('maker'); });
     $('#bRefFile').addEventListener('click', () => { Sound.tap(); $('#mkRefFile').click(); });
     $('#mkRefFile').addEventListener('change', e => {
       const f = e.target.files && e.target.files[0];
@@ -2046,33 +2107,26 @@
       if (!f) return;
       loadRefSource(URL.createObjectURL(f), true);
     });
-    $('#bRefUrl').addEventListener('click', () => {
-      Sound.tap();
-      const box = $('#mkRefUrlBox');
-      box.style.display = box.style.display === 'none' ? 'flex' : 'none';
-      if (box.style.display === 'flex') $('#mkRefUrlIn').focus();
-    });
     $('#bRefUrlGo').addEventListener('click', () => {
       Sound.tap();
       const u = ($('#mkRefUrlIn').value || '').trim();
       if (!/^https:\/\/\S+$/i.test(u)) { toast('https:// で始まる画像URLを入れてね'); return; }
       loadRefSource(u, false);
     });
-    $('#bRefToggle').addEventListener('click', () => {
+    const toggleRefVis = () => {
       Sound.tap();
       mkRefOn = !mkRefOn;
       if (!mkRefOn) mkRefMove = false;
       refreshRefUI();
-    });
-    $('#bRefMove').addEventListener('click', () => {
+    };
+    $('#bRefToggle').addEventListener('click', toggleRefVis);
+    $('#bRefModalToggle').addEventListener('click', toggleRefVis);
+    $('#bRefMove').addEventListener('click', () => { Sound.tap(); enableRefMove(!mkRefMove); });
+    $('#bRefModalMove').addEventListener('click', () => {
       Sound.tap();
-      mkRefMove = !mkRefMove;
-      if (mkRefMove) {
-        if (mkSelMode) { mkSelMode = false; commitSel(); $('#mkSelBtn').classList.remove('on'); }
-        if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
-        setTool('pen');
-      }
-      refreshRefUI();
+      enableRefMove(true);
+      showOv('maker');
+      toast('✋ キャンバスをドラッグして位置を動かしてね！');
     });
     $('#bRefIn').addEventListener('click', () => {
       Sound.tap();
@@ -2084,10 +2138,18 @@
       mkRefScale = clamp(Number((mkRefScale / 1.25).toFixed(2)), 0.3, 16);
       refreshRefUI();
     });
-    $('#bRefAlpha').addEventListener('click', () => {
+    $('#bRefReset').addEventListener('click', () => {
       Sound.tap();
-      mkRefAlpha = mkRefAlpha < 0.45 ? 0.55 : mkRefAlpha < 0.65 ? 0.80 : 0.35;
+      mkRefX = 0; mkRefY = 0; mkRefScale = 1;
       refreshRefUI();
+      toast('🔄 位置と大きさをリセットしたよ');
+    });
+    document.querySelectorAll('.mkref-alpha-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        Sound.tap();
+        mkRefAlpha = Number(b.dataset.alpha) || 0.55;
+        refreshRefUI();
+      });
     });
     $('#bRefClear').addEventListener('click', () => {
       Sound.tap();
@@ -2095,6 +2157,7 @@
       mkRefUrl = ''; mkRefOn = false; mkRefMove = false;
       const im = $('#mkRefImg'); if (im) im.removeAttribute('src');
       refreshRefUI();
+      toast('🗑️ お手本をけしたよ');
     });
     $('#mkMir').addEventListener('click', () => { Sound.tap(); mkMirror = !mkMirror; $('#mkMir').classList.toggle('on', mkMirror); drawMaker(); });
     $('#mkMirV').addEventListener('click', () => { Sound.tap(); mkMirrorV = !mkMirrorV; $('#mkMirV').classList.toggle('on', mkMirrorV); drawMaker(); });
