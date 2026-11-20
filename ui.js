@@ -225,12 +225,12 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 #clearStars span{font-size:32px;margin:0 2px;-webkit-text-stroke:1.5px #fff;text-shadow:0 2px 0 #d08a00}
 #clearStars span.off{color:#e2d6dc;text-shadow:0 2px 0 #c9b8c0}
 .ctime{font-size:11px!important;font-weight:800}
-.res{background:#fff;border-radius:14px;padding:4px 10px;margin:4px 0;border:2px solid #ffe3a0;text-align:left;max-height:74px;overflow:auto}
+.res{background:#fff;border-radius:14px;padding:4px 10px;margin:4px 0;border:2px solid #ffe3a0;text-align:left}
 .res div{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:800;padding:2px 0;border-bottom:1px dashed #f3e2b8;animation:rin .3s both}
 .res div:last-child{border:none}
 .res div b{color:#d08a00;white-space:nowrap}
 @keyframes rin{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
-.restot{font-size:22px;font-weight:900;color:#d08a00;line-height:1.2}
+.restot{border-top:2px solid #ffe3a0;margin-top:2px;padding-top:2px;font-size:22px;font-weight:900;color:#d08a00;line-height:1.2}
 .restot small{display:block;font-size:11px;color:var(--ink)}
 #ov-clear .chip,#ov-clear .teaser{margin:4px 0;padding:5px 10px}
 #ov-clear .chip{cursor:pointer;transition:transform .08s}
@@ -252,6 +252,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .restalk-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid #ffd3e2;border-radius:10px;padding:2px 6px 2px 7px;font-size:10px;font-weight:800;color:var(--ink)}
 .restalk-like{border:none;background:#ffeef4;color:#d65b88;border-radius:8px;padding:1px 5px;font:900 10px var(--rf);cursor:pointer;line-height:1.2}
 .restalk-like.on{background:#ff6f9e;color:#fff}
+.restalk-bg-top{padding:0 0 4px;margin-bottom:5px;border-top:none;border-bottom:1.5px dashed #ffd3e2}
 .restalk-bg{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:5px;padding-top:4px;border-top:1.5px dashed #ffd3e2;font-size:11px}
 .restalk-bg b{color:#d08a00}
 .restalk-bg .hit{color:#e46a92;font-weight:900}
@@ -1282,6 +1283,9 @@ function showClear() {
     lines.push(['⭐ スターロード ' + save.road * 10 + '★' + (tk ? '（🎟️+1）' : ''), 100]);
   }
   const total = lines.reduce((a, l) => a + l[1], 0);
+  const LINE_ORDER = ['クリア', 'はじめてのクリア', 'タイム', 'はじめての★★★', 'もどす', 'さいだい', 'フィーバー', '金の', 'ナイス', '⭐', '女王'];
+  const lineRank = l => { const k = LINE_ORDER.findIndex(p => l[0].indexOf(p) === 0); return k < 0 ? 99 : k; };
+  const shown = lines.map((l, i) => [l, i]).sort((a, b) => lineRank(a[0]) - lineRank(b[0]) || a[1] - b[1]).map(x => x[0]);
   save.coins += total;
   persist();
   if (nx) setTimeout(() => { if (tok === G.clearTok && G.overlay === 'clear') ensureLevel(nx, () => {}); }, 1900);
@@ -1334,20 +1338,20 @@ function showClear() {
       const btnHtml = (imp.readyCards > 0 || imp.newCells > 0) ? '<button type="button" class="restalk-btn" data-bingo-go="1">' + (imp.readyCards > 0 ? '🎁 報酬をうけとる' : '🎯 ビンゴを見る') + '</button>' : '';
       const showBg = newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0;
       let html = '';
+      if (showBg) html += '<div class="restalk-bg restalk-bg-top"><span>🎯 ' + (bgParts.length ? bgParts.join(' ／ ') : 'ビンゴ進捗：カード' + (imp.curIdx + 1) + ' ' + imp.curFilled + '/25') + '</span>' + btnHtml + '</div>';
       if (stAll.length > 0) {
-        const stHead = '✨ このステージ専用セリフ' + (stNew.length ? '（新着 +' + stNew.length + 'こ）' : '');
+        const stHead = '✨ このステージ専用セリフ' + (stNew.length ? ' NEW +' + stNew.length + 'こ' : '');
         const stProg = stSeen + '/' + stAll.length + (stSeen === stAll.length ? ' 🎉コンプ！' : '');
         html += '<div class="restalk-h"><span>' + stHead + '</span><span>' + stProg + (!otherNew.length ? ' · 累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk : '') + '</span></div>';
         if (stNew.length) html += '<div class="restalk-list">' + mkChips(stNew) + '</div>';
       }
       if (otherNew.length > 0) {
         const cls = stAll.length > 0 ? 'restalk-sub' : 'restalk-h';
-        html += '<div class="' + cls + '"><span>💬 その他の新着セリフ（+' + otherNew.length + 'こ）</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>';
+        html += '<div class="' + cls + '"><span>💬 その他のセリフ NEW +' + otherNew.length + 'こ</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>';
         html += '<div class="restalk-list">' + mkChips(otherNew) + '</div>';
       } else if (!stAll.length) {
         html += '<div class="restalk-h"><span>💬 セリフ進捗</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>';
       }
-      if (showBg) html += '<div class="restalk-bg"><span>🎯 ' + (bgParts.length ? bgParts.join(' ／ ') : 'ビンゴ進捗：カード' + (imp.curIdx + 1) + ' ' + imp.curFilled + '/25') + '</span>' + btnHtml + '</div>';
       talkBox.innerHTML = html;
       talkBox.classList.add('on');
     } else {
@@ -1376,7 +1380,7 @@ function showClear() {
     if (i < st) setTimeout(() => { if (tok === G.clearTok) Sound.starPing(i); }, 900 + i * 200);
   }
   $('#clearTime').textContent = '⏱ ' + t + '秒（★★★ ' + par[0] + '秒・★★ ' + par[1] + '秒）' + (newBest ? '　🏅自己ベスト！' : '');
-  $('#resList').innerHTML = lines.map((l, i) => '<div style="animation-delay:' + (0.9 + i * 0.12).toFixed(2) + 's"><span>' + l[0] + '</span><b>🪙+' + l[1] + '</b></div>').join('');
+  $('#resList').innerHTML = shown.map((l, i) => '<div style="animation-delay:' + (0.9 + i * 0.12).toFixed(2) + 's"><span>' + l[0] + '</span><b>🪙+' + l[1] + '</b></div>').join('');
   $('#resFood').textContent = '🍬 エサ +' + food + '（しょくりょうこ ' + save.food + '）';
   updateClearQueenBtn();
   const rt = $('#resTotal');
