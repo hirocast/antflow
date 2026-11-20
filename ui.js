@@ -30,9 +30,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-eve
 header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 .lv{display:grid!important;grid-template-columns:auto auto;align-items:center;column-gap:7px;row-gap:1px;min-width:0;margin-right:auto;padding:4px 9px;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
 .lv #lvNum{grid-column:1;grid-row:1;font-size:15px;line-height:1.1}
-.lv #lvStars{grid-column:1;grid-row:2;font-size:10px;line-height:1.1}
-.lv #lvName{grid-column:2;grid-row:1;font-size:10.5px;font-weight:900;color:var(--ink);max-width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
-.lv #lvTalkSub{grid-column:2;grid-row:2;font-size:8.5px;font-weight:900;color:#c0507a;letter-spacing:-0.02em;white-space:nowrap;text-align:center}
+.lv #lvStars{grid-column:1;grid-row:2;font-size:10.5px;line-height:1.1}
+.lv #lvName{grid-column:2;grid-row:1;font-size:11px;font-weight:900;color:var(--ink);max-width:108px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.lv #lvTalkSub{grid-column:2;grid-row:2;font-size:9.5px;font-weight:900;color:#c0507a;letter-spacing:-0.02em;white-space:nowrap;text-align:center}
 .ib{border:3px solid #fff;background:linear-gradient(#fff,#ffeef5);box-shadow:0 4px 0 rgba(90,61,92,.22)}
 .prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:8px;padding-top:1px}
 .bar{flex:1;min-width:44px;height:12px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
@@ -51,14 +51,14 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 .big{position:relative;border:3px solid #fff;box-shadow:0 5px 0 var(--pinkd),0 8px 14px rgba(200,70,120,.22)}
 .big.sec{box-shadow:0 5px 0 #e1c48e}
 .big.mint{box-shadow:0 5px 0 var(--mintd)}
-.fb em.price{position:absolute;top:-11px;right:-6px;font-style:normal;font-size:10px;font-weight:900;padding:2px 6px;border-radius:10px;background:linear-gradient(#fff6c4,#ffd23f);color:#7a4a00;border:2px solid #fff;box-shadow:0 2px 0 #d9a520;text-shadow:none;white-space:nowrap}
+.fb em.price{position:absolute;top:-9px;right:-3px;font-style:normal;font-size:10px;font-weight:900;padding:1px 5px;border-radius:10px;background:linear-gradient(#fff6c4,#ffd23f);color:#7a4a00;border:2px solid #fff;box-shadow:0 2px 0 #d9a520;text-shadow:none;white-space:nowrap}
 #bScan{background:#a66be0;box-shadow:0 4px 0 #7f4ab8}
 #bScan.on{background:var(--mint);box-shadow:0 4px 0 var(--mintd)}
 #bScan.on em.price{background:linear-gradient(#d4ffe9,#5fcf9f);color:#145a38;box-shadow:0 2px 0 #3fae7f}
 .ov{background:rgba(50,30,80,.56);-webkit-backdrop-filter:none;backdrop-filter:none}
 .card{border:4px solid #ffb6cd;background:linear-gradient(#fffdf6,#fff3df);box-shadow:0 0 0 3px #fff,0 10px 24px rgba(60,30,70,.28)}
 .card h2{display:inline-block;padding:6px 24px;border-radius:16px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;box-shadow:0 4px 0 #d4507c;text-shadow:0 2px 0 rgba(0,0,0,.15);margin:0 0 10px}
-.card h3{margin:14px 0 6px;font-size:15px;color:#c0507a}
+.card h3{margin:14px 0 6px;font-size:14.5px;color:#c0507a;padding-bottom:3px;border-bottom:2px dashed #ffd3e2;text-align:left}
 #toast{position:fixed;bottom:110px;z-index:50}
 body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;border-radius:22px;box-shadow:inset 0 0 42px rgba(255,160,130,.75);animation:fvg .45s ease-in-out infinite alternate}
 @keyframes fvg{from{opacity:.5}to{opacity:1}}
@@ -122,7 +122,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .fb-thanks{display:none;margin:6px 0 2px;padding:9px 10px;background:linear-gradient(135deg,#ecfff4,#fffbe6);border:2px solid #59c988;border-radius:14px;text-align:center;font-size:12px;font-weight:900;line-height:1.5;color:#1b6d42}
 .fb-thanks.on{display:block}
 .fb-gift-tag{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:999px;background:linear-gradient(#ffe36e,#ffb830);color:#6e3a00;font-size:10.5px;font-weight:900;vertical-align:1px;box-shadow:0 1px 0 #d98d12}
-.hud-fb{flex:0 0 auto;border:2px solid #fff;border-radius:999px;padding:2px 8px;background:linear-gradient(#fff5f9,#ffd8e8);color:#b83060;font:900 10.5px/1.2 var(--rf);box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
+.hud-fb{flex:0 0 auto;border:2px solid #fff;border-radius:999px;padding:4px 9px;min-height:26px;background:linear-gradient(#fff5f9,#ffd8e8);color:#b83060;font:900 10.5px/1.2 var(--rf);box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
 .hud-fb:active{transform:translateY(1px);box-shadow:none}
 .hud-fb b{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#ff5c93;color:#fff;font-size:10px;line-height:1}
 .quick-fb{position:fixed;top:max(4px,calc(env(safe-area-inset-top,0px) - 8px));right:8px;z-index:25;border:2px solid #fff;border-radius:999px;padding:4px 10px 4px 6px;background:linear-gradient(#fff7fa,#ffdbe9);color:#b83060;font:900 11px/1 var(--rf);box-shadow:0 3px 0 rgba(90,61,92,.22),0 4px 10px rgba(90,61,92,.14);cursor:pointer;display:none;align-items:center;gap:4px;white-space:nowrap}
@@ -352,9 +352,11 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  header{gap:4px;padding:4px 6px 3px}
  .lv{padding:4px 8px;column-gap:6px}
  .lv #lvNum{font-size:14px}
+ .lv #lvName{max-width:90px}
  .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
  .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
  .coin i{font-size:15px}
+ .fb small{font-size:9.5px}
 }
 body.wide footer{align-self:flex-end;width:var(--pw);max-width:100%;padding-left:6px}
 body.wide .fb{max-width:none}
@@ -406,7 +408,7 @@ function handleTalkLikeClick(e) {
   document.body.appendChild($('#toast'));
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
-  $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全部運べる</small><em class="price" id="pScan"></em></button>');
+  $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全はこび</small><em class="price" id="pScan"></em></button>');
   $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2>');
   const setBtn = $('#bSet');
   if (setBtn && !$('#setUpdDot')) setBtn.insertAdjacentHTML('beforeend', '<em class="dot" id="setUpdDot"></em>');
@@ -471,6 +473,12 @@ function handleTalkLikeClick(e) {
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
   cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><button class="big sec" id="bClearShare">📣 クリアをシェアする</button><button class="big sec" id="bClearHome">🏠 ホームへもどる</button><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
   $('#ov-settings h2').insertAdjacentHTML('afterend', '<button class="big sec" id="bSetHome" style="margin-bottom:8px">🏠 ホームへもどる（女王さま・ミッション・きせかえ）</button>');
+  const setSfxRow = $('#ov-settings input[data-k="sfx"]')?.closest('.row');
+  if (setSfxRow) setSfxRow.insertAdjacentHTML('beforebegin', '<h3>🔊 サウンド・振動</h3>');
+  const setTalkRow = $('#ov-settings input[data-k="talk"]')?.closest('.row');
+  if (setTalkRow) setTalkRow.insertAdjacentHTML('beforebegin', '<h3>🎨 表示・サポート</h3>');
+  const setDevRow = $('#ov-settings input[data-k="dev"]')?.closest('.row');
+  if (setDevRow) setDevRow.insertAdjacentHTML('beforebegin', '<h3>⚙️ その他・データ</h3>');
   $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button><button class="big sec" id="bSetFeedback">💬 要望・不具合を送る</button><button class="big sec" id="bSetA2hs">📲 ホーム画面に追加（アプリ化）</button>');
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
@@ -1568,14 +1576,14 @@ function renderTitle() {
       '<div class="abar"><i style="width:' + talkPct + '%"></i></div>' +
       '<div class="hub-sub">🎯 ビンゴ：' + bg.lines + ' / ' + bg.totalLines + ' ライン（コンプ ' + bg.comp + '/' + bg.totalCards + ' 枚）' + (bg.ready > 0 ? ' ✨ 報酬うけとり可！' : '') + '</div>' +
     '</button>' +
-    '<div class="hub-grid">' +
-      '<button type="button" class="hub-chip" data-hub="mis"><span>📋 ミッション</span><b>' + misDone + ' / 3</b></button>' +
-      '<button type="button" class="hub-chip" data-hub="bingo"><span>🎯 セリフビンゴ</span><b>' + bg.lines + ' / ' + bg.totalLines + '</b></button>' +
-      '<button type="button" class="hub-chip" data-hub="album"><span>📒 アルバム</span><b>' + got + ' / ' + TOTAL + '</b></button>' +
-      '<button type="button" class="hub-chip" data-hub="skin"><span>' + sk.e + ' ' + sk.n + '</span><b>' + save.skins.length + '/' + SKINS.length + '</b></button>' +
-    '</div>' +
     '<button type="button" class="hub-toggle" data-hub="toggle"><span>' + (isOpen ? '📊 くわしい情報をとじる' : '📊 コロニー・進行状況をもっと見る') + '</span><i class="hub-arr">▼</i></button>' +
     '<div class="hub-detail">' +
+      '<div class="hub-grid" style="margin-bottom:7px">' +
+        '<button type="button" class="hub-chip" data-hub="mis"><span>📋 ミッション</span><b>' + misDone + ' / 3</b></button>' +
+        '<button type="button" class="hub-chip" data-hub="bingo"><span>🎯 セリフビンゴ</span><b>' + bg.lines + ' / ' + bg.totalLines + '</b></button>' +
+        '<button type="button" class="hub-chip" data-hub="album"><span>📒 アルバム</span><b>' + got + ' / ' + TOTAL + '</b></button>' +
+        '<button type="button" class="hub-chip" data-hub="skin"><span>' + sk.e + ' ' + sk.n + '</span><b>' + save.skins.length + '/' + SKINS.length + '</b></button>' +
+      '</div>' +
       '<div class="hub-sec">' +
         '<div class="hub-sec-h"><span>👑 女王さまの育成</span><button type="button" class="hub-go" data-hub="queen">へやへ ▶</button></div>' +
         '<div class="hub-line">コインボーナス：<b>+' + (lv - 1) * 2 + '%</b> ／ おへや：<b>' + roomsOn + '/' + ROOMS.length + '</b> ／ 特技：<b>' + perksOn + '/' + Q_PERKS.length + '</b></div>' +
@@ -2094,7 +2102,7 @@ const TR = {
   board: () => G.s ? cvRect(ox - cs - 8, oy - cs - 8, (G.s.W + 2) * cs + 16, (G.s.H + 2) * cs + 16) : null,
   nest: () => cvRect(nestX - nestR * 2.3, nestY - nestR * 1.8, nestR * 4.6, nestR * 3.1),
   tray: () => cvRect(panelL - 2, trayTop - 2, panelR - panelL + 4, CH - trayTop - 4),
-  col: j => j >= 0 && G.s ? cvRect(trayX(j) - headSize * 0.74, trayHeadY - headSize * 0.62, headSize * 1.48, headSize * 1.3) : null,
+  col: j => j >= 0 && G.s ? cvRect(trayX(j) - headSize * 0.64, trayHeadY - headSize * 0.50, headSize * 1.28, headSize * 1.00) : null,
   slots: () => cvRect(slotX(0) - slotSize * 0.8, slotY - slotSize * 0.74, slotX(SLOT_COUNT - 1) - slotX(0) + slotSize * 1.6, slotSize * 1.48),
   slot: i => cvRect(slotX(i) - slotSize * 0.72, slotY - slotSize * 0.95, slotSize * 1.44, slotSize * 1.7),
   gold: () => {
@@ -2331,7 +2339,13 @@ const Tut = {
     if (r) {
       const gap = act ? 56 : 18, below = vh - (r.y + r.h), above = r.y;
       if (below >= bh + gap + 8 && (below >= above || above < bh + 30)) { y = r.y + r.h + gap; dir = 'up'; }
-      else if (above >= bh + 30) { y = r.y - bh - 22; dir = 'down'; }
+      else if (above >= bh + 30) {
+        y = r.y - bh - 22; dir = 'down';
+        if (act && typeof TR !== 'undefined' && TR.slots) {
+          const sr = TR.slots();
+          if (sr && y < sr.y + sr.h && y + bh > sr.y && sr.y - bh - 12 >= 8) y = sr.y - bh - 12;
+        }
+      }
       else y = above > below ? 8 : vh - bh - 8;
       x = r.x + r.w / 2 - bw / 2;
     }

@@ -1202,9 +1202,10 @@
       '.mktab{border:2px solid #ffd3e2;border-radius:14px;padding:7px 6px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
       '.mktab.on{background:linear-gradient(#ff9fbf,#ff6f9e);color:#fff;border-color:#fff;box-shadow:0 2px 0 #d64575}' +
       '#ov-maker .card{width:min(97vw,560px);padding:10px 10px 14px}' +
+      '#ov-maker .card>h2{display:none}' +
       '#ov-gallery .card{padding:12px 14px}' +
       '.mktop{display:flex;gap:6px;justify-content:center;margin:4px 0 6px}' +
-      '.mktop button{border:2px solid #ffd3e2;border-radius:14px;padding:6px 12px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
+      '.mktop button{border:2px solid #ffd3e2;border-radius:14px;padding:7px 12px;min-height:34px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
       '.mktop button:active{transform:translateY(2px);box-shadow:none}' +
       '.mkcv-wrap{position:relative;width:min(100%,520px,62vh);aspect-ratio:1;margin:6px auto;border-radius:14px;border:3px solid #fff;box-shadow:0 4px 0 #f0c6d6;background:#fff3dc;overflow:hidden}' +
       '.mkref-stage{position:absolute;inset:0;transform-origin:0 0;pointer-events:none;z-index:1;overflow:visible}' +
@@ -1212,17 +1213,17 @@
       '#mkCv{position:relative;z-index:2;display:block;width:100%;height:100%;background:transparent;touch-action:none;cursor:crosshair}' +
       '.mkref{background:#fff7fb;border:2px solid #ffd3e2;border-radius:13px;padding:6px 8px;margin:4px 0;text-align:left}' +
       '.mkref-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:2px 0}' +
-      '.mkref-row button{border:2px solid #fff;border-radius:10px;padding:4px 7px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 10.5px var(--rf);color:var(--ink);cursor:pointer}' +
+      '.mkref-row button{border:2px solid #fff;border-radius:10px;padding:6px 9px;min-height:32px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
       '.mkref-row button.on{background:#ffe0ed;border-color:#ff8fb3;color:#c0507a}' +
       '.mkref-row span{font:900 10.5px var(--rf);color:#c0507a;min-width:30px;text-align:center}' +
       '.mkref-url{display:flex;gap:4px;margin-top:4px}' +
       '.mkref-url input{flex:1;min-width:0;border:1.5px solid #f0c6d6;border-radius:10px;padding:5px 8px;font:700 11px var(--rf);color:var(--ink);background:#fff}' +
       '.mkref-url button{flex:0 0 auto;border:2px solid #fff;border-radius:10px;padding:4px 10px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;font:900 11px var(--rf);cursor:pointer;box-shadow:0 2px 0 #d4507c}' +
-      '.mkpal{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:6px 0}' +
-      '.mksw{width:24px;height:24px;border-radius:8px;border:2px solid #fff;box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;padding:0;font-size:12px;line-height:20px;background:#fff}' +
+      '.mkpal{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:6px 0}' +
+      '.mksw{width:30px;height:30px;border-radius:9px;border:2px solid #fff;box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;padding:0;font-size:14px;line-height:26px;background:#fff}' +
       '.mksw.on{outline:3px solid #5a3d5c;transform:scale(1.12)}' +
-      '.mktools{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin:4px 0;align-items:center}' +
-      '.mktools button{border:2px solid #fff;border-radius:12px;padding:4px 8px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11px var(--rf);color:var(--ink);cursor:pointer}' +
+      '.mktools{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:5px 0;align-items:center}' +
+      '.mktools button{border:2px solid #fff;border-radius:12px;padding:6px 10px;min-height:32px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11.5px var(--rf);color:var(--ink);cursor:pointer}' +
       '.mktools button:disabled{opacity:.45;cursor:default;box-shadow:none}' +
       '.mktools button.on{background:#ffe0ed;border-color:#ff8fb3}' +
       '.mkz{font:900 11px var(--rf);color:#c0507a;min-width:26px;text-align:center}' +
