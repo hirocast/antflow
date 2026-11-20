@@ -269,7 +269,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .perks{text-align:left;font-size:12px}
 .pk{padding:4px 8px;border-radius:10px;margin:3px 0;background:#f3eef1;opacity:.6}
 .pk.on{background:#e6f8ec;opacity:1}
-.pk b{display:inline-block;min-width:46px;color:var(--pinkd)}
+.pk b{display:inline-block;min-width:54px;color:var(--pinkd)}
 .mis{background:#fff;border-radius:14px;padding:8px 10px;margin:6px 0;text-align:left;border:2px solid #ffe0ea}
 .mis.done{background:#eafaf0;border-color:#a8e6c0}
 .mis p{margin:0!important;font-weight:800;display:flex;justify-content:space-between;gap:6px}
@@ -1017,7 +1017,7 @@ function pickGold(L) {
   if (posOf(L.id) <= 2 || Math.random() > (G.perk.gold >= 2 ? 0.9 : 0.6)) return set;
   for (let i = 0; i < L.grid.length; i++) if (L.grid[i] >= 0) cells.push(i);
   if (!cells.length) return set;
-  const n = Math.min(8, Math.max(1, Math.round(cells.length / 220)) * G.perk.gold);
+  const n = Math.min(8 + Math.max(0, G.perk.gold - 2) * 2, Math.max(1, Math.round(cells.length / 220)) * G.perk.gold);
   for (let k = 0; k < n * 4 && set.size < n; k++) set.add(cells[Math.floor(Math.random() * cells.length)]);
   return set;
 }
@@ -1727,10 +1727,15 @@ function drawColony(cv, t) {
   g.beginPath(); g.moveTo(150, 26); g.lineTo(150, 100); g.moveTo(60, 70); g.lineTo(120, 115); g.moveTo(240, 72); g.lineTo(185, 115); g.stroke();
   g.fillStyle = 'rgba(255,236,200,.55)';
   ell(g, 150, 135, 125, 30); g.fill(); ell(g, 60, 68, 40, 16); g.fill(); ell(g, 240, 70, 44, 16); g.fill();
-  const spots = [[60, 66], [240, 68], [26, 118], [274, 118], [102, 96], [198, 96], [20, 50], [280, 50]];
-  g.font = '18px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  ROOMS.filter(r => save.qlv >= r[0]).forEach((r, i) => { if (spots[i]) g.fillText(r[1], spots[i][0], spots[i][1]); });
-  const n = Math.min(10, 2 + Math.floor(save.qlv / 4));
+  const spots = [
+    [60, 66], [240, 68], [26, 118], [274, 118], [102, 96], [198, 96], [20, 50], [280, 50],
+    [100, 48], [200, 48], [58, 96], [242, 96], [150, 54], [36, 80], [264, 80], [82, 134],
+    [218, 134], [20, 144], [280, 144], [150, 84]
+  ];
+  const unlockedRooms = ROOMS.filter(r => save.qlv >= r[0]);
+  g.font = (unlockedRooms.length > 8 ? '15px' : '18px') + ' sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  unlockedRooms.forEach((r, i) => { if (spots[i]) g.fillText(r[1], spots[i][0], spots[i][1]); });
+  const n = Math.min(16, 2 + Math.floor(save.qlv / 8));
   for (let k = 0; k < n; k++) {
     const sp = 26 + (k % 3) * 8, dir = k % 2 ? 1 : -1, span = Wc + 40;
     let x = ((t * sp + k * 53) % span) - 20;
@@ -1740,7 +1745,8 @@ function drawColony(cv, t) {
     paintCandy(g, 7 * 0.36 - 4.55, -7 * 1.02 - 9.1, 9.1, (k * 3) % 21);
     g.restore();
   }
-  const u = 20 + Math.min(save.qlv, Q_MAX) * 0.3, b = G.qBounce || 0, bob = -Math.abs(Math.sin(t * 2.2)) * 3;
+  const lvClamped = Math.min(save.qlv, Q_MAX);
+  const u = 20 + Math.min(lvClamped, 50) * 0.25 + Math.max(0, lvClamped - 50) * 0.04, b = G.qBounce || 0, bob = -Math.abs(Math.sin(t * 2.2)) * 3;
   g.save(); g.translate(150, 132 + bob); g.scale(1 + 0.15 * b, 1 - 0.1 * b);
   drawAntShape(g, u, 10, 0, Math.floor(t * 3) & 3, 'crown');
   g.restore();
