@@ -179,8 +179,8 @@ let slotSize = 50, slotGap = 10, slotY = 0, trayTop = 0, trayHeadY = 0, trayGap 
 // boardSide：横長の画面で「絵を左・スロットとトレイを右」にしているか
 let framePad = 10, slotCX = 0, trayCX = 0, panelL = 8, panelR = 0, boardSide = false;
 let cubeSpr = [], cubeRes = [], candySpr = [];
-const antCache = new Map(), boxCache = new Map(), numCache = new Map(), singerCache = new Map(), boardCv = document.createElement('canvas'), boardG = boardCv.getContext('2d');
-let trayGrad = null, trayGradKey = '', nestCache = null, slotGrad = null, slotGradKey = '', singerTxtKey = '', singerTxtW = 0;
+const antCache = new Map(), boxCache = new Map(), numCache = new Map(), singerCache = new Map(), boardCv = document.createElement('canvas'), boardG = boardCv.getContext('2d'), trayCv = document.createElement('canvas'), trayG = trayCv.getContext('2d');
+let trayGrad = null, trayGradKey = '', trayCacheKey = '', nestCache = null, slotGrad = null, slotGradKey = '', singerTxtKey = '', singerTxtW = 0;
 
 /* ---- レイアウト：絵をできるだけ大きく ----
    たて長：上から「絵」「スロット＋巣穴（横ならび）」「トレイ」。絵が横幅いっぱいになったら、余った高さで箱を大きくする
@@ -267,6 +267,7 @@ function layout() {
   numCache.clear();
   singerCache.clear();
   trayGrad = null;
+  trayCacheKey = '';
   nestCache = null;
   slotGrad = null;
   slotGradKey = '';
@@ -313,15 +314,16 @@ function buildSprites() {
   cubeRes = HEX.map((h, i) => makeCube(i, px, true));
   candySpr = HEX.map((h, i) => makeCube(i, cp, false));
 }
-function antSprite(c, pose, fr) {
-  const k = c * 16 + pose * 4 + fr;
+function antSprite(c, pose, fr, flip) {
+  const fl = flip ? 1 : 0, k = c * 32 + pose * 8 + fr * 2 + fl;
   let cv = antCache.get(k);
   if (!cv) {
     const u = antU * dpr;
     cv = document.createElement('canvas');
     cv.width = Math.ceil(u * 2.6); cv.height = Math.ceil(u * 3.2);
     const g = cv.getContext('2d');
-    g.translate(u * 1.25, u * 2.0);
+    if (fl) { g.translate(u * 1.35, u * 2.0); g.scale(-1, 1); }
+    else g.translate(u * 1.25, u * 2.0);
     drawAntShape(g, u, c, pose, fr, save.skin);
     antCache.set(k, cv);
   }
@@ -830,51 +832,65 @@ function numSprite(ci, sz, num) {
   }
   return ent;
 }
-function drawBox(x, y, sz, ci, num, o) {
+function drawBox(x, y, sz, ci, num, o, g) {
   o = o || {};
+  g = g || ctx;
   const sh = SHADE[ci], al = o.alpha == null ? 1 : o.alpha, h = sz * 0.82;
-  ctx.save(); ctx.translate(x, y); ctx.scale(o.sx || 1, o.sy || 1); ctx.globalAlpha = al;
-  if (o.peek) {
-    const hr = sz * 0.17, bob = Math.sin(G.rt * 6 + x) * hr * 0.15, hy = -h / 2 - hr * 0.45 + bob;
-    ctx.strokeStyle = sh.ol; ctx.lineWidth = Math.max(1, sz * 0.03);
-    ctx.beginPath(); ctx.moveTo(-hr * 0.4, hy - hr * 0.7); ctx.lineTo(-hr * 0.8, hy - hr * 1.6); ctx.moveTo(hr * 0.4, hy - hr * 0.7); ctx.lineTo(hr * 0.8, hy - hr * 1.6); ctx.stroke();
-    ctx.fillStyle = '#ff8fb3';
-    for (const s of [-1, 1]) { ell(ctx, s * hr * 0.8, hy - hr * 1.6, hr * 0.25, hr * 0.25); ctx.fill(); }
-    ctx.fillStyle = ANT_BODY[ci]; ell(ctx, 0, hy, hr, hr); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#2a2030';
-    for (const s of [-1, 1]) { ell(ctx, s * hr * 0.38, hy, hr * 0.15, hr * 0.2); ctx.fill(); }
+  const scaled = (o.sx && o.sx !== 1) || (o.sy && o.sy !== 1);
+  if (o.peek || scaled) {
+    g.save(); g.translate(x, y); if (scaled) g.scale(o.sx || 1, o.sy || 1); if (al !== 1) g.globalAlpha = al;
+    if (o.peek) {
+      const hr = sz * 0.17, bob = Math.sin(G.rt * 6 + x) * hr * 0.15, hy = -h / 2 - hr * 0.45 + bob;
+      g.strokeStyle = sh.ol; g.lineWidth = Math.max(1, sz * 0.03);
+      g.beginPath(); g.moveTo(-hr * 0.4, hy - hr * 0.7); g.lineTo(-hr * 0.8, hy - hr * 1.6); g.moveTo(hr * 0.4, hy - hr * 0.7); g.lineTo(hr * 0.8, hy - hr * 1.6); g.stroke();
+      g.fillStyle = '#ff8fb3';
+      for (const s of [-1, 1]) { ell(g, s * hr * 0.8, hy - hr * 1.6, hr * 0.25, hr * 0.25); g.fill(); }
+      g.fillStyle = ANT_BODY[ci]; ell(g, 0, hy, hr, hr); g.fill(); g.stroke();
+      g.fillStyle = '#2a2030';
+      for (const s of [-1, 1]) { ell(g, s * hr * 0.38, hy, hr * 0.15, hr * 0.2); g.fill(); }
+    }
+    const spr = boxSprite(ci, sz, o.peek), sc = sz / spr.px, dw = spr.cw * sc, dh = spr.ch * sc;
+    g.drawImage(spr.cv, -dw / 2, -dh / 2, dw, dh);
+    if (num != null) {
+      const ny = h * (o.numY == null ? 0.1 : o.numY);
+      const ns = numSprite(ci, sz, num), nsc = sz / ns.px, nw = ns.cw * nsc, nh = ns.ch * nsc;
+      g.drawImage(ns.cv, -nw / 2, ny - nh / 2, nw, nh);
+    }
+    g.restore();
+    return;
   }
-  const spr = boxSprite(ci, sz, o.peek), sc = sz / spr.px, dw = spr.cw * sc, dh = spr.ch * sc;
-  ctx.drawImage(spr.cv, -dw / 2, -dh / 2, dw, dh);
+  if (al !== 1) g.globalAlpha = al;
+  const spr = boxSprite(ci, sz, false), sc = sz / spr.px, dw = spr.cw * sc, dh = spr.ch * sc;
+  g.drawImage(spr.cv, x - dw / 2, y - dh / 2, dw, dh);
   if (num != null) {
-    const ny = h * (o.numY == null ? 0.1 : o.numY);
+    const ny = y + h * (o.numY == null ? 0.1 : o.numY);
     const ns = numSprite(ci, sz, num), nsc = sz / ns.px, nw = ns.cw * nsc, nh = ns.ch * nsc;
-    ctx.drawImage(ns.cv, -nw / 2, ny - nh / 2, nw, nh);
+    g.drawImage(ns.cv, x - nw / 2, ny - nh / 2, nw, nh);
   }
-  ctx.restore();
+  if (al !== 1) g.globalAlpha = 1;
 }
 function drawZz(x, y, sz) {
   const r = Math.max(7, sz * 0.16), bob = Math.sin(G.rt * 3) * 2;
   ctx.fillStyle = '#fff'; ell(ctx, x, y + bob, r, r); ctx.fill();
   ctx.fillStyle = '#a08ab0'; ctx.font = fnt(900, r * 1.1); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('z', x, y + bob);
 }
-function drawTray() {
+function renderTrayTo(g, needHc) {
   const L = panelL, TW = panelR - panelL, gk = trayTop + '|' + CH;
   if (!trayGrad || trayGradKey !== gk) {
     trayGradKey = gk;
     trayGrad = ctx.createLinearGradient(0, trayTop, 0, CH);
     trayGrad.addColorStop(0, '#fff1d0'); trayGrad.addColorStop(1, '#ffd99a');
   }
-  ctx.fillStyle = 'rgba(160,100,40,.2)'; roundRect(ctx, L, trayTop + 5, TW, CH - trayTop - 6, 22); ctx.fill();
-  ctx.fillStyle = trayGrad; roundRect(ctx, L, trayTop, TW, CH - trayTop - 8, 22); ctx.fill();
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+  g.fillStyle = 'rgba(160,100,40,.2)'; roundRect(g, L, trayTop + 5, TW, CH - trayTop - 6, 22); g.fill();
+  g.fillStyle = trayGrad; roundRect(g, L, trayTop, TW, CH - trayTop - 8, 22); g.fill();
+  g.strokeStyle = '#fff'; g.lineWidth = 3; g.stroke();
   for (let j = 0; j < G.s.cols.length; j++) {
     const col = G.s.cols[j], h = G.s.heads[j], rest = col.length - h;
     let x = trayX(j);
     if (G.shake && G.shake.j === j) x += Math.sin(G.shake.t * 60) * 7 * (G.shake.t / 0.24);
     if (rest <= 0) {
-      ctx.strokeStyle = 'rgba(200,140,70,.45)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
-      roundRect(ctx, x - headSize / 2, trayHeadY - headSize * 0.42, headSize, headSize * 0.84, headSize * 0.24); ctx.stroke(); ctx.setLineDash([]);
+      g.strokeStyle = 'rgba(200,140,70,.45)'; g.lineWidth = 2; g.setLineDash([5, 4]);
+      roundRect(g, x - headSize / 2, trayHeadY - headSize * 0.42, headSize, headSize * 0.84, headSize * 0.24); g.stroke(); g.setLineDash([]);
       continue;
     }
     const off = G.trayOff[j], fr = trayGap > 0 ? off / trayGap : 0;
@@ -883,40 +899,72 @@ function drawTray() {
       let s = lerp(TSC[k], TSC[k + 1], fr) * headSize;
       if (k === 0 && G.press && G.press.j === j && !G.press.previewed) s *= 0.92;
       if (k === 0 && G.queued && G.queued.j === j) s *= 1 + 0.05 * Math.sin(G.rt * 20);
-      if (k === 0 && (save.settings.dim || save.settings.info || G.scanId === G.levelId) && !G.hc) G.hc = headCounts(G.s);
+      if (k === 0 && needHc && !G.hc) G.hc = headCounts(G.s);
       const y = trayHeadY + k * trayGap + off, dim = k === 0 && save.settings.dim && !G.hc[j];
-      drawBox(x, y, s, b.c, b.n, { alpha: lerp(TAL[k], TAL[k + 1], fr) * (dim ? 0.5 : 1), numY: k > 0 ? 0.22 : 0.1 });
-      if (dim) drawZz(x + s * 0.42, y - s * 0.4, s);
+      drawBox(x, y, s, b.c, b.n, { alpha: lerp(TAL[k], TAL[k + 1], fr) * (dim ? 0.5 : 1), numY: k > 0 ? 0.22 : 0.1 }, g);
+      if (dim && g === ctx) drawZz(x + s * 0.42, y - s * 0.4, s);
       if (k === 0 && G.scanId === G.levelId && (G.hc[j] || 0) >= b.n) {
         const p = 0.5 + 0.5 * Math.sin(G.rt * 6);
-        ctx.strokeStyle = 'rgba(63,174,127,' + (0.75 + 0.25 * p) + ')'; ctx.lineWidth = 3.5;
-        roundRect(ctx, x - s * 0.54, y - s * 0.45, s * 1.08, s * 0.9, s * 0.26); ctx.stroke();
+        g.strokeStyle = 'rgba(63,174,127,' + (0.75 + 0.25 * p) + ')'; g.lineWidth = 3.5;
+        roundRect(g, x - s * 0.54, y - s * 0.45, s * 1.08, s * 0.9, s * 0.26); g.stroke();
         if (!save.settings.info) {
           const txt = '✓全部';
-          ctx.font = fnt(900, Math.max(10, s * 0.19));
-          const tw = ctx.measureText(txt).width + 10, th = Math.max(14, s * 0.25);
-          ctx.fillStyle = '#3fae7f';
-          roundRect(ctx, x - tw / 2, y - s * 0.45 - th * 0.72, tw, th, th / 2); ctx.fill();
-          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
-          ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(txt, x, y - s * 0.45 - th * 0.22);
+          g.font = fnt(900, Math.max(10, s * 0.19));
+          const tw = g.measureText(txt).width + 10, th = Math.max(14, s * 0.25);
+          g.fillStyle = '#3fae7f';
+          roundRect(g, x - tw / 2, y - s * 0.45 - th * 0.72, tw, th, th / 2); g.fill();
+          g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
+          g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(txt, x, y - s * 0.45 - th * 0.22);
         }
       }
       if (k === 0 && save.settings.info) {
         const rr = G.hc[j] || 0, txt = rr + '/' + b.n;
-        ctx.font = fnt(800, Math.max(10, s * 0.2));
-        const tw = ctx.measureText(txt).width + 10, th = Math.max(14, s * 0.26);
-        ctx.fillStyle = rr >= b.n ? '#3fae7f' : rr > 0 ? '#ff9a3c' : '#a08ab0';
-        roundRect(ctx, x - tw / 2, y + s * 0.38, tw, th, th / 2); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y + s * 0.38 + th / 2);
+        g.font = fnt(800, Math.max(10, s * 0.2));
+        const tw = g.measureText(txt).width + 10, th = Math.max(14, s * 0.26);
+        g.fillStyle = rr >= b.n ? '#3fae7f' : rr > 0 ? '#ff9a3c' : '#a08ab0';
+        roundRect(g, x - tw / 2, y + s * 0.38, tw, th, th / 2); g.fill();
+        g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, x, y + s * 0.38 + th / 2);
       }
     }
     // のこりの箱の数：4つ目の箱の右に出す（トレイを低くしたので下には置かない）
     if (rest > 4) {
-      ctx.fillStyle = 'rgba(120,70,30,.75)'; ctx.font = fnt(800, Math.max(10, headSize * 0.24)); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText('+' + (rest - 4), x + headSize * 0.34, trayHeadY + 3 * trayGap);
+      g.fillStyle = 'rgba(120,70,30,.75)'; g.font = fnt(800, Math.max(10, headSize * 0.24)); g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.fillText('+' + (rest - 4), x + headSize * 0.34, trayHeadY + 3 * trayGap);
     }
   }
+}
+function drawTray() {
+  const cols = G.s.cols, needHc = !!(save.settings.dim || save.settings.info || G.scanId === G.levelId);
+  if (needHc && !G.hc) G.hc = headCounts(G.s);
+  let animated = !!(G.shake || G.queued || G.scanId === G.levelId);
+  if (!animated) {
+    for (let j = 0; j < cols.length; j++) {
+      if (G.trayOff[j] > 0) { animated = true; break; }
+      if (save.settings.dim && G.s.heads[j] < cols[j].length && !G.hc[j]) { animated = true; break; }
+    }
+  }
+  if (animated) {
+    renderTrayTo(ctx, needHc);
+    return;
+  }
+  const pressJ = G.press && !G.press.previewed ? G.press.j : -1;
+  let key = G.levelId + '|' + panelL + '|' + panelR + '|' + trayTop + '|' + CH + '|' + dpr + '|' + (save.settings.cb ? 1 : 0) + '|' + (save.settings.dim ? 1 : 0) + '|' + (save.settings.info ? 1 : 0) + '|' + pressJ;
+  for (let j = 0; j < cols.length; j++) {
+    const col = cols[j], h = G.s.heads[j], b0 = col[h];
+    key += '|' + h + '/' + col.length + (b0 ? ':' + b0.c + ',' + b0.n : '');
+    if (needHc) key += '#' + (G.hc[j] || 0);
+  }
+  const padTop = 8, y0 = Math.max(0, Math.floor(trayTop - padTop)), th = Math.max(1, Math.ceil(CH - y0 + 4));
+  const pw = Math.max(1, Math.ceil(CW * dpr)), ph = Math.max(1, Math.ceil(th * dpr));
+  if (trayCacheKey !== key || trayCv.width !== pw || trayCv.height !== ph) {
+    trayCacheKey = key;
+    if (trayCv.width !== pw || trayCv.height !== ph) { trayCv.width = pw; trayCv.height = ph; }
+    trayG.setTransform(1, 0, 0, 1, 0, 0); trayG.clearRect(0, 0, pw, ph);
+    trayG.setTransform(dpr, 0, 0, dpr, 0, -y0 * dpr);
+    renderTrayTo(trayG, needHc);
+  }
+  ctx.drawImage(trayCv, 0, y0, CW, th);
 }
 function drawSlotBoxes() {
   for (const b of G.vboxes) {
@@ -936,36 +984,59 @@ function drawSlotBoxes() {
   }
 }
 function drawAnts() {
-  const u = antU, csz = u * 1.3;
-  for (const a of G.ants) {
-    const w = toW(a.x, a.y);
-    let pose = 0, sx = 1, sy = 1, rot = 0, by = 0, lift = -1;
+  const ants = G.ants, len = ants.length;
+  if (!len) return;
+  const u = antU, csz = u * 1.3, hcsz = csz * 0.5, sw = u * 2.6, sh = u * 3.2;
+  const oxR = -u * 1.25, oxL = -u * 1.35, oyA = -u * 2.0, u25 = u * 0.25;
+  let dirtyTf = false;
+  for (let i = 0; i < len; i++) {
+    const a = ants[i];
+    const wx = ox + (a.x - 0.5) * cs, wy0 = oy + (a.y - 0.5) * cs;
     const fr = Math.floor(a.phase) & 3;
-    if (a.state === 'out') by = -Math.abs(Math.sin(a.phase * 0.8)) * u * 0.25;
-    else if (a.state === 'pick') {
+    // 行き（手ぶら）：回転・拡縮なしのため左右キャッシュ済みスプライトを save/restore なしで1発描画
+    if (a.state === 'out') {
+      if (dirtyTf) { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); dirtyTf = false; }
+      const by = -Math.abs(Math.sin(a.phase * 0.8)) * u25;
+      const flip = a.face < 0;
+      ctx.drawImage(antSprite(a.c, 0, fr, flip), wx + (flip ? oxL : oxR), wy0 - u25 + by + oyA, sw, sh);
+      continue;
+    }
+    let pose = 1, sx = 1, sy = 1, rot = 0, by = 0, lift = 1;
+    if (a.state === 'back') {
+      rot = Math.sin(a.phase * 0.9) * 0.13; by = -Math.abs(Math.sin(a.phase * 0.9)) * u * 0.12;
+    } else if (a.state === 'pick') {
       const t = a.t / PICK;
-      if (t < 0.35) { const k = Math.sin(t / 0.35 * Math.PI / 2); sx = 1 + 0.12 * k; sy = 1 - 0.16 * k; lift = 0; }
+      if (t < 0.35) { const k = Math.sin(t / 0.35 * Math.PI / 2); pose = 0; sx = 1 + 0.12 * k; sy = 1 - 0.16 * k; lift = 0; }
       else if (t < 0.75) { const k = (t - 0.35) / 0.4; pose = 2; sy = 1 + 0.1 * Math.sin(k * Math.PI); lift = easeOutBack(k); }
       else { pose = 1; lift = 1; }
-    } else if (a.state === 'back') { pose = 1; lift = 1; rot = Math.sin(a.phase * 0.9) * 0.13; by = -Math.abs(Math.sin(a.phase * 0.9)) * u * 0.12; }
-    else { pose = 1; lift = 1; const k = a.t / ENTER; sx = sy = 1 - k; by = k * u * 0.5; }
-    ctx.save();
-    ctx.translate(w.x, w.y - u * 0.25 + by); ctx.rotate(rot); ctx.scale(sx * a.face, sy);
-    ctx.drawImage(antSprite(a.c, pose, pose === 2 ? 0 : fr), -u * 1.25, -u * 2.0, u * 2.6, u * 3.2);
+    } else {
+      const k = a.t / ENTER; sx = sy = 1 - k; by = k * u * 0.5;
+    }
+    const wy = wy0 - u25 + by;
+    const cr = rot ? Math.cos(rot) : 1, sr = rot ? Math.sin(rot) : 0;
+    const fx = sx * a.face, m0 = cr * fx * dpr, m1 = sr * fx * dpr, m2 = -sr * sy * dpr, m3 = cr * sy * dpr, m4 = wx * dpr, m5 = wy * dpr;
+    ctx.setTransform(m0, m1, m2, m3, m4, m5);
+    dirtyTf = true;
+    ctx.drawImage(antSprite(a.c, pose, pose === 2 ? 0 : fr, false), oxR, oyA, sw, sh);
     if (lift >= 0) {
-      const cx = lerp(u * 1.0, u * 0.36, clamp(lift, 0, 1)), cy = lerp(u * 0.8 - csz / 2, -u * 1.02 - csz / 2, lift);
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(a.state === 'back' ? Math.sin(a.phase * 0.9 + 1) * 0.12 : 0);
-      ctx.drawImage(candySpr[a.c], -csz / 2, -csz / 2, csz, csz);
-      ctx.restore();
+      const cx = lerp(u * 1.0, u * 0.36, clamp(lift, 0, 1)), cy = lerp(u * 0.8 - hcsz, -u * 1.02 - hcsz, lift);
+      if (a.state === 'back') {
+        const crot = Math.sin(a.phase * 0.9 + 1) * 0.12, cc = Math.cos(crot), cs2 = Math.sin(crot);
+        ctx.setTransform(m0 * cc + m2 * cs2, m1 * cc + m3 * cs2, -m0 * cs2 + m2 * cc, -m1 * cs2 + m3 * cc, m0 * cx + m2 * cy + m4, m1 * cx + m3 * cy + m5);
+        ctx.drawImage(candySpr[a.c], -hcsz, -hcsz, csz, csz);
+        if (a.sweat < 0.6) {
+          ctx.setTransform(m0, m1, m2, m3, m4, m5);
+          const k = 1 - a.sweat / 0.6;
+          ctx.globalAlpha = 1 - k; ctx.fillStyle = '#7cc4ff';
+          ctx.beginPath(); ctx.arc(-u * 0.1, -u * 0.5 + k * u * 0.4, u * 0.13, 0, Math.PI); ctx.lineTo(-u * 0.1, -u * 0.75 + k * u * 0.4); ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else {
+        ctx.drawImage(candySpr[a.c], cx - hcsz, cy - hcsz, csz, csz);
+      }
     }
-    if (a.state === 'back' && a.sweat < 0.6) {
-      const k = 1 - a.sweat / 0.6;
-      ctx.globalAlpha = 1 - k; ctx.fillStyle = '#7cc4ff';
-      ctx.beginPath(); ctx.arc(-u * 0.1, -u * 0.5 + k * u * 0.4, u * 0.13, 0, Math.PI); ctx.lineTo(-u * 0.1, -u * 0.75 + k * u * 0.4); ctx.closePath(); ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-    ctx.restore();
   }
+  if (dirtyTf) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 function drawFxLocal() {
   for (const p of G.parts) {

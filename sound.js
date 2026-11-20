@@ -35,7 +35,6 @@ const Sound = {
         const mwet = c.createGain(); mwet.gain.value = 0.5;
         this.musF.connect(mwet); mwet.connect(this.verb);
         this.applyVol(true);
-        this.initWalk();
       }
       if (this.ctx.state === 'suspended') this.ctx.resume();
       if (save.settings.bgm) this.startBgm();
@@ -247,26 +246,55 @@ const Sound = {
     s.start(t); s.stop(t + 0.45);
   },
   albumIn() { if (this.ok()) [523.25, 659.25, 783.99].forEach((f, i) => this.mallet(f, i * 0.08, 0.09)); },
-  // アリの足音：小さなサラサラ音を鳴らし続け、歩いている数に応じて音量を変える
+  // アリの足音：歩いている間だけ小さなサラサラ音を鳴らし、止まったらノードをスリープさせる
   initWalk() {
-    const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), am = c.createGain(), g = c.createGain();
+    if (!this.ctx || this.walkG) return;
+    const c = this.ctx, s = c.createBufferSource(), am = c.createGain(), g = c.createGain();
     const l1 = c.createOscillator(), l2 = c.createOscillator(), g1 = c.createGain(), g2 = c.createGain();
-    s.buffer = this.noiseBuf(); s.loop = true;
-    f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.7;
+    const fb = this.filteredNoiseBuf(1800, 'bandpass', 0.7);
+    s.buffer = fb || this.noiseBuf(); s.loop = true;
     am.gain.value = 0.55;
     l1.frequency.value = 9; g1.gain.value = 0.25; l1.connect(g1); g1.connect(am.gain);
     l2.frequency.value = 13.3; g2.gain.value = 0.2; l2.connect(g2); g2.connect(am.gain);
     g.gain.value = 0;
-    s.connect(f); f.connect(am); am.connect(g); g.connect(this.sfx);
+    if (fb) {
+      s.connect(am);
+    } else {
+      const f = c.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.7;
+      s.connect(f); f.connect(am);
+    }
+    am.connect(g); g.connect(this.sfx);
     s.start(); l1.start(); l2.start();
     this.walkG = g;
+    this.walkNodes = [s, l1, l2, g];
+  },
+  stopWalk() {
+    if (this.walkTimer) { clearTimeout(this.walkTimer); this.walkTimer = null; }
+    if (!this.walkNodes) return;
+    const [s, l1, l2, g] = this.walkNodes;
+    try { s.stop(); l1.stop(); l2.stop(); } catch (e) { /* ignore */ }
+    try { g.disconnect(); } catch (e) { /* ignore */ }
+    this.walkNodes = null;
+    this.walkG = null;
+    this.walkV = 0;
   },
   walk(n) {
-    if (!this.walkG) return;
+    if (!this.ctx) return;
     const v = save.settings.sfx && save.settings.steps && n > 0 ? Math.min(0.03, 0.005 * Math.sqrt(n)) : 0;
-    if (Math.abs(v - this.walkV) < 0.0015) return;
-    this.walkV = v;
-    this.walkG.gain.setTargetAtTime(v, this.ctx.currentTime, 0.25);
+    if (v > 0) {
+      if (this.walkTimer) { clearTimeout(this.walkTimer); this.walkTimer = null; }
+      if (!this.walkG) this.initWalk();
+      if (!this.walkG || Math.abs(v - this.walkV) < 0.0015) return;
+      this.walkV = v;
+      this.walkG.gain.setTargetAtTime(v, this.ctx.currentTime, 0.25);
+    } else if (this.walkG) {
+      if (this.walkV > 0) {
+        this.walkV = 0;
+        this.walkG.gain.setTargetAtTime(0, this.ctx.currentTime, 0.25);
+      }
+      if (!this.walkTimer) this.walkTimer = setTimeout(() => { this.walkTimer = null; if (this.walkV === 0) this.stopWalk(); }, 1200);
+    }
   },
   muffle(on) { if (this.musF && this.ctx) this.musF.frequency.setTargetAtTime(on ? 600 : this.MUS_LP, this.ctx.currentTime, 0.2); },
   // クリア演出中はBGMを小さくし、sec秒後に元へ戻す
