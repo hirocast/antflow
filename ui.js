@@ -103,6 +103,15 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .fb-del{border:none;border-radius:9px;padding:5px 9px;background:#ffe4ee;color:#c03060;font:900 11px var(--rf);cursor:pointer;flex:0 0 auto}
 .fb-note{margin:8px 0 4px;padding:7px 9px;background:#fff8fb;border:1.5px solid #ffd8e6;border-radius:12px;text-align:left;font-size:10.5px;line-height:1.55;color:#7a5a6a;font-weight:700}
 .fb-note div+div{margin-top:2px}
+.fb-camp{margin:4px 0 8px;padding:8px 10px;background:linear-gradient(135deg,#fff9dc,#ffeaf3);border:2px solid #ffc95e;border-radius:14px;text-align:left;font-size:11px;line-height:1.5;color:#6e4214;box-shadow:0 2px 0 #f2cc7e}
+.fb-camp.done{background:#fff8fb;border-color:#ffd8e6;color:#7a5a6a;box-shadow:none}
+.fb-camp-hd{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:900;color:#b83862;margin-bottom:3px;flex-wrap:wrap}
+.fb-camp-pill{background:linear-gradient(#ff6f9e,#ff4d7e);color:#fff;font-size:10px;font-weight:900;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.fb-camp-r{font-weight:900;color:#8a4a00;font-size:11.5px}
+.fb-camp-sub{font-size:10.5px;color:#8a5a42;font-weight:700;margin-top:2px}
+.fb-thanks{display:none;margin:6px 0 2px;padding:9px 10px;background:linear-gradient(135deg,#ecfff4,#fffbe6);border:2px solid #59c988;border-radius:14px;text-align:center;font-size:12px;font-weight:900;line-height:1.5;color:#1b6d42}
+.fb-thanks.on{display:block}
+.fb-gift-tag{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:999px;background:linear-gradient(#ffe36e,#ffb830);color:#6e3a00;font-size:10.5px;font-weight:900;vertical-align:1px;box-shadow:0 1px 0 #d98d12}
 .tinfo span,.tinfo-btn{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
 .tinfo-btn{border:none;font-family:var(--rf);color:var(--ink);cursor:pointer}
 .tinfo-btn:active{transform:translateY(2px);box-shadow:none}
@@ -3280,6 +3289,16 @@ layout();
   const FB_API = (window.AF_FEEDBACK_API || 'https://antflow.hiroshi-artcast.workers.dev/feedback').trim();
   const FB_SENT_KEY = 'antflow-fb-sent-v1';
   const FB_NICK_KEY = 'antflow-fb-nick-v1';
+  const FB_CAMP_KEY = 'antflow-fb-camp-v1';
+  // 当面の要望・不具合報告 お礼キャンペーン設定（終了時は active: false にするだけ）
+  const FB_CAMPAIGN = {
+    active: true,
+    id: 'open-thanks-v1',
+    maxTotal: 5,
+    minChars: 6,
+    base: { c: 300, t: 1, h: 1, s: 1 },
+    imgBonus: { c: 100 }
+  };
   const CATS = [
     ['idea', '💡 新機能アイデア'],
     ['bug', '🐛 不具合・重い報告'],
@@ -3300,6 +3319,8 @@ layout();
   ov.innerHTML =
     '<div class="card">' +
     '<h2 style="font-size:18px;padding:6px 18px">💬 要望・不具合ポスト</h2>' +
+    '<div class="fb-camp" id="fbCamp" style="display:none"></div>' +
+    '<div class="fb-thanks" id="fbThanks"></div>' +
     '<p class="fine" style="margin:2px 0 6px;line-height:1.5">ほしい機能・遊びたい絵・動かない／表示がおかしい等の不具合を気軽に送ってね！<br>状況がわかるスクショも1枚添えられます📷</p>' +
     '<div class="fb-cats" id="fbCats">' +
     CATS.map(([k, lbl], i) => '<button type="button" class="fb-cat' + (i === 0 ? ' on' : '') + '" data-cat="' + k + '">' + lbl + '</button>').join('') +
@@ -3325,6 +3346,48 @@ layout();
     '</div>';
   document.body.appendChild(ov);
 
+  function loadCamp() {
+    try {
+      const o = JSON.parse(localStorage.getItem(FB_CAMP_KEY) || 'null');
+      if (o && o.id === FB_CAMPAIGN.id) return { id: o.id, count: Math.max(0, o.count | 0), lastDay: String(o.lastDay || '') };
+    } catch (e) {}
+    return { id: FB_CAMPAIGN.id, count: 0, lastDay: '' };
+  }
+  function saveCamp(st) {
+    try { localStorage.setItem(FB_CAMP_KEY, JSON.stringify(st)); } catch (e) {}
+  }
+  function campStatus() {
+    const st = loadCamp(), today = dayKey();
+    const rem = Math.max(0, FB_CAMPAIGN.maxTotal - st.count);
+    const todayDone = st.lastDay === today;
+    return { st, today, rem, todayDone, eligible: FB_CAMPAIGN.active && rem > 0 && !todayDone };
+  }
+  function refreshFbCampaignUI() {
+    const cs = campStatus();
+    const bTitle = $('#bTitleFeedback'), bSet = $('#bSetFeedback');
+    const tag = cs.eligible ? '<span class="fb-gift-tag">🎁お礼あり</span>' : '';
+    if (bTitle) bTitle.innerHTML = '💬 要望・不具合を送る' + tag;
+    if (bSet) bSet.innerHTML = '💬 要望・不具合を送る' + tag;
+    const box = $('#fbCamp');
+    if (!box) return;
+    if (!FB_CAMPAIGN.active) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    box.classList.toggle('done', !cs.eligible);
+    if (cs.eligible) {
+      box.innerHTML =
+        '<div class="fb-camp-hd"><span class="fb-camp-pill">🎁 期間限定</span><span>お礼キャンペーン開催中！</span></div>' +
+        '<div class="fb-camp-r">お礼：<span style="white-space:nowrap">🪙' + FB_CAMPAIGN.base.c + '</span>＋<span style="white-space:nowrap">🎟️おたからばこ×' + FB_CAMPAIGN.base.t + '</span>＋<span style="white-space:nowrap">💡ヒント×' + FB_CAMPAIGN.base.h + '</span>＋<span style="white-space:nowrap">🔍全部運べる×' + FB_CAMPAIGN.base.s + '</span></div>' +
+        '<div class="fb-camp-sub">📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>！（' + FB_CAMPAIGN.minChars + '文字以上・1日1回／あと<b>' + cs.rem + '回</b>）</div>';
+    } else if (cs.rem > 0 && cs.todayDone) {
+      box.innerHTML =
+        '<div class="fb-camp-hd"><span>🎁 お礼キャンペーン（本日分は受取済み ✅）</span></div>' +
+        '<div class="fb-camp-sub">また明日送るとお礼がもらえます（残りあと' + cs.rem + '回）。要望・不具合の投稿はいつでもOK！</div>';
+    } else {
+      box.innerHTML =
+        '<div class="fb-camp-hd"><span>🎉 お礼キャンペーン（' + FB_CAMPAIGN.maxTotal + '/' + FB_CAMPAIGN.maxTotal + '回）ぜんぶ受取済み！</span></div>' +
+        '<div class="fb-camp-sub">たくさんの声をありがとう！引き続きご要望・不具合はいつでも送れます✨</div>';
+    }
+  }
   function loadSent() {
     try { const a = JSON.parse(localStorage.getItem(FB_SENT_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
   }
@@ -3342,7 +3405,8 @@ layout();
       const cat = (CATS.find(c => c[0] === x.cat) || CATS[0])[1];
       const dt = x.at ? new Date(x.at).toLocaleDateString('ja-JP') : '';
       const imgTag = x.hasImg ? ' · 📷画像あり' : '';
-      return '<div class="fb-hitem"><b>' + escUpd(cat) + (dt ? ' · ' + escUpd(dt) : '') + imgTag + '</b>' + escUpd(x.msg) + '</div>';
+      const giftTag = x.gift ? ' · 🎁お礼済' : '';
+      return '<div class="fb-hitem"><b>' + escUpd(cat) + (dt ? ' · ' + escUpd(dt) : '') + imgTag + giftTag + '</b>' + escUpd(x.msg) + '</div>';
     }).join('');
   }
   function detectDevice() {
@@ -3404,6 +3468,9 @@ layout();
     if (ni && !ni.value) {
       try { ni.value = localStorage.getItem(FB_NICK_KEY) || ''; } catch (e) {}
     }
+    const th = $('#fbThanks');
+    if (th) { th.classList.remove('on'); th.innerHTML = ''; }
+    refreshFbCampaignUI();
     renderHist();
     showOv('feedback');
   }
@@ -3456,6 +3523,7 @@ layout();
     btn.disabled = true; btn.textContent = '📮 送信中…';
     try {
       const progress = 'クリア ' + gotCount() + '/' + TOTAL + '面' + (G.level && G.level.name ? '（現在:' + G.level.name + '）' : '');
+      const hasImg = !!attachedImg;
       const payload = {
         category: selCat,
         message: msg,
@@ -3478,13 +3546,60 @@ layout();
         toast('⚠️ ' + (data.error || '送信に失敗しました。少し待って試してね'), 3400);
         return;
       }
-      saveSent({ cat: selCat, msg, hasImg: !!attachedImg, at: Date.now() });
+
+      // お礼キャンペーンの付与判定（送信成功時のみ・6文字以上・1日1回・上限5回）
+      const cs = campStatus();
+      let rewarded = null;
+      if (cs.eligible && msg.length >= FB_CAMPAIGN.minChars) {
+        rewarded = {
+          c: (FB_CAMPAIGN.base.c || 0) + (hasImg ? (FB_CAMPAIGN.imgBonus.c || 0) : 0),
+          t: FB_CAMPAIGN.base.t || 0,
+          h: FB_CAMPAIGN.base.h || 0,
+          s: FB_CAMPAIGN.base.s || 0
+        };
+        grantReward(rewarded);
+        persist();
+        saveCamp({ id: FB_CAMPAIGN.id, count: cs.st.count + 1, lastDay: cs.today });
+        updateCoins(true);
+        renderTitle();
+        Sound.fanfare();
+        haptic(20);
+        Fx.burst(innerWidth / 2, innerHeight * 0.35, 70, 420, ['star', 'conf', 'dot']);
+        const rTxt = fmtReward(rewarded);
+        const th = $('#fbThanks');
+        if (th) {
+          th.innerHTML = '🎁 ありがとう！お礼をプレゼントしたよ！<br>' + escUpd(rTxt) + (hasImg ? '<br><small style="font-size:10.5px;font-weight:800">（📷スクショ添付ボーナス込み！）</small>' : '');
+          th.classList.add('on');
+        }
+        if (typeof window.AF_pushInboxItem === 'function') {
+          window.AF_pushInboxItem({
+            id: 'fb-thanks-' + cs.today + '-' + (cs.st.count + 1),
+            kind: 'update',
+            badge: '🎁 お礼プレゼント',
+            title: '要望・不具合報告のお礼を届けたよ！',
+            body: 'ご報告・ご要望ありがとう！\nお礼として ' + rTxt + ' をお渡ししました✨' +
+              (hasImg ? '\n（スクショ添付ボーナス 🪙+' + FB_CAMPAIGN.imgBonus.c + ' を含むよ！）' : '') +
+              '\n\nいただいた声は確認のうえ、今後のアップデートに活かしていくね！',
+            at: Date.now(),
+            read: true
+          });
+        }
+        toast('🎁 お礼ゲット！ ' + rTxt, 4200);
+      } else {
+        Sound.albumIn();
+        if (cs.eligible && msg.length < FB_CAMPAIGN.minChars) {
+          toast('🎉 届いたよ！ありがとう✨（お礼は' + FB_CAMPAIGN.minChars + '文字以上の投稿で受け取れるよ）', 4000);
+        } else {
+          toast('🎉 届いたよ！確認して今後の改善に活かすね✨', 3800);
+        }
+      }
+
+      saveSent({ cat: selCat, msg, hasImg, gift: !!rewarded, at: Date.now() });
       if (ta) ta.value = '';
       if ($('#fbCnt')) $('#fbCnt').textContent = '0';
       clearAttachment();
+      refreshFbCampaignUI();
       renderHist();
-      Sound.albumIn();
-      toast('🎉 届いたよ！確認して今後の改善に活かすね✨', 3800);
     } catch (e) {
       toast('⚠️ 通信エラー：ネット環境を確認してもう一度試してね', 3400);
     } finally {
@@ -3492,6 +3607,8 @@ layout();
       btn.disabled = false; btn.textContent = '📮 送る！';
     }
   });
+
+  refreshFbCampaignUI();
 })();
 
 requestAnimationFrame(frame);
