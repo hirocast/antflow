@@ -3342,7 +3342,27 @@ function frame(now) {
 
 /* ================= 起動 ================= */
 G.speed = save.settings.fast ? 2 : 1;
-popText($('#ttl'), 'アントフロー');
+(function buildTitleLogo() {
+  const el = $('#ttl');
+  if (!el) return;
+  el.innerHTML = '';
+  const word = document.createElement('div');
+  word.className = 'ttl-word';
+  const rots = [-4, 3, -2.5, 3, -3.5, 2.5];
+  [...'アントフロー'].forEach((ch, i) => {
+    const s = document.createElement('span');
+    s.textContent = ch;
+    s.style.color = POP[i % POP.length];
+    s.style.setProperty('--r', rots[i % rots.length] + 'deg');
+    s.style.animationDelay = (i * 0.06) + 's, ' + (0.6 + i * 0.14) + 's';
+    word.appendChild(s);
+  });
+  const sub = document.createElement('div');
+  sub.className = 'ttl-sub';
+  sub.textContent = 'ANTFLOW';
+  el.appendChild(word);
+  el.appendChild(sub);
+})();
 updateBadge(); updateCoins(); applyDev(); refreshPrices();
 loadLevel(save.level);
 if (gotCount() === 0 && !save.daily.day) startPlay(); else if (dailyCheck()) showDaily(); else showOv('title');
