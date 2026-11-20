@@ -4,6 +4,7 @@
 /* ================= オリジナルステージ作成＆URLシェア＆投稿 ================= */
 (function () {
   const MY_KEY = 'antflow-my-stages-v1';
+  const DRAFT_KEY = 'antflow-maker-draft-v1';
   const POST_CD_KEY = 'antflow-post-cd-v1';
   const REPORT_KEY = 'antflow-reported-v1';
   const NICK_KEY = 'antflow-nick-v1';
@@ -254,11 +255,17 @@
     if (b) b.disabled = !mkHistory.length;
     if (r) r.disabled = !mkRedo.length;
   }
+  let mkDraftId = 'd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  let mkDraftRestored = false;
+  let draftSaveFn = null;
+  function scheduleDraftSave() { if (draftSaveFn) draftSaveFn(false); }
+  function flushDraftSave() { if (draftSaveFn) draftSaveFn(true); }
   function pushMkUndo(keepRedo) {
     mkHistory.push({ w: mkW, h: mkH, grid: mkGrid.slice() });
     if (mkHistory.length > 40) mkHistory.shift();
     if (!keepRedo) mkRedo.length = 0;
     refreshUndoBtn();
+    scheduleDraftSave();
   }
 
   /* ---- URL エンコード / デコード（サーバー不要） ---- */
@@ -841,14 +848,16 @@
   function loadMyStages() {
     try { return JSON.parse(localStorage.getItem(MY_KEY) || '[]'); } catch (e) { return []; }
   }
-  async function saveMyStage(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff, genIdx, issueNum) {
+  async function saveMyStage(name, grid, w, h, preToken, talk, bgmToken, allowRemix, diff, genIdx, issueNum, opts) {
     const list = loadMyStages();
     const token = preToken || await encodeCustomStage(name, grid, w, h, talk, bgmToken, allowRemix, diff, genIdx);
-    const prev = list.find(x => x.token === token);
+    const prev = list.find(x => x.token === token || (opts && opts.draftId && x.draftId === opts.draftId));
     const num = (Number(issueNum) | 0) || (prev && Number(prev.issueNum)) || 0;
-    const filtered = list.filter(x => x.token !== token);
+    const filtered = list.filter(x => x.token !== token && !(opts && opts.draftId && x.draftId === opts.draftId));
     const entry = { name, w, h, token, at: Date.now() };
     if (num > 0) entry.issueNum = num;
+    if (opts && opts.draftId) entry.draftId = opts.draftId;
+    if (opts && opts.isDraft) entry.isDraft = true;
     filtered.unshift(entry);
     if (filtered.length > 20) filtered.length = 20;
     try { localStorage.setItem(MY_KEY, JSON.stringify(filtered)); } catch (e) {}
@@ -1024,14 +1033,16 @@
     const myList = loadMyStages();
     const stats = await statsPromise;
     if (!myList.length) {
-      mine.innerHTML = '<p class="fine">まだ保存した作品がありません（「▶ あそぶ」「🔗 シェア」で残るよ）</p>';
+      mine.innerHTML = '<p class="fine">まだ保存した作品がありません（「💾 途中保存」「▶ あそぶ」「🔗 シェア」で残るよ）</p>';
     } else {
       for (const item of myList) {
         const art = await decodeCustomStage(item.token);
         if (!art) continue;
         if (item.issueNum) art.issueNum = Number(item.issueNum) || 0;
+        if (item.isDraft) art.isDraft = true;
+        if (item.draftId) art.draftId = item.draftId;
         const h = stageContentHash(art.grid, art.W, art.H);
-        mine.appendChild(makeGalCard(art, 'マイ作品', null, true, stats[h] || null, h));
+        mine.appendChild(makeGalCard(art, item.isDraft ? '📝 途中' : 'マイ作品', null, true, stats[h] || null, h));
       }
     }
     const reported = loadReported();
@@ -1176,7 +1187,7 @@
     if (isMine || art.allowRemix) {
       const arrBtn = document.createElement('span');
       arrBtn.className = 'galarr';
-      arrBtn.textContent = '✏️ アレンジ';
+      arrBtn.textContent = art.isDraft ? '✏️ 続きを描く' : '✏️ アレンジ';
       arrBtn.addEventListener('click', e => {
         e.stopPropagation();
         e.preventDefault();
@@ -1186,7 +1197,16 @@
       acts.appendChild(arrBtn);
     }
     btn.appendChild(acts);
-    btn.addEventListener('click', () => { Sound.tap(); loadCustomLevel(art); });
+    btn.addEventListener('click', () => {
+      Sound.tap();
+      let cnt = 0;
+      for (const v of art.grid) if (v >= 0) cnt++;
+      if (art.isDraft && cnt < 4 && window.AF_loadArtIntoMaker) {
+        window.AF_loadArtIntoMaker(art, isMine);
+        return;
+      }
+      loadCustomLevel(art);
+    });
     return btn;
   }
 
@@ -1210,9 +1230,11 @@
       '.galtab.on{background:#ffe0ed;border-color:#ff8fb3;color:#c03060}' +
       '.galpane{display:none}' +
       '.galpane.on{display:block}' +
-      '.mktop{display:flex;gap:6px;justify-content:center;margin:4px 0 6px}' +
-      '.mktop button{border:2px solid #ffd3e2;border-radius:14px;padding:7px 12px;min-height:34px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
+      '.mktop{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:4px 0 4px}' +
+      '.mktop button{border:2px solid #ffd3e2;border-radius:14px;padding:7px 11px;min-height:34px;background:#fff4f8;font:900 11.5px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
+      '.mktop button.mksave{background:linear-gradient(#7ae0b8,#42c494);border-color:#fff;color:#fff;box-shadow:0 2px 0 #269c70}' +
       '.mktop button:active{transform:translateY(2px);box-shadow:none}' +
+      '.mkdraft-stat{font:800 10px var(--rf);color:#8a6578;text-align:center;min-height:13px;margin:0 0 2px}' +
       '.mkcv-wrap{position:relative;width:min(100%,520px,62vh);aspect-ratio:1;margin:6px auto;border-radius:14px;border:3px solid #fff;box-shadow:0 4px 0 #f0c6d6;background:#fff3dc;overflow:hidden}' +
       '.mkref-stage{position:absolute;inset:0;transform-origin:0 0;pointer-events:none;z-index:1;overflow:visible}' +
       '#mkRefImg{position:absolute;left:50%;top:50%;max-width:100%;max-height:100%;transform-origin:center center;display:none;pointer-events:none;user-select:none}' +
@@ -1497,7 +1519,8 @@
       '<div class="mktabs"><button type="button" class="mktab on">🎨 ステージをつくる</button><button type="button" class="mktab" id="bMkToBgm">🎵 BGMをつくる</button></div>' +
       '<h2>🎨 ステージをつくる</h2>' +
       (CONTEST.active ? '<div class="contest-bar contest-maker"><div><b>' + CONTEST.title + '（' + CONTEST.period + '）</b><small>①絵と名前をつくる → ②下の「📮 投稿・🏆応募」で完了！</small></div><button type="button" class="contest-q" id="bMkContestInfo">参加方法</button></div>' : '') +
-      '<div class="mktop"><button id="bMkGalTop">💾 マイ作品・みんなの絵</button><button id="bMkCloseTop">✕ とじる</button></div>' +
+      '<div class="mktop"><button id="bMkSaveDraft" class="mksave">💾 途中保存</button><button id="bMkGalTop">💾 マイ作品・みんなの絵</button><button id="bMkCloseTop">✕ とじる</button></div>' +
+      '<div id="mkDraftStat" class="mkdraft-stat"></div>' +
       '<input id="mkName" type="text" maxlength="14" placeholder="ステージ名（例：わたしのハート）">' +
       '<div class="mktools">' +
       '<button class="mksz on" data-sz="16">16×16</button>' +
@@ -2326,7 +2349,8 @@
       mkGrid = art.grid.slice();
       mkHistory.length = 0; refreshUndoBtn();
       resetZoom(); refreshSizeBtns();
-      $('#mkName').value = makeStageArrangeName(art.name);
+      $('#mkName').value = art.isDraft ? (art.name || '') : makeStageArrangeName(art.name);
+      mkDraftId = (isMine && art.draftId) ? art.draftId : ('d_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
       const t = normalizeCustomTalk(art.talk);
       for (const [k, sel] of talkIds) $(sel).value = (t && t[k] && t[k].length) ? t[k].join(' / ') : '';
       updateTalkBadge();
@@ -2345,9 +2369,10 @@
       }
       $('#mkAllowRemix').checked = mkAllowRemix;
       refreshBgmUI();
+      flushDraftSave();
       showOv('maker');
       requestAnimationFrame(drawMaker);
-      toast(mkBaseAuthor ? '✏️「' + art.name + '」（' + mkBaseAuthor + ' 作）を土台にアレンジしよう！' : '✏️「' + art.name + '」を土台にアレンジしよう！');
+      toast(art.isDraft ? '✏️「' + (art.name || '途中保存') + '」の続きを描こう！' : (mkBaseAuthor ? '✏️「' + art.name + '」（' + mkBaseAuthor + ' 作）を土台にアレンジしよう！' : '✏️「' + art.name + '」を土台にアレンジしよう！'));
     };
 
     $('#bMkPlay').addEventListener('click', async () => {
@@ -2359,7 +2384,8 @@
       btn.disabled = false;
       if (!res) { toast('キャンディを4マス以上おいてね！'); return; }
       const talk = readTalkFromUI();
-      saveMyStage(name, mkGrid, mkW, mkH, null, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
+      flushDraftSave();
+      saveMyStage(name, mkGrid, mkW, mkH, null, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx, 0, { draftId: mkDraftId, isDraft: false });
       loadCustomLevel({ W: mkW, H: mkH, grid: mkGrid.slice(), name, theme: 'オリジナル', talk, bgmToken: mkBgmToken, allowRemix: mkAllowRemix, diff: mkDiff, genIdx: mkGenIdx });
     });
     $('#bMkShare').addEventListener('click', async () => {
@@ -2381,6 +2407,8 @@
       btn.disabled = true;
       await ensureAiBest(name);
       btn.disabled = false;
+      flushDraftSave();
+      await saveMyStage(name, mkGrid, mkW, mkH, null, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx, 0, { draftId: mkDraftId, isDraft: false });
       await shareStageArt(name, mkGrid, mkW, mkH, talk, null, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
     });
     let pendingPost = null;
@@ -2406,7 +2434,8 @@
       const token = await encodeCustomStage(name, mkGrid, mkW, mkH, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
       const cd = checkPostLimit(token);
       if (cd) { toast(cd); return; }
-      await saveMyStage(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
+      flushDraftSave();
+      await saveMyStage(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx, 0, { draftId: mkDraftId, isDraft: false });
       const url = await stageShareUrl(name, mkGrid, mkW, mkH, token, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx);
       const title = '[作品投稿] ' + name + ' (' + mkW + 'x' + mkH + ')';
       const tCnt = countTalkLines(talk);
@@ -2498,8 +2527,59 @@
     $('#bMkToBgm').addEventListener('click', () => { Sound.tap(); if (window.AF_openBgmMaker) window.AF_openBgmMaker(); });
     $('#bMkGal').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkGalTop').addEventListener('click', () => { Sound.tap(); openGallery(); });
-    $('#bMkClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
-    $('#bMkCloseTop').addEventListener('click', () => { Sound.tap(); showOv('title'); });
+    let mkDraftTimer = 0;
+    function updateDraftStat(at, label) {
+      const el = $('#mkDraftStat');
+      if (!el) return;
+      if (!at) { el.textContent = ''; return; }
+      const d = new Date(at);
+      const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      el.textContent = '💾 ' + (label || '自動保存済み') + '（' + hm + '）';
+    }
+    function writeMakerDraft() {
+      let hasCells = false;
+      for (let i = 0; i < mkGrid.length; i++) { if (mkGrid[i] >= 0) { hasCells = true; break; } }
+      const name = ($('#mkName') ? $('#mkName').value : '') || '';
+      if (!hasCells && !name.trim()) {
+        try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+        updateDraftStat(0);
+        return;
+      }
+      const at = Date.now();
+      const data = {
+        w: mkW, h: mkH, grid: Array.from(mkGrid), name,
+        bgmToken: mkBgmToken, allowRemix: mkAllowRemix, baseAuthor: mkBaseAuthor,
+        talk: readTalkFromUI(), diff: mkDiff, genIdx: mkGenIdx, draftId: mkDraftId, at
+      };
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); updateDraftStat(at, '自動保存済み'); } catch (e) {}
+    }
+    draftSaveFn = function (immediate) {
+      if (mkDraftTimer) { clearTimeout(mkDraftTimer); mkDraftTimer = 0; }
+      if (immediate) { writeMakerDraft(); return; }
+      mkDraftTimer = setTimeout(() => { mkDraftTimer = 0; writeMakerDraft(); }, 600);
+    };
+    $('#mkName').addEventListener('input', () => { scheduleDraftSave(); });
+    for (const [, sel] of talkIds) $(sel).addEventListener('input', () => { scheduleDraftSave(); });
+    $('#mkAllowRemix').addEventListener('change', () => { scheduleDraftSave(); });
+    $('#bMkSaveDraft').addEventListener('click', async () => {
+      Sound.tap(); commitSel(); drawMaker();
+      let total = 0;
+      for (const v of mkGrid) if (v >= 0) total++;
+      const rawName = ($('#mkName').value || '').trim();
+      if (total === 0 && !rawName) { toast('まずは1マス以上描いてみてね！'); return; }
+      const name = rawName || '途中保存';
+      const ng = validateStageName(name);
+      if (ng) { toast(ng); return; }
+      flushDraftSave();
+      const talk = readTalkFromUI();
+      await saveMyStage(name, mkGrid, mkW, mkH, null, talk, mkBgmToken, mkAllowRemix, mkDiff, mkGenIdx, 0, { draftId: mkDraftId, isDraft: true });
+      updateDraftStat(Date.now(), '途中保存済み');
+      toast('💾 途中保存したよ！「マイ作品」からも続きを描けるよ');
+    });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flushDraftSave(); });
+    window.addEventListener('pagehide', () => { flushDraftSave(); });
+    $('#bMkClose').addEventListener('click', () => { Sound.tap(); flushDraftSave(); showOv('title'); });
+    $('#bMkCloseTop').addEventListener('click', () => { Sound.tap(); flushDraftSave(); showOv('title'); });
     if ($('#bMkFeedback')) $('#bMkFeedback').addEventListener('click', () => { Sound.tap(); if (window.AF_openFeedback) window.AF_openFeedback('maker', { defaultCat: 'maker' }); });
     $('#bGalToBgm').addEventListener('click', () => { Sound.tap(); if (window.AF_openBgmGallery) window.AF_openBgmGallery(); });
     gov.querySelectorAll('.galtab').forEach(btn => btn.addEventListener('click', () => {
@@ -2529,8 +2609,34 @@
     });
     $('#bStImpClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
 
-    // 初期状態は可愛いハートを入れておく
+    // 初期状態は可愛いハートを入れておく（保存済みの途中データがあれば復元）
     applyTemplate('heart');
+    try {
+      const rawDraft = localStorage.getItem(DRAFT_KEY);
+      if (rawDraft) {
+        const d = JSON.parse(rawDraft);
+        if (d && Array.isArray(d.grid) && d.w >= 8 && d.h >= 8 && d.grid.length === d.w * d.h) {
+          mkW = d.w; mkH = d.h;
+          mkGrid = new Int8Array(d.grid);
+          if (d.draftId) mkDraftId = String(d.draftId);
+          $('#mkName').value = String(d.name || '').slice(0, 14);
+          mkBgmToken = String(d.bgmToken || '');
+          mkAllowRemix = !!d.allowRemix;
+          mkBaseAuthor = String(d.baseAuthor || '');
+          mkDiff = clampDiff(d.diff);
+          mkGenIdx = Math.max(0, Number(d.genIdx) | 0);
+          const t = normalizeCustomTalk(d.talk);
+          for (const [k, sel] of talkIds) $(sel).value = (t && t[k] && t[k].length) ? t[k].join(' / ') : '';
+          updateTalkBadge();
+          $('#mkAllowRemix').checked = mkAllowRemix;
+          refreshSizeBtns();
+          refreshBgmUI();
+          mkHistory.length = 0; mkRedo.length = 0; refreshUndoBtn();
+          updateDraftStat(d.at || Date.now(), '前回を復元');
+          mkDraftRestored = true;
+        }
+      }
+    } catch (e) {}
     refreshZoomUI();
   }
 
@@ -2639,6 +2745,10 @@
     mkCvSize = 0; mkLastStTf = ''; mkLastImDisp = ''; mkLastImTf = '';
     showOv('maker');
     requestAnimationFrame(drawMaker);
+    if (mkDraftRestored) {
+      mkDraftRestored = false;
+      toast('💾 前回の途中データを復元したよ！');
+    }
   }
   window.AF_openMaker = openMaker;
   window.AF_openGallery = openGallery;
