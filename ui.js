@@ -22,8 +22,8 @@ function nextOf(id) {
 (function injectStyle() {
   const st = document.createElement('style');
   st.textContent = `
-body{background:linear-gradient(180deg,#86d6ff 0%,#c4ecff 40%,#eefbff 60%,#cdeea0 74%,#9fd86e 100%) fixed}
-body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;opacity:.9;
+body{background:linear-gradient(180deg,#86d6ff 0%,#c4ecff 40%,#eefbff 60%,#cdeea0 74%,#9fd86e 100%)}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;opacity:.9;transform:translateZ(0);
  background:radial-gradient(ellipse 90px 30px at 14% 10%,#fff 60%,transparent 62%),radial-gradient(ellipse 56px 24px at 21% 7%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 110px 34px at 82% 18%,#fff 60%,transparent 62%),radial-gradient(ellipse 66px 26px at 89% 14%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%)}
@@ -1325,17 +1325,39 @@ function showJam() {
   setTimeout(step, 30);
 }
 // タイトル画面と読み込み画面のアリさん
+let mascotCache = null;
+function ensureMascotCache() {
+  const key = save.skin + '|' + dpr;
+  if (mascotCache && mascotCache.key === key) return mascotCache;
+  const u = 30, aw = Math.ceil(u * 2.8), ah = Math.ceil(u * 3.4), aox = u * 1.35, aoy = u * 2.1;
+  const ants = [];
+  for (let fr = 0; fr < 4; fr++) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(aw * dpr)); c.height = Math.max(1, Math.ceil(ah * dpr));
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, aox * dpr, aoy * dpr);
+    drawAntShape(g, u, 10, 1, fr, save.skin);
+    ants.push(c);
+  }
+  const cz = u * 1.3, ccw = Math.ceil(cz + 4);
+  const candy = document.createElement('canvas');
+  candy.width = candy.height = Math.max(1, Math.ceil(ccw * dpr));
+  const cg = candy.getContext('2d');
+  cg.setTransform(dpr, 0, 0, dpr, ccw * dpr / 2, ccw * dpr / 2);
+  paintCandy(cg, -cz / 2, -cz / 2, cz, 2);
+  mascotCache = { key, ants, aw, ah, aox, aoy, candy, ccw, u, cz };
+  return mascotCache;
+}
 function drawMascot(cv, t) {
   const W = Math.round(170 * dpr), H = Math.round(130 * dpr);
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-  const g = cv.getContext('2d'), u = 30, bob = -Math.abs(Math.sin(t * 4)) * 5;
+  const mc = ensureMascotCache(), g = cv.getContext('2d'), u = mc.u, bob = -Math.abs(Math.sin(t * 4)) * 5;
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, 170, 130);
   g.fillStyle = 'rgba(120,60,90,.15)'; ell(g, 85, 120, 46, 6); g.fill();
   g.save(); g.translate(80, 120 - 0.8 * u + bob); g.rotate(Math.sin(t * 4) * 0.06);
-  drawAntShape(g, u, 10, 1, Math.floor(t * 8) & 3, save.skin);
-  const cz = u * 1.3;
-  g.translate(0.36 * u, -1.02 * u - cz / 2); g.rotate(Math.sin(t * 3) * 0.08);
-  paintCandy(g, -cz / 2, -cz / 2, cz, 2);
+  g.drawImage(mc.ants[Math.floor(t * 8) & 3], -mc.aox, -mc.aoy, mc.aw, mc.ah);
+  g.translate(0.36 * u, -1.02 * u - mc.cz / 2); g.rotate(Math.sin(t * 3) * 0.08);
+  g.drawImage(mc.candy, -mc.ccw / 2, -mc.ccw / 2, mc.ccw, mc.ccw);
   g.restore();
 }
 

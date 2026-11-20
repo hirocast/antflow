@@ -179,8 +179,8 @@ let slotSize = 50, slotGap = 10, slotY = 0, trayTop = 0, trayHeadY = 0, trayGap 
 // boardSide：横長の画面で「絵を左・スロットとトレイを右」にしているか
 let framePad = 10, slotCX = 0, trayCX = 0, panelL = 8, panelR = 0, boardSide = false;
 let cubeSpr = [], cubeRes = [], candySpr = [];
-const antCache = new Map(), boxCache = new Map(), boardCv = document.createElement('canvas'), boardG = boardCv.getContext('2d');
-let trayGrad = null, trayGradKey = '';
+const antCache = new Map(), boxCache = new Map(), numCache = new Map(), singerCache = new Map(), boardCv = document.createElement('canvas'), boardG = boardCv.getContext('2d');
+let trayGrad = null, trayGradKey = '', nestCache = null, slotGrad = null, slotGradKey = '', singerTxtKey = '', singerTxtW = 0;
 
 /* ---- レイアウト：絵をできるだけ大きく ----
    たて長：上から「絵」「スロット＋巣穴（横ならび）」「トレイ」。絵が横幅いっぱいになったら、余った高さで箱を大きくする
@@ -264,7 +264,13 @@ function layout() {
   document.body.style.setProperty('--pw', P.pw + 'px');
   antCache.clear();
   boxCache.clear();
+  numCache.clear();
+  singerCache.clear();
   trayGrad = null;
+  nestCache = null;
+  slotGrad = null;
+  slotGradKey = '';
+  singerTxtKey = '';
   buildSprites();
   G.boardDirty = true;
 }
@@ -361,18 +367,20 @@ const ANT_GAP = 1.3;
 function gapCells() { return antPx * 1.05 * ANT_GAP / cs; }
 // 同じ箱から出た仲間がすぐ前にいたら、スピードを落とす（止まりきらないので行列は詰まらない）
 // ちがう箱のアリ（ちがう色のアリなど）とは間隔をとらず、そのまますれちがう・重なる
-function followFactor(a, gap) {
+function followFactor(a, gap, peers) {
+  if (!peers || peers.length <= 1) return 1;
   let f = 1;
-  const g2 = gap * gap;
-  for (const o of G.ants) {
-    if (o === a || o.vb !== a.vb || (o.state !== 'out' && o.state !== 'back')) continue;
+  const g2 = gap * gap, latLim = gap * 0.45, g55 = gap * 0.55;
+  for (let i = 0, len = peers.length; i < len; i++) {
+    const o = peers[i];
+    if (o === a) continue;
     const dx = o.x - a.x, dy = o.y - a.y;
     if (dx * dx + dy * dy >= g2) continue;
     if (o.hx * a.hx + o.hy * a.hy < 0.7) continue;
     const ahead = dx * a.hx + dy * a.hy;
     if (ahead <= 0.02) continue;
-    if (Math.abs(dx * a.hy - dy * a.hx) > gap * 0.45) continue;
-    f = Math.min(f, clamp((ahead - gap * 0.55) / (gap * 0.45), 0.12, 1));
+    if (Math.abs(dx * a.hy - dy * a.hx) > latLim) continue;
+    f = Math.min(f, clamp((ahead - g55) / latLim, 0.12, 1));
   }
   return f;
 }
@@ -393,8 +401,8 @@ function tryDispatch(b) {
     G.pgrid[cell] = -1; G.pver++;
     const path = pathFrom(dist, best, EW, EH), pts = [{ x: (slotX(b.slot) - ox) / cs + 0.5, y: (slotY - slotSize * 0.3 - oy) / cs + 0.5 }];
     for (const ei of path) pts.push({ x: ei % EW, y: Math.floor(ei / EW) });
-    const p0 = pts[0], p1 = pts[1] || p0, L0 = Math.hypot(p1.x - p0.x, p1.y - p0.y) || 1;
-    const ant = { vb: b, c: b.c, cell, tx: x + 1, ty: y + 1, pts, i: 0, d: 0, x: p0.x, y: p0.y, face: 1, state: 'out', t: 0, phase: Math.random() * 6, speed: G.antSpeed * G.spdMul * (0.97 + Math.random() * 0.06), sweat: Math.random() * 2, said: false, lifted: false, trav: 0, hx: (p1.x - p0.x) / L0, hy: (p1.y - p0.y) / L0 };
+    const p0 = pts[0], p1 = pts[1] || p0, dx0 = p1.x - p0.x, dy0 = p1.y - p0.y, L0 = Math.sqrt(dx0 * dx0 + dy0 * dy0) || 1;
+    const ant = { vb: b, c: b.c, cell, tx: x + 1, ty: y + 1, pts, i: 0, d: 0, x: p0.x, y: p0.y, face: 1, state: 'out', t: 0, phase: Math.random() * 6, speed: G.antSpeed * G.spdMul * (0.97 + Math.random() * 0.06), sweat: Math.random() * 2, said: false, lifted: false, trav: 0, hx: dx0 / L0, hy: dy0 / L0 };
     G.ants.push(ant);
     G.lastOut[b.slot] = ant;
     if (b.dispatched === 1) maybeSay(ant, 'go', 0.3);
@@ -402,17 +410,17 @@ function tryDispatch(b) {
   }
 }
 function moveAlong(a, dist) {
-  const p = a.pts;
-  while (dist > 0 && a.i < p.length - 1) {
-    const A = p[a.i], B = p[a.i + 1], L = Math.hypot(B.x - A.x, B.y - A.y) || 1e-6, rem = L - a.d;
+  const p = a.pts, last = p.length - 1;
+  while (dist > 0 && a.i < last) {
+    const A = p[a.i], B = p[a.i + 1], dx = B.x - A.x, dy = B.y - A.y, L = Math.sqrt(dx * dx + dy * dy) || 1e-6, rem = L - a.d;
     if (dist < rem) { a.d += dist; dist = 0; } else { dist -= rem; a.i++; a.d = 0; }
   }
-  if (a.i >= p.length - 1) { a.x = p[p.length - 1].x; a.y = p[p.length - 1].y; return true; }
-  const A = p[a.i], B = p[a.i + 1], L = Math.hypot(B.x - A.x, B.y - A.y) || 1e-6, t = a.d / L;
-  a.x = A.x + (B.x - A.x) * t; a.y = A.y + (B.y - A.y) * t;
+  if (a.i >= last) { a.x = p[last].x; a.y = p[last].y; return true; }
+  const A = p[a.i], B = p[a.i + 1], dx = B.x - A.x, dy = B.y - A.y, L = Math.sqrt(dx * dx + dy * dy) || 1e-6, t = a.d / L;
+  a.x = A.x + dx * t; a.y = A.y + dy * t;
   // 進む向き（同じ向きのアリ同士の間隔を保つのに使う）
-  a.hx = (B.x - A.x) / L; a.hy = (B.y - A.y) / L;
-  if (Math.abs(B.x - A.x) > 0.01) a.face = B.x > A.x ? 1 : -1;
+  a.hx = dx / L; a.hy = dy / L;
+  if (dx > 0.01 || dx < -0.01) a.face = dx > 0 ? 1 : -1;
   return false;
 }
 // kind：base.js の TALK の場面名。force=true は間隔の制限を無視して必ずしゃべる
@@ -500,8 +508,19 @@ function startReturn(a) {
   pts.push(nestHole());
   a.pts = pts; a.i = 0; a.d = 0; a.state = 'back'; a.t = 0;
 }
+const _antVbs = [];
 function updateAnts(dt, rdt) {
   const fm = G.fever.t > 0 ? 1.4 : 1, gap = gapCells();
+  _antVbs.length = 0;
+  for (let k = 0, len = G.ants.length; k < len; k++) {
+    const a = G.ants[k];
+    if (a.state !== 'out' && a.state !== 'back') continue;
+    const vb = a.vb;
+    if (!vb) continue;
+    if (!vb._ants) vb._ants = [];
+    if (vb._ants.length === 0) _antVbs.push(vb);
+    vb._ants.push(a);
+  }
   for (let k = G.ants.length - 1; k >= 0; k--) {
     const a = G.ants[k];
     a.phase += dt * (a.state === 'back' ? 10 : 14);
@@ -512,7 +531,7 @@ function updateAnts(dt, rdt) {
       continue;
     }
     if (a.state === 'enter') { a.t += dt; if (a.t >= ENTER) G.ants.splice(k, 1); continue; }
-    const step = a.speed * (a.state === 'back' ? 0.78 : 1) * fm * dt * followFactor(a, gap);
+    const step = a.speed * (a.state === 'back' ? 0.78 : 1) * fm * dt * followFactor(a, gap, a.vb && a.vb._ants);
     a.trav = (a.trav || 0) + step;
     const done = moveAlong(a, step);
     if (a.state === 'back') {
@@ -533,6 +552,8 @@ function updateAnts(dt, rdt) {
       }
     }
   }
+  for (let i = 0; i < _antVbs.length; i++) _antVbs[i]._ants.length = 0;
+  _antVbs.length = 0;
   const bdt = rdt == null ? dt : rdt;
   for (let i = G.bubbles.length - 1; i >= 0; i--) { G.bubbles[i].t += bdt; if (G.bubbles[i].t > G.bubbles[i].life) G.bubbles.splice(i, 1); }
 }
@@ -660,32 +681,37 @@ function drawFever() {
   ctx.fillStyle = 'hsl(' + ((G.rt * 240 + 180) % 360) + ',90%,60%)'; roundRect(ctx, cx - tw / 2, ty - 10, tw, 20, 10); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, ty);
 }
-// 巣穴：板の外に置く土の山。(nestX, nestY) が穴のまんなか
-function drawNest() {
-  const g = ctx, r = nestR, x = nestX, y = nestY, my = y + r * 0.45, b = G.nestBounce;
-  g.save();
+// 巣穴：板の外に置く土の山。(nestX, nestY) が穴のまんなか（静的部分をオフスクリーンにキャッシュ）
+function ensureNestCache(r) {
+  if (nestCache && nestCache.r === r && nestCache.dpr === dpr) return nestCache;
+  // 1) 土台（影・小石・草・旗の棒）
+  const bw = Math.ceil(r * 5.2), bh = Math.ceil(r * 3.0), bx = r * 2.6, by = r * 2.0;
+  const baseCv = document.createElement('canvas');
+  baseCv.width = Math.max(1, Math.ceil(bw * dpr)); baseCv.height = Math.max(1, Math.ceil(bh * dpr));
+  let g = baseCv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, bx * dpr, by * dpr);
   g.lineJoin = 'round'; g.lineCap = 'round';
-  // 地面の影
-  g.fillStyle = 'rgba(90,50,30,.22)'; ell(g, x, my + r * 0.36, r * 1.8, r * 0.34); g.fill();
-  // 小石
+  g.fillStyle = 'rgba(90,50,30,.22)'; ell(g, 0, r * 0.36, r * 1.8, r * 0.34); g.fill();
   for (const [px, py, pr] of [[-1.78, 0.22, 0.13], [-1.52, 0.44, 0.08], [1.74, 0.28, 0.12], [1.48, 0.46, 0.08]]) {
-    ell(g, x + px * r, my + py * r, pr * r * 1.3, pr * r); g.fillStyle = '#d8c6b4'; g.fill();
+    ell(g, px * r, py * r, pr * r * 1.3, pr * r); g.fillStyle = '#d8c6b4'; g.fill();
     g.strokeStyle = '#9c8470'; g.lineWidth = 1.2; g.stroke();
   }
-  // 草
   g.fillStyle = '#6cc35a';
   for (const s of [-1, 1]) for (let k = 0; k < 3; k++) {
-    const bx = x + s * r * (1.95 + k * 0.12), by = my + r * 0.18;
-    g.beginPath(); g.moveTo(bx - r * 0.07, by); g.lineTo(bx + s * r * (0.05 + k * 0.05), by - r * (0.42 - k * 0.1)); g.lineTo(bx + r * 0.07, by); g.closePath(); g.fill();
+    const gx = s * r * (1.95 + k * 0.12), gy = r * 0.18;
+    g.beginPath(); g.moveTo(gx - r * 0.07, gy); g.lineTo(gx + s * r * (0.05 + k * 0.05), gy - r * (0.42 - k * 0.1)); g.lineTo(gx + r * 0.07, gy); g.closePath(); g.fill();
   }
-  // 旗（土の山のうしろに立てる）
-  const fx = x + r * 1.05, ft = my - r * 1.8;
+  const fx = r * 1.05, ft = -r * 1.8;
   g.strokeStyle = '#8a5530'; g.lineWidth = Math.max(1.5, r * 0.07);
-  g.beginPath(); g.moveTo(fx, my - r * 0.35); g.lineTo(fx, ft); g.stroke();
-  g.fillStyle = G.fever.t > 0 ? 'hsl(' + ((G.rt * 240) % 360) + ',90%,60%)' : '#ff6f9f';
-  g.beginPath(); g.moveTo(fx, ft); g.lineTo(fx + r * 0.7, ft + r * 0.2 + Math.sin(G.rt * 6) * r * 0.06); g.lineTo(fx, ft + r * 0.42); g.closePath(); g.fill();
-  // 土の山（アリが入るとはずむ）
-  g.save(); g.translate(x, my); g.scale(1 + 0.1 * b, 1 - 0.08 * b);
+  g.beginPath(); g.moveTo(fx, -r * 0.35); g.lineTo(fx, ft); g.stroke();
+
+  // 2) 土の山＋穴（バウンス時にまとめて拡大縮小する）
+  const dw = Math.ceil(r * 3.6), dh = Math.ceil(r * 1.8), dx = r * 1.8, dy = r * 1.2;
+  const domeCv = document.createElement('canvas');
+  domeCv.width = Math.max(1, Math.ceil(dw * dpr)); domeCv.height = Math.max(1, Math.ceil(dh * dpr));
+  g = domeCv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, dx * dpr, dy * dpr);
+  g.lineJoin = 'round'; g.lineCap = 'round';
   const dome = () => { g.beginPath(); g.ellipse(0, 0, r * 1.55, r * 1.0, 0, Math.PI, 0); g.ellipse(0, 0, r * 1.55, r * 0.34, 0, 0, Math.PI); g.closePath(); };
   const gr = g.createRadialGradient(-r * 0.5, -r * 0.75, r * 0.1, 0, -r * 0.2, r * 1.9);
   gr.addColorStop(0, '#ffe0ae'); gr.addColorStop(0.5, '#e4a868'); gr.addColorStop(1, '#b0703c');
@@ -707,24 +733,48 @@ function drawNest() {
   g.fillStyle = hg; ell(g, 0, -r * 0.45, r * 0.6, r * 0.33); g.fill();
   g.strokeStyle = '#ffe9c4'; g.lineWidth = Math.max(1.5, r * 0.08);
   g.beginPath(); g.ellipse(0, -r * 0.45, r * 0.6, r * 0.33, 0, 0.2, Math.PI - 0.2); g.stroke();
-  g.restore();
-  g.restore();
+
+  nestCache = { r, dpr, baseCv, bw, bh, bx, by, domeCv, dw, dh, dx, dy };
+  return nestCache;
+}
+function drawNest() {
+  const g = ctx, r = nestR, x = nestX, y = nestY, my = y + r * 0.45, b = G.nestBounce;
+  const nc = ensureNestCache(r);
+  g.drawImage(nc.baseCv, x - nc.bx, my - nc.by, nc.bw, nc.bh);
+  // 旗の布（ゆらめく＆フィーバーで色が変わるため毎フレーム描く）
+  const fx = x + r * 1.05, ft = my - r * 1.8;
+  g.fillStyle = G.fever.t > 0 ? 'hsl(' + ((G.rt * 240) % 360) + ',90%,60%)' : '#ff6f9f';
+  g.beginPath(); g.moveTo(fx, ft); g.lineTo(fx + r * 0.7, ft + r * 0.2 + Math.sin(G.rt * 6) * r * 0.06); g.lineTo(fx, ft + r * 0.42); g.closePath(); g.fill();
+  // 土の山（アリが入るとはずむ）
+  if (b > 0.001) {
+    g.save(); g.translate(x, my); g.scale(1 + 0.1 * b, 1 - 0.08 * b);
+    g.drawImage(nc.domeCv, -nc.dx, -nc.dy, nc.dw, nc.dh);
+    g.restore();
+  } else {
+    g.drawImage(nc.domeCv, x - nc.dx, my - nc.dy, nc.dw, nc.dh);
+  }
 }
 function drawSlots() {
-  const occ = G.vslots.filter(Boolean).length, danger = occ === SLOT_COUNT - 1;
+  let occ = 0;
+  for (let i = 0; i < SLOT_COUNT; i++) if (G.vslots[i]) occ++;
+  const danger = occ === SLOT_COUNT - 1;
   const bx = slotX(0) - slotSize * 0.72, bw = slotX(SLOT_COUNT - 1) - slotX(0) + slotSize * 1.44;
   ctx.fillStyle = 'rgba(255,255,255,.55)'; roundRect(ctx, bx, slotY - slotSize * 0.64, bw, slotSize * 1.28, slotSize * 0.4); ctx.fill();
+  const w = slotSize * 1.08, h = slotSize * 0.98, sk = slotY + '|' + h;
+  if (!slotGrad || slotGradKey !== sk) {
+    slotGradKey = sk;
+    slotGrad = ctx.createLinearGradient(0, slotY - h / 2, 0, slotY + h / 2);
+    slotGrad.addColorStop(0, '#f6fdf1'); slotGrad.addColorStop(1, '#dcf2cf');
+  }
+  const slotFont = fnt(900, slotSize * 0.32), dangerA = danger ? 0.4 + 0.5 * (0.5 + 0.5 * Math.sin(G.rt * 6)) : 0.6;
+  ctx.lineWidth = 2.5;
   for (let i = 0; i < SLOT_COUNT; i++) {
-    const x = slotX(i), w = slotSize * 1.08, h = slotSize * 0.98;
-    const gr = ctx.createLinearGradient(0, slotY - h / 2, 0, slotY + h / 2);
-    gr.addColorStop(0, '#f6fdf1'); gr.addColorStop(1, '#dcf2cf');
-    ctx.fillStyle = gr; roundRect(ctx, x - w / 2, slotY - h / 2, w, h, slotSize * 0.3); ctx.fill();
-    let a = 0.6;
-    if (!G.vslots[i] && danger) a = 0.4 + 0.5 * (0.5 + 0.5 * Math.sin(G.rt * 6));
-    ctx.strokeStyle = G.slotFlash > 0 ? 'rgba(255,80,110,' + (0.5 + 0.5 * G.slotFlash) + ')' : (danger && !G.vslots[i]) ? 'rgba(255,110,130,' + a + ')' : 'rgba(110,190,95,' + a + ')';
-    ctx.lineWidth = 2.5; ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
-    if (!G.vslots[i]) {
-      ctx.fillStyle = 'rgba(110,170,95,.35)'; ctx.font = fnt(900, slotSize * 0.32); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const x = slotX(i), empty = !G.vslots[i];
+    ctx.fillStyle = slotGrad; roundRect(ctx, x - w / 2, slotY - h / 2, w, h, slotSize * 0.3); ctx.fill();
+    ctx.strokeStyle = G.slotFlash > 0 ? 'rgba(255,80,110,' + (0.5 + 0.5 * G.slotFlash) + ')' : (danger && empty) ? 'rgba(255,110,130,' + dangerA + ')' : 'rgba(110,190,95,0.6)';
+    ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
+    if (empty) {
+      ctx.fillStyle = 'rgba(110,170,95,.35)'; ctx.font = slotFont; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(i + 1), x, slotY);
     }
   }
@@ -760,6 +810,26 @@ function boxSprite(ci, sz, peek) {
   }
   return ent;
 }
+function numSprite(ci, sz, num) {
+  const px = Math.max(8, Math.round(sz)), txt = String(num);
+  const k = ci + '|' + px + '|' + txt;
+  let ent = numCache.get(k);
+  if (!ent) {
+    const fs = px * (txt.length > 2 ? 0.3 : 0.38), lw = Math.max(2.5, fs * 0.2);
+    const cw = Math.ceil(px * 1.1), ch = Math.ceil(fs * 1.7 + lw * 2);
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(cw * dpr)); cv.height = Math.max(1, Math.ceil(ch * dpr));
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, cw * dpr / 2, ch * dpr / 2);
+    g.font = fnt(900, fs); g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    g.lineWidth = lw; g.strokeStyle = SHADE[ci].ol; g.strokeText(txt, 0, 0);
+    g.fillStyle = '#fff'; g.fillText(txt, 0, 0);
+    if (numCache.size > 256) numCache.clear();
+    ent = { cv, cw, ch, px };
+    numCache.set(k, ent);
+  }
+  return ent;
+}
 function drawBox(x, y, sz, ci, num, o) {
   o = o || {};
   const sh = SHADE[ci], al = o.alpha == null ? 1 : o.alpha, h = sz * 0.82;
@@ -777,10 +847,9 @@ function drawBox(x, y, sz, ci, num, o) {
   const spr = boxSprite(ci, sz, o.peek), sc = sz / spr.px, dw = spr.cw * sc, dh = spr.ch * sc;
   ctx.drawImage(spr.cv, -dw / 2, -dh / 2, dw, dh);
   if (num != null) {
-    const fs = sz * (String(num).length > 2 ? 0.3 : 0.38), ny = h * (o.numY == null ? 0.1 : o.numY);
-    ctx.font = fnt(900, fs); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = Math.max(2.5, fs * 0.2); ctx.strokeStyle = sh.ol; ctx.strokeText(String(num), 0, ny);
-    ctx.fillStyle = '#fff'; ctx.fillText(String(num), 0, ny);
+    const ny = h * (o.numY == null ? 0.1 : o.numY);
+    const ns = numSprite(ci, sz, num), nsc = sz / ns.px, nw = ns.cw * nsc, nh = ns.ch * nsc;
+    ctx.drawImage(ns.cv, -nw / 2, ny - nh / 2, nw, nh);
   }
   ctx.restore();
 }
@@ -1501,6 +1570,40 @@ function drawSingerCostume(g, u, key, t, singing) {
     }
   }
 }
+const SINGER_MIC_COLS = {
+  sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', alps: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e',
+  fujinoyama: '#60a5fa', kamome: '#38bdf8', nekofunjatta: '#c084fc', minuet: '#93c5fd', konpeitou: '#f472b6', muramatsuri: '#fb7185', harugakita: '#facc15', toysoldiers: '#ef4444', jupiter: '#38bdf8',
+  kaeru: '#4ade80', kisha: '#facc15', yama: '#94a3b8', kuri: '#f97316', shabondama: '#7dd3fc', gavotte: '#f9a8d4', skaters: '#bae6fd',
+  amefuri: '#facc15', kakkou: '#ef4444', warewauminoko: '#38bdf8', momiji: '#fb923c', humoresque: '#c084fc'
+};
+function singerSprite(key, fr, mouth, u) {
+  const uq = Math.round(u * 4) / 4;
+  const k = key + '|' + fr + '|' + (mouth ? 1 : 0) + '|' + uq;
+  let ent = singerCache.get(k);
+  if (!ent) {
+    const cw = Math.ceil(uq * 3.4), ch = Math.ceil(uq * 2.9), oxs = uq * 1.65, oys = uq * 1.65;
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(cw * dpr)); cv.height = Math.max(1, Math.ceil(ch * dpr));
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, oxs * dpr, oys * dpr);
+    drawAntShape(g, uq, 1, 0, fr, 'none');
+    if (mouth) {
+      g.fillStyle = '#ff5a7a'; g.strokeStyle = '#3a2a3a'; g.lineWidth = Math.max(0.8, uq * 0.08);
+      ell(g, 0.8 * uq, -0.09 * uq, 0.09 * uq, 0.12 * uq); g.fill(); g.stroke();
+    }
+    drawSingerCostume(g, uq, key, 0, false);
+    // ステージマイク（衣装に合わせて配色）
+    g.strokeStyle = '#4a3850'; g.lineWidth = Math.max(1.4, uq * 0.14); g.lineCap = 'round';
+    g.beginPath(); g.moveTo(0.85 * uq, 0.25 * uq); g.lineTo(1.12 * uq, -0.1 * uq); g.stroke();
+    g.fillStyle = SINGER_MIC_COLS[key] || '#ff8fb3';
+    g.strokeStyle = '#5a3d5c'; g.lineWidth = Math.max(1, uq * 0.08);
+    ell(g, 1.15 * uq, -0.16 * uq, uq * 0.2, uq * 0.2); g.fill(); g.stroke();
+    if (singerCache.size > 64) singerCache.clear();
+    ent = { cv, cw, ch, oxs, oys, uq };
+    singerCache.set(k, ent);
+  }
+  return ent;
+}
 function drawSinger() {
   if (typeof Sound === 'undefined' || !Sound.singerState) return;
   const sg = Sound.singerState();
@@ -1515,44 +1618,34 @@ function drawSinger() {
   ctx.save();
   // 足元の影
   ctx.fillStyle = 'rgba(120,60,90,.15)'; ell(ctx, sx, sy + u * 0.78, u * 0.85, u * 0.18); ctx.fill();
-  // アリシンガー本体＋ステージ衣装
-  ctx.save();
-  ctx.translate(sx, sy + bob);
-  drawAntShape(ctx, u, 1, 0, sg.singing ? (Math.floor(G.rt * 7) & 3) : 0, 'none');
-  if (sg.singing && sg.pulse > 0.28) {
-    ctx.fillStyle = '#ff5a7a'; ctx.strokeStyle = '#3a2a3a'; ctx.lineWidth = Math.max(0.8, u * 0.08);
-    ell(ctx, 0.8 * u, -0.09 * u, 0.09 * u, 0.12 * u); ctx.fill(); ctx.stroke();
-  }
-  drawSingerCostume(ctx, u, sg.key, G.rt, sg.singing);
-  // ステージマイク（衣装に合わせて配色）
-  ctx.strokeStyle = '#4a3850'; ctx.lineWidth = Math.max(1.4, u * 0.14); ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(0.85 * u, 0.25 * u); ctx.lineTo(1.12 * u, -0.1 * u); ctx.stroke();
-  const micCols = {
-    sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', alps: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e',
-    fujinoyama: '#60a5fa', kamome: '#38bdf8', nekofunjatta: '#c084fc', minuet: '#93c5fd', konpeitou: '#f472b6', muramatsuri: '#fb7185', harugakita: '#facc15', toysoldiers: '#ef4444', jupiter: '#38bdf8',
-    kaeru: '#4ade80', kisha: '#facc15', yama: '#94a3b8', kuri: '#f97316', shabondama: '#7dd3fc', gavotte: '#f9a8d4', skaters: '#bae6fd',
-    amefuri: '#facc15', kakkou: '#ef4444', warewauminoko: '#38bdf8', momiji: '#fb923c', humoresque: '#c084fc'
-  };
-  ctx.fillStyle = micCols[sg.key] || '#ff8fb3';
-  ctx.strokeStyle = '#5a3d5c'; ctx.lineWidth = Math.max(1, u * 0.08);
-  ell(ctx, 1.15 * u, -0.16 * u, u * 0.2, u * 0.2); ctx.fill(); ctx.stroke();
-  ctx.restore();
-  // 音符エフェクト
+  // アリシンガー本体＋ステージ衣装＋マイク（キャッシュから1発描画）
+  const fr = sg.singing ? (Math.floor(G.rt * 7) & 3) : 0, mouth = sg.singing && sg.pulse > 0.28;
+  const spr = singerSprite(sg.key, fr, mouth, u), sc = u / spr.uq;
+  ctx.drawImage(spr.cv, sx - spr.oxs * sc, sy + bob - spr.oys * sc, spr.cw * sc, spr.ch * sc);
+  // 歌っているときのキラキラ演出＆音符エフェクト
   if (sg.singing) {
+    const cy0 = sy + bob;
+    for (let i = 0; i < 3; i++) {
+      const a = G.rt * 3 + i * 2.1, r = (0.95 + 0.25 * Math.sin(G.rt * 6 + i)) * u;
+      ctx.fillStyle = i === 1 ? '#fff' : '#ffd23f';
+      starPath(ctx, sx + 0.2 * u + Math.cos(a) * r, cy0 - 0.15 * u + Math.sin(a) * r * 0.7, 0.12 * u, 0.04 * u, 4);
+      ctx.fill();
+    }
+    ctx.font = fnt(900, u * 0.95); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let i = 0; i < 2; i++) {
       const p = ((G.rt * 0.75 + i * 0.5) % 1);
-      ctx.save();
       ctx.globalAlpha = (1 - p) * 0.85;
       ctx.fillStyle = i ? '#ff6b9a' : '#ff9f43';
-      ctx.font = fnt(900, u * 0.95); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(i ? '♫' : '♪', sx + (i ? -0.4 : 0.9) * u + Math.sin(p * 5 + i) * 3, sy - u * 0.9 - p * u * 1.4);
-      ctx.restore();
     }
+    ctx.globalAlpha = 1;
   }
   // シンガーのセリフ（右向きの横長吹き出し）
   ctx.font = fnt(800, fs);
   const bx = sx + u * 1.45 + 7, maxW = Math.max(80, panelR - bx - 6);
-  const bw = Math.min(maxW, ctx.measureText(sg.text).width + fs * 1.4);
+  const tk = sg.text + '|' + fs.toFixed(1);
+  if (singerTxtKey !== tk) { singerTxtKey = tk; singerTxtW = ctx.measureText(sg.text).width; }
+  const bw = Math.min(maxW, singerTxtW + fs * 1.4);
   ctx.fillStyle = 'rgba(255,255,255,.95)';
   ctx.strokeStyle = sg.singing ? '#ff7aa8' : '#b89eb8';
   ctx.lineWidth = 1.8;
@@ -1599,9 +1692,10 @@ function draw() {
 
 /* ================= 全画面エフェクト（紙吹雪・花火） ================= */
 const Fx = {
-  p: [], w: 0, h: 0, had: false,
-  resize() { this.w = innerWidth; this.h = innerHeight; fxCv.width = Math.round(this.w * dpr); fxCv.height = Math.round(this.h * dpr); this.had = false; },
-  add(o) { if (this.p.length < (innerWidth <= 640 ? 220 : 700)) this.p.push(o); },
+  p: [], w: 0, h: 0, had: false, vis: false,
+  setVis(on) { if (this.vis !== on) { this.vis = on; fxCv.style.visibility = on ? 'visible' : 'hidden'; } },
+  resize() { this.w = innerWidth; this.h = innerHeight; fxCv.width = Math.round(this.w * dpr); fxCv.height = Math.round(this.h * dpr); this.had = false; if (!this.p.length) { this.vis = true; this.setVis(false); } },
+  add(o) { if (this.p.length < (innerWidth <= 640 ? 220 : 700)) { this.p.push(o); this.setVis(true); } },
   burst(x, y, n, sp, kinds) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, v = sp * (0.35 + Math.random() * 0.8);
@@ -1623,8 +1717,9 @@ const Fx = {
     if (!this.p.length && !this.had) return;
     const g = fxG;
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, fxCv.width, fxCv.height);
-    if (!this.p.length) { this.had = false; return; }
+    if (!this.p.length) { this.had = false; this.setVis(false); return; }
     this.had = true;
+    this.setVis(true);
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const p of this.p) {
       g.globalAlpha = Math.min(1, (p.m - p.l) * 2.5); g.fillStyle = p.c;

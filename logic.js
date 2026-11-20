@@ -3,8 +3,11 @@
 
 /* ================= コアロジック（決定論的） ================= */
 function nestEntry(W, H) { return { ex: (W + 2) >> 1, ey: H + 1 }; }
+let _bfsQ = new Int32Array(0);
 function bfs(grid, W, H, sx, sy) {
-  const EW = W + 2, EH = H + 2, N = EW * EH, dist = new Int16Array(N).fill(-1), q = new Int32Array(N);
+  const EW = W + 2, EH = H + 2, N = EW * EH, dist = new Int16Array(N).fill(-1);
+  if (_bfsQ.length < N) _bfsQ = new Int32Array(N);
+  const q = _bfsQ;
   let qh = 0, qt = 0;
   dist[sy * EW + sx] = 0; q[qt++] = sy * EW + sx;
   while (qh < qt) {
@@ -329,9 +332,9 @@ function buildLevelAsync(id, cb) {
         cb(best);
         return;
       }
-      if (Date.now() - ts > 30) break;
+      if (Date.now() - ts > 14) break;
     }
-    setTimeout(step, 0);
+    setTimeout(step, 4);
   };
   setTimeout(step, 16);
 }

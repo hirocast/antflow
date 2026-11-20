@@ -67,6 +67,52 @@ const Sound = {
     }
     return this.nb;
   },
+  // フィルタ済みノイズバッファをキャッシュ（16分音符ごとのリアルタイム BiquadFilterNode 生成を省く）
+  filteredNoiseBuf(freq, type, q) {
+    const c = this.ctx;
+    if (!c) return null;
+    const tp = type || 'bandpass';
+    if (tp !== 'bandpass' && tp !== 'lowpass' && tp !== 'highpass') return null;
+    const fq = Math.max(40, Math.min(c.sampleRate * 0.45, Math.round((freq || 1500) / 50) * 50));
+    const qv = Math.max(0.05, Math.round((q || 0.8) * 20) / 20);
+    if (!this.fnb) this.fnb = new Map();
+    const key = tp + '|' + fq + '|' + qv;
+    let buf = this.fnb.get(key);
+    if (buf) return buf;
+    if (this.fnb.size >= 40) return null;
+    const src = this.noiseBuf().getChannelData(0);
+    const len = c.sampleRate;
+    buf = c.createBuffer(1, len, c.sampleRate);
+    const out = buf.getChannelData(0);
+    const w0 = 2 * Math.PI * fq / c.sampleRate, cos = Math.cos(w0), sin = Math.sin(w0);
+    let b0, b1, b2, a0, a1, a2;
+    if (tp === 'bandpass') {
+      const alpha = sin / (2 * qv);
+      b0 = alpha; b1 = 0; b2 = -alpha; a0 = 1 + alpha; a1 = -2 * cos; a2 = 1 - alpha;
+    } else {
+      const alpha = sin / (2 * Math.pow(10, qv / 20));
+      if (tp === 'lowpass') {
+        b0 = (1 - cos) * 0.5; b1 = 1 - cos; b2 = b0;
+      } else {
+        b0 = (1 + cos) * 0.5; b1 = -(1 + cos); b2 = b0;
+      }
+      a0 = 1 + alpha; a1 = -2 * cos; a2 = 1 - alpha;
+    }
+    b0 /= a0; b1 /= a0; b2 /= a0; a1 /= a0; a2 /= a0;
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    // 先頭を少しウォームアップしてループ継ぎ目の過渡応答を防ぐ
+    for (let i = len - 256; i < len; i++) {
+      const x = src[i], y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+      x2 = x1; x1 = x; y2 = y1; y1 = y;
+    }
+    for (let i = 0; i < len; i++) {
+      const x = src[i], y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+      x2 = x1; x1 = x; y2 = y1; y1 = y;
+      out[i] = y;
+    }
+    this.fnb.set(key, buf);
+    return buf;
+  },
   ok() { return this.ctx && save.settings.sfx; },
   vary() { return 1 + (Math.random() - 0.5) * 0.03; },
   tone(freq, dur, o) {
@@ -86,14 +132,22 @@ const Sound = {
   noise(when, dur, vol, freq, type, q) {
     const c = this.ctx;
     if (!c) return;
-    const t = c.currentTime + when, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-    s.buffer = this.noiseBuf(); s.loop = true;
-    f.type = type || 'bandpass'; f.frequency.value = freq || 1500; f.Q.value = q || 0.8;
+    const t = c.currentTime + when, s = c.createBufferSource(), g = c.createGain();
+    const fb = this.filteredNoiseBuf(freq, type, q);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(f); f.connect(g); g.connect(this.sfx);
-    s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.05);
+    if (fb) {
+      s.buffer = fb; s.loop = true;
+      s.connect(g); g.connect(this.sfx);
+      s.start(t, Math.random() * 0.8); s.stop(t + dur + 0.05);
+    } else {
+      const f = c.createBiquadFilter();
+      s.buffer = this.noiseBuf(); s.loop = true;
+      f.type = type || 'bandpass'; f.frequency.value = freq || 1500; f.Q.value = q || 0.8;
+      s.connect(f); f.connect(g); g.connect(this.sfx);
+      s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.05);
+    }
   },
   // 木琴のような、角の丸い打楽器音
   mallet(f, when, vol, dest) {
@@ -378,14 +432,24 @@ const Sound = {
   half(B, st) { return st >= 8 && B.r2 != null ? { r: B.r2, ch: B.ch2 } : B; },
   // BGM用のノイズ（打楽器の皮の音・シェイカー）
   mnoise(w, dur, vol, freq, type, q) {
-    const c = this.ctx, t = c.currentTime + w, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-    s.buffer = this.noiseBuf(); s.loop = true;
-    f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const c = this.ctx;
+    if (!c) return;
+    const t = c.currentTime + w, s = c.createBufferSource(), g = c.createGain();
+    const fb = this.filteredNoiseBuf(freq, type, q);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + 0.003);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(f); f.connect(g); g.connect(this.mus);
-    s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.05);
+    if (fb) {
+      s.buffer = fb; s.loop = true;
+      s.connect(g); g.connect(this.mus);
+      s.start(t, Math.random() * 0.8); s.stop(t + dur + 0.05);
+    } else {
+      const f = c.createBiquadFilter();
+      s.buffer = this.noiseBuf(); s.loop = true;
+      f.type = type; f.frequency.value = freq; f.Q.value = q;
+      s.connect(f); f.connect(g); g.connect(this.mus);
+      s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.05);
+    }
   },
   // スルド：hi=false は2・4拍目の低い太鼓（主役）、hi=true は1・3拍目に応える高めの太鼓
   surdo(w, v, hi) {
