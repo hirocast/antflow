@@ -23,7 +23,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20261120a">
+<link rel="stylesheet" href="style.css?v=20261120b">
 </head>
 <body>
 <div id="app">
@@ -147,6 +147,7 @@
 
 <script>
 // 読み込みチェック：各 .js の最後の行で、自分のファイル名を AF_LOADED に登録する
+window.AF_APP_VER = '20261120b';
 window.AF_LOADED = [];
 window.AF_FILES = ['base.js', 'arts.js', 'raster.js', 'logic.js', 'sound.js', 'render.js', 'ui.js', 'maker.js', 'bgm_maker.js', 'measure.js'];
 window.AF_bootErr = function (msg) {
@@ -168,17 +169,17 @@ window.addEventListener('error', function (e) {
   window.AF_bootErr('エラー：' + msg + where);
 });
 </script>
-<script src="base.js?v=20261120a"></script>
-<script src="arts.js?v=20261120a"></script>
-<script src="raster.js?v=20261120a"></script>
-<script src="logic.js?v=20261120a"></script>
-<script src="sound.js?v=20261120a"></script>
-<script src="render.js?v=20261120a"></script>
-<script src="ui.js?v=20261120a"></script>
-<script src="maker.js?v=20261120a"></script>
-<script src="bgm_maker.js?v=20261120a"></script>
+<script src="base.js?v=20261120b"></script>
+<script src="arts.js?v=20261120b"></script>
+<script src="raster.js?v=20261120b"></script>
+<script src="logic.js?v=20261120b"></script>
+<script src="sound.js?v=20261120b"></script>
+<script src="render.js?v=20261120b"></script>
+<script src="ui.js?v=20261120b"></script>
+<script src="maker.js?v=20261120b"></script>
+<script src="bgm_maker.js?v=20261120b"></script>
 <!-- 開発用：難しさの測定（不要になったら、この行と AF_FILES の 'measure.js' を消す） -->
-<script src="measure.js?v=20261120a"></script>
+<script src="measure.js?v=20261120b"></script>
 <script>
 (function () {
   var miss = window.AF_FILES.filter(function (f) { return window.AF_LOADED.indexOf(f) < 0; });

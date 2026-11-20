@@ -64,6 +64,25 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 @keyframes fvg{from{opacity:.5}to{opacity:1}}
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
 #ov-title .home-h2{margin:0 0 4px;padding:4px 20px;font-size:17px}
+.upd-bar{background:#fff8fb;border:2px solid #ffd3e2;border-radius:16px;padding:7px 9px;margin:0 0 8px;text-align:left;box-shadow:0 2px 0 #f3d5e0}
+.upd-bar.has-new{background:linear-gradient(180deg,#fff3f8,#ffe4ef);border-color:#ff7aa6;box-shadow:0 3px 0 #e46a92}
+.upd-top{display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap}
+.upd-left{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0}
+.upd-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:900;padding:2px 6px;border-radius:9px;background:#e8f8f0;color:#1f7a4d;border:1.5px solid #9fe0be;white-space:nowrap}
+.upd-bar.has-new .upd-badge{background:#ff4d6d;color:#fff;border-color:#fff}
+.upd-hist-btn{border:none;background:none;padding:2px 3px;font:800 10.5px var(--rf);color:#c0507a;cursor:pointer;white-space:nowrap}
+.upd-btn{position:relative;border:2px solid #fff;border-radius:12px;padding:4px 8px;background:#fff1d6;color:var(--ink);font:900 10.5px var(--rf);box-shadow:0 2px 0 #e2c48c;cursor:pointer;white-space:nowrap;flex:0 0 auto;margin-left:auto}
+.upd-btn:active{transform:translateY(2px);box-shadow:none}
+.upd-btn:disabled{opacity:.6}
+.upd-bar.has-new .upd-btn{background:linear-gradient(180deg,#ff8cb4,#ff5a8a);color:#fff;box-shadow:0 3px 0 #d43f6b}
+.upd-notes{margin-top:6px;padding-top:6px;border-top:1.5px dashed #f5b8cd;font-size:11px;line-height:1.5;color:var(--ink)}
+.upd-hl{font-weight:900;color:#c03060;margin-bottom:3px;font-size:11.5px}
+.upd-ul{margin:0;padding-left:16px}
+.upd-ul li{margin:1px 0;font-weight:700}
+.upd-sub{font-size:10px;color:#8a6a7a;margin-top:4px;font-weight:700}
+.upd-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px}
+.upd-hitem b{font-size:11px;color:#c0507a;display:block;margin-bottom:2px}
+.upd-ok{border:none;border-radius:9px;padding:2px 8px;background:#ffd8e6;color:#a02854;font:900 10px var(--rf);cursor:pointer;margin-left:6px}
 .tinfo span,.tinfo-btn{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
 .tinfo-btn{border:none;font-family:var(--rf);color:var(--ink);cursor:pointer}
 .tinfo-btn:active{transform:translateY(2px);box-shadow:none}
@@ -335,7 +354,9 @@ function handleTalkLikeClick(e) {
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
   $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全部運べる</small><em class="price" id="pScan"></em></button>');
-  $('#ov-title .card').insertAdjacentHTML('afterbegin', '<h2 class="home-h2">🏠 ホーム</h2>');
+  $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2>');
+  const setBtn = $('#bSet');
+  if (setBtn && !$('#setUpdDot')) setBtn.insertAdjacentHTML('beforeend', '<em class="dot" id="setUpdDot"></em>');
   $('#ttl').insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div><div class="hub" id="homeHub"></div>');
   $('#titleInfo').addEventListener('click', e => {
     const t = e.target.closest('button[data-hub]');
@@ -401,7 +422,7 @@ function handleTalkLikeClick(e) {
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
   const titleFine = $('#ov-title .fine');
-  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button><button class="big sec" id="bTitleUpdate" style="margin-top:8px">🔄 アプリを最新に更新</button>');
+  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
   // あそびかた：ページめくり式に作りかえる
   $('#ov-help .help').innerHTML =
     '<div class="hpic" id="hPic"><canvas id="hCv"></canvas><b class="hnum" id="hNum"></b></div>' +
@@ -1035,6 +1056,7 @@ function showOv(name) {
   if (name === 'title') {
     if (Sound.stageBgm) { Sound.stageBgm = null; Sound.step = 0; Sound.lyricQ = []; }
     renderTitle();
+    if (typeof checkAppUpdate === 'function') checkAppUpdate(false);
   }
   updateCoins();
 }
@@ -2831,26 +2853,138 @@ on('#bJamRewind', () => {
     toast('⏪ ' + n + '手もどしたよ。ここからなら解ける！', 2600);
   });
 });
+const SEEN_VER_KEY = 'antflow-seen-ver';
+const appUpd = { checked: false, lastCheck: 0, hasUpdate: false, data: null, openHist: false, justUpdated: false, busy: false };
+function escUpd(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+async function execAppUpdateNow() {
+  if (appUpd.busy) return;
+  appUpd.busy = true;
+  const b = $('#bAppUpdate'), bt = $('#bTitleUpdate');
+  if (b) { b.disabled = true; b.textContent = '🔄 更新中…'; }
+  if (bt) { bt.disabled = true; bt.textContent = '🔄 更新中…'; }
+  toast('🔄 最新版を取得しています…', 5000);
+  const files = [location.pathname, 'index.html', 'version.json', 'style.css', ...(window.AF_FILES || [])];
+  await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
+  const u = new URL(location.href);
+  u.searchParams.set('u', String(Date.now()));
+  location.replace(u.toString());
+}
 function runAppUpdate() {
+  const d = appUpd.data;
+  const noteHint = appUpd.hasUpdate && d && d.headline ? '【新機能】' + d.headline + ' ／ ' : '';
   confirmSpend({
-    title: '🔄 アプリを最新に更新',
-    desc: 'サーバーから最新のプログラムやステージデータを取得しなおして、アプリを再読み込みします。プレイ中の盤面はリセットされますが、クリア状況・コイン・アルバム・女王さまなどのセーブデータは消えません。',
+    title: appUpd.hasUpdate ? '🔴 新しいバージョンに更新' : '🔄 アプリを最新に更新',
+    desc: noteHint + 'サーバーから最新のプログラムやステージデータを取得しなおして、アプリを再読み込みします。プレイ中の盤面はリセットされますが、クリア状況・コイン・アルバム・女王さまなどのセーブデータは消えません。',
     costText: 'セーブデータはそのまま保持されます（通信が発生します）',
     okLabel: '更新する！'
-  }, async () => {
-    const b = $('#bAppUpdate'), bt = $('#bTitleUpdate');
-    if (b) { b.disabled = true; b.textContent = '🔄 更新中…'; }
-    if (bt) { bt.disabled = true; bt.textContent = '🔄 更新中…'; }
-    toast('🔄 最新版を取得しています…', 5000);
-    const files = [location.pathname, 'index.html', 'style.css', ...(window.AF_FILES || [])];
-    await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
-    const u = new URL(location.href);
-    u.searchParams.set('u', String(Date.now()));
-    location.replace(u.toString());
+  }, execAppUpdateNow);
+}
+function renderUpdateBox() {
+  const box = $('#homeUpdateBox');
+  const setDot = $('#setUpdDot');
+  const setBtn = $('#bAppUpdate');
+  if (setDot) setDot.classList.toggle('on', appUpd.hasUpdate);
+  if (setBtn && !appUpd.busy) {
+    setBtn.textContent = appUpd.hasUpdate ? '🔴 NEW! アプリを最新に更新（新機能あり）' : '🔄 アプリを最新に更新';
+  }
+  if (!box) return;
+  const d = appUpd.data, curVer = window.AF_APP_VER || '';
+  const shortDate = d && d.date ? d.date.replace(/^\d{4}\//, '') : '';
+  box.classList.toggle('has-new', appUpd.hasUpdate);
+  let html = '<div class="upd-top"><div class="upd-left">';
+  if (appUpd.hasUpdate) {
+    html += '<span class="upd-badge">🔴 NEW! 更新あり</span>';
+    if (shortDate) html += '<span style="font-size:10.5px;font-weight:900;color:#c03060">' + escUpd(shortDate) + '版</span>';
+  } else if (appUpd.checked && d) {
+    html += '<span class="upd-badge">✨ 最新' + (shortDate ? ' ' + escUpd(shortDate) : '') + '</span>';
+    html += '<button type="button" class="upd-hist-btn" data-upd="hist">🆕 内容 ' + (appUpd.openHist ? '▲' : '▼') + '</button>';
+  } else {
+    html += '<span class="upd-badge">✨ 確認中…</span>';
+  }
+  html += '</div><button type="button" class="upd-btn" id="bTitleUpdate">' + (appUpd.hasUpdate ? '🔄 今すぐ更新！' : '🔄 アプリを最新に更新') + '</button></div>';
+
+  // 更新が必要な人には、更新内容をそのまま自動で表示してお知らせ
+  if (appUpd.hasUpdate && d) {
+    const notes = Array.isArray(d.notes) ? d.notes : [];
+    html += '<div class="upd-notes">';
+    if (d.headline) html += '<div class="upd-hl">✨ ' + escUpd(d.headline) + '</div>';
+    if (notes.length) html += '<ul class="upd-ul">' + notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>';
+    html += '<div class="upd-sub">※「今すぐ更新！」で最新版になります（セーブデータは消えません）</div></div>';
+  } else if (d && (appUpd.justUpdated || appUpd.openHist)) {
+    html += '<div class="upd-notes">';
+    if (appUpd.justUpdated && !appUpd.openHist) {
+      const notes = Array.isArray(d.notes) ? d.notes : [];
+      html += '<div class="upd-hl">🎉 最新版（' + escUpd(shortDate || curVer) + '）にアップデートしました！<button type="button" class="upd-ok" data-upd="ok">OK</button></div>';
+      if (notes.length) html += '<ul class="upd-ul">' + notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>';
+    } else {
+      const hist = Array.isArray(d.history) && d.history.length ? d.history : [{ date: shortDate, title: d.headline || '最新アップデート', notes: d.notes || [] }];
+      html += '<div class="upd-hl">🚀 どんどん進化中！最近のアップデート</div>';
+      html += hist.slice(0, 5).map(h =>
+        '<div class="upd-hitem"><b>' + (h.date ? '[' + escUpd(h.date) + '] ' : '') + escUpd(h.title || '') + '</b>' +
+        (Array.isArray(h.notes) && h.notes.length ? '<ul class="upd-ul">' + h.notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>' : '') +
+        '</div>'
+      ).join('');
+    }
+    html += '</div>';
+  }
+  box.innerHTML = html;
+}
+async function checkAppUpdate(force) {
+  const now = Date.now();
+  if (!force && now - appUpd.lastCheck < 60000) return appUpd.hasUpdate;
+  appUpd.lastCheck = now;
+  try {
+    const res = await fetch('version.json?_=' + now, { cache: 'no-store' });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data || !data.version) return false;
+    appUpd.data = data;
+    appUpd.checked = true;
+    const curVer = window.AF_APP_VER || '';
+    appUpd.hasUpdate = !curVer || data.version !== curVer;
+    if (!appUpd.hasUpdate && curVer) {
+      let seen = '';
+      try { seen = localStorage.getItem(SEEN_VER_KEY) || ''; } catch (e) {}
+      if (seen && seen !== curVer) appUpd.justUpdated = true;
+      else if (!seen) { try { localStorage.setItem(SEEN_VER_KEY, curVer); } catch (e) {} }
+    }
+    renderUpdateBox();
+    return appUpd.hasUpdate;
+  } catch (e) {
+    renderUpdateBox();
+    return false;
+  }
+}
+const homeUpdEl = $('#homeUpdateBox');
+if (homeUpdEl) {
+  homeUpdEl.addEventListener('click', async e => {
+    const histBtn = e.target.closest('[data-upd="hist"]');
+    if (histBtn) { Sound.tap(); appUpd.openHist = !appUpd.openHist; renderUpdateBox(); return; }
+    const okBtn = e.target.closest('[data-upd="ok"]');
+    if (okBtn) {
+      Sound.tap();
+      appUpd.justUpdated = false;
+      try { if (window.AF_APP_VER) localStorage.setItem(SEEN_VER_KEY, window.AF_APP_VER); } catch (er) {}
+      renderUpdateBox();
+      return;
+    }
+    if (e.target.closest('#bTitleUpdate')) {
+      Sound.tap();
+      if (appUpd.hasUpdate) { execAppUpdateNow(); return; }
+      const bt = $('#bTitleUpdate');
+      if (bt) { bt.disabled = true; bt.textContent = '確認中…'; }
+      const found = await checkAppUpdate(true);
+      if (found) { execAppUpdateNow(); return; }
+      renderUpdateBox();
+      runAppUpdate();
+    }
   });
 }
+renderUpdateBox();
+checkAppUpdate(true);
 on('#bAppUpdate', runAppUpdate);
-on('#bTitleUpdate', runAppUpdate);
 on('#bReset', () => {
   if (!confirm('クリア状況・アルバム・コイン・女王さま・きせかえをすべてリセットしますか？')) return;
   save.level = idAt(1); save.maxLevel = 1; save.cleared = {}; save.newArts = [];
@@ -2907,6 +3041,7 @@ $('#mascot').addEventListener('click', () => {
 document.addEventListener('visibilitychange', () => {
   lastT = performance.now();
   if (Sound.ctx) { if (document.hidden) Sound.ctx.suspend(); else Sound.ctx.resume(); }
+  if (!document.hidden) checkAppUpdate(false);
 });
 if (window.ResizeObserver) new ResizeObserver(() => layout()).observe(stage); else window.addEventListener('resize', layout);
 if (/[?&]dev\b/.test(location.search)) { save.settings.dev = true; persist(); }
