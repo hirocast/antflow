@@ -2956,17 +2956,22 @@ function runAppUpdate() {
     okLabel: '更新する！'
   }, execAppUpdateNow);
 }
-function parseUpdDate(dateStr, fallbackDate) {
+function parseUpdDate(dateStr, fallbackDate, timeStr) {
   const s = String(dateStr || fallbackDate || '').trim();
+  let ms = 0;
   const mFull = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-  if (mFull) return Date.UTC(+mFull[1], +mFull[2] - 1, +mFull[3]);
-  const mMd = s.match(/^(\d{1,2})[\/\-](\d{1,2})/);
-  if (mMd) {
-    const fb = String(fallbackDate || '').match(/^(\d{4})/);
-    const y = fb ? +fb[1] : new Date().getFullYear();
-    return Date.UTC(y, +mMd[1] - 1, +mMd[2]);
+  if (mFull) ms = Date.UTC(+mFull[1], +mFull[2] - 1, +mFull[3]);
+  else {
+    const mMd = s.match(/^(\d{1,2})[\/\-](\d{1,2})/);
+    if (mMd) {
+      const fb = String(fallbackDate || '').match(/^(\d{4})/);
+      const y = fb ? +fb[1] : new Date().getFullYear();
+      ms = Date.UTC(y, +mMd[1] - 1, +mMd[2]);
+    } else return Date.now();
   }
-  return Date.now();
+  const tm = String(timeStr || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (tm) ms += ((+tm[1]) * 60 + (+tm[2])) * 60000 - 9 * 3600000;
+  return ms;
 }
 function syncUpdatesToInbox(data) {
   if (!data) return;
@@ -2976,21 +2981,22 @@ function syncUpdatesToInbox(data) {
   }
   const hist = Array.isArray(data.history) && data.history.length
     ? data.history.slice(0, 30)
-    : [{ version: data.version, date: data.date, title: data.headline || '最新アップデート', notes: data.notes || [] }];
+    : [{ version: data.version, date: data.date, time: data.time, title: data.headline || '最新アップデート', notes: data.notes || [] }];
   // 古い順に unshift して、おてがみ箱の上から新しい順に並べる（最新1件のみ未読、過去履歴は既読アーカイブ）
   for (let i = hist.length - 1; i >= 0; i--) {
     const h = hist[i];
     if (!h || !h.version) continue;
     const notes = Array.isArray(h.notes) ? h.notes : [];
+    const tag = [h.date ? String(h.date).replace(/^\d{4}\//, '') : '', h.time || ''].filter(Boolean).join(' ');
     const body = (notes.length ? notes.map(n => '・' + n).join('\n') : (data.headline || 'アプリがアップデートされました！')) +
       '\n\n※ アントフローはこれからもどんどん新機能を追加していくよ！';
     window.AF_pushInboxItem({
       id: 'upd-' + h.version,
       kind: 'update',
       badge: '🚀 アップデート',
-      title: '【更新】' + (h.title || data.headline || '最新アップデート') + (h.version ? '（' + h.version + '）' : ''),
+      title: '【更新】' + (h.title || data.headline || '最新アップデート') + (tag ? '（' + tag + '）' : ''),
       body,
-      at: parseUpdDate(h.date, data.date) + (hist.length - i) * 1000,
+      at: parseUpdDate(h.date, data.date, h.time) + (hist.length - i) * 1000,
       read: i > 0
     });
   }
@@ -3006,7 +3012,7 @@ function renderUpdateBox() {
   if (!box) return;
   const d = appUpd.data, curVer = window.AF_APP_VER || '';
   const shortDate = d && d.date ? d.date.replace(/^\d{4}\//, '') : '';
-  const verLabel = [shortDate, d && d.version ? d.version : curVer].filter(Boolean).join(' · ');
+  const verLabel = [shortDate, d && d.time ? d.time : ''].filter(Boolean).join(' ');
   box.classList.toggle('has-new', appUpd.hasUpdate);
   let html = '<div class="upd-top"><div class="upd-left">';
   if (appUpd.hasUpdate) {
@@ -3034,11 +3040,11 @@ function renderUpdateBox() {
       html += '<div class="upd-hl">🎉 最新版（' + escUpd(verLabel || curVer) + '）にアップデートしました！<button type="button" class="upd-ok" data-upd="ok">OK</button></div>';
       if (notes.length) html += '<ul class="upd-ul">' + notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>';
     } else {
-      const hist = Array.isArray(d.history) && d.history.length ? d.history : [{ version: d.version, date: shortDate, title: d.headline || '最新アップデート', notes: d.notes || [] }];
+      const hist = Array.isArray(d.history) && d.history.length ? d.history : [{ version: d.version, date: shortDate, time: d.time, title: d.headline || '最新アップデート', notes: d.notes || [] }];
       const shown = appUpd.showAllHist ? hist : hist.slice(0, 5);
       html += '<div class="upd-hl">🚀 どんどん進化中！' + (appUpd.showAllHist ? 'すべてのアップデート履歴' : '最近のアップデート') + '</div>';
       html += shown.map(h => {
-        const tag = [h.date, h.version].filter(Boolean).join(' · ');
+        const tag = [h.date, h.time].filter(Boolean).join(' ');
         return '<div class="upd-hitem"><b>' + (tag ? '[' + escUpd(tag) + '] ' : '') + escUpd(h.title || '') + '</b>' +
           (Array.isArray(h.notes) && h.notes.length ? '<ul class="upd-ul">' + h.notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>' : '') +
           '</div>';
