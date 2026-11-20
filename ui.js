@@ -51,7 +51,7 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
 .big{position:relative;border:3px solid #fff;box-shadow:0 5px 0 var(--pinkd),0 8px 14px rgba(200,70,120,.22)}
 .big.sec{box-shadow:0 5px 0 #e1c48e}
 .big.mint{box-shadow:0 5px 0 var(--mintd)}
-.fb em.price{position:absolute;top:-9px;right:-3px;font-style:normal;font-size:10px;font-weight:900;padding:1px 5px;border-radius:10px;background:linear-gradient(#fff6c4,#ffd23f);color:#7a4a00;border:2px solid #fff;box-shadow:0 2px 0 #d9a520;text-shadow:none;white-space:nowrap}
+.fb em.price{position:absolute;top:-12px;right:2px;font-style:normal;font-size:9.5px;font-weight:900;padding:1px 5px;border-radius:10px;background:linear-gradient(#fff6c4,#ffd23f);color:#7a4a00;border:2px solid #fff;box-shadow:0 2px 0 #d9a520;text-shadow:none;white-space:nowrap}
 #bScan{background:#a66be0;box-shadow:0 4px 0 #7f4ab8}
 #bScan.on{background:var(--mint);box-shadow:0 4px 0 var(--mintd)}
 #bScan.on em.price{background:linear-gradient(#d4ffe9,#5fcf9f);color:#145a38;box-shadow:0 2px 0 #3fae7f}
@@ -354,6 +354,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  .lv{padding:4px 8px;column-gap:6px}
  .lv #lvNum{font-size:14px}
  .lv #lvName{max-width:90px}
+ body:not(.dev) .lv #lvName{max-width:126px}
  .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
  .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
  .coin i{font-size:15px}
