@@ -198,7 +198,7 @@
   let mkW = 16, mkH = 16;
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
   const mkHistory = [], mkRedo = [];
-  let mkCol = 0, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
+  let mkCol = -2, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
   let mkTool = 'pen', mkBrush = 1, mkLastCell = null;
   let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '', mkDiff = 2, mkGenIdx = 0;
   const STAGE_DIFFS = {
@@ -750,10 +750,21 @@
     mkZoom = 1; mkPanX = 0; mkPanY = 0; mkPanMode = false;
     refreshZoomUI();
   }
+  function isCanvasScrollOnly() {
+    return mkCol < -1 && !mkRefMove && !(mkPanMode && mkZoom > 1) && !mkSelMode && mkTool !== 'drop';
+  }
+  function refreshCanvasTouch() {
+    const cv = $('#mkCv');
+    if (!cv) return;
+    const sc = isCanvasScrollOnly();
+    cv.style.touchAction = sc ? 'pan-y' : 'none';
+    cv.style.cursor = sc ? 'grab' : 'crosshair';
+  }
   function refreshZoomUI() {
     const zl = $('#mkZoomLbl'), pm = $('#mkPanBtn');
     if (zl) zl.textContent = mkZoom.toFixed(mkZoom % 1 ? 1 : 0) + 'x';
     if (pm) { pm.disabled = mkZoom <= 1; pm.classList.toggle('on', mkPanMode && mkZoom > 1); }
+    refreshCanvasTouch();
   }
   function refreshSizeBtns() {
     document.querySelectorAll('.mksz').forEach(b => {
@@ -1745,6 +1756,7 @@
         const c = el.dataset.c == null ? -1 : Number(el.dataset.c);
         el.classList.toggle('on', c === mkCol);
       });
+      refreshCanvasTouch();
     }
     refreshPal();
 
@@ -1809,7 +1821,13 @@
       mkLastCell = { x, y };
       drawMaker();
     }
+    let mkScrollTap = null;
     cv.addEventListener('pointerdown', e => {
+      if (isCanvasScrollOnly()) {
+        mkScrollTap = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      mkScrollTap = null;
       e.preventDefault();
       cv.setPointerCapture(e.pointerId);
       mkPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1868,6 +1886,7 @@
         return;
       }
       if (mkTool === 'fill') {
+        if (mkCol < -1) { toast('🎨 先に下のパレットから色（または消しゴム）をえらんでね！'); return; }
         const { x, y } = cellAt(e.clientX, e.clientY, false);
         if (x >= 0 && x < mkW && y >= 0 && y < mkH) {
           const target = mkGrid[y * mkW + x];
@@ -1950,6 +1969,13 @@
       if (mkDrawing) { e.preventDefault(); paintAt(e.clientX, e.clientY, false); }
     });
     const stop = e => {
+      if (mkScrollTap && e.type === 'pointerup') {
+        const d = Math.hypot(e.clientX - mkScrollTap.x, e.clientY - mkScrollTap.y);
+        mkScrollTap = null;
+        if (d < 8) toast('🎨 下のパレットから色（または消しゴム）をえらぶと描けるよ！');
+      } else if (e.type === 'pointercancel') {
+        mkScrollTap = null;
+      }
       mkPtrs.delete(e.pointerId);
       if (mkPtrs.size < 2) mkPinch = null;
       if (mkPtrs.size === 0) { mkDrawing = false; mkLastPan = null; mkSelDrag = null; mkLastCell = null; }
@@ -1980,6 +2006,7 @@
       }
       $('#mkFill').classList.toggle('on', mkTool === 'fill');
       $('#mkDrop').classList.toggle('on', mkTool === 'drop');
+      refreshCanvasTouch();
     }
     $('#mkPanBtn').addEventListener('click', () => {
       if (mkZoom <= 1) return;
@@ -2045,6 +2072,7 @@
         setTool('pen');
       }
       $('#mkSelBtn').classList.toggle('on', mkSelMode);
+      refreshCanvasTouch();
     });
     $('#mkCopy').addEventListener('click', () => {
       Sound.tap();
@@ -2110,6 +2138,7 @@
       $('#mkRefBtn').classList.toggle('on', has && mkRefOn);
       applyRefTransform();
       drawMaker();
+      refreshCanvasTouch();
     }
     function openRefModal() {
       refreshRefUI();
