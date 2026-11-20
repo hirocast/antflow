@@ -1309,18 +1309,18 @@
       '#ov-inbox .card{display:flex;flex-direction:column;overflow:hidden}' +
       '.inbox-meta{font-size:11px;font-weight:800;color:#8a6a7a;margin:0 0 6px;display:flex;justify-content:space-between;align-items:center}' +
       '.inbox-list{flex:1 1 auto;min-height:0;overflow-y:auto;touch-action:pan-y;text-align:left;margin:0 0 8px;padding-right:2px}' +
-      '.inbox-item{display:flex;align-items:center;gap:8px;padding:9px 10px;background:#fff;border:2px solid #ffd3e2;border-radius:13px;margin-bottom:6px;cursor:pointer;text-align:left;width:100%;font-family:var(--rf);color:var(--ink)}' +
-      '.inbox-item.award{border-color:#ffd166;background:#fffdf2}' +
-      '.inbox-item.unread{border-color:#ff8fb3;background:#fff7fa}' +
+      '.inbox-card{background:#fff;border:2px solid #ffd3e2;border-radius:13px;margin-bottom:6px;overflow:hidden}' +
+      '.inbox-card.award{border-color:#ffd166;background:#fffdf2}' +
+      '.inbox-card.unread{border-color:#ff8fb3;background:#fff7fa}' +
+      '.inbox-card.open{border-color:#ff6f9e;box-shadow:0 2px 8px rgba(200,80,120,.12)}' +
+      '.inbox-item{display:flex;align-items:center;gap:8px;padding:9px 10px;background:transparent;border:none;cursor:pointer;text-align:left;width:100%;font-family:var(--rf);color:var(--ink)}' +
       '.inbox-item .info{flex:1;min-width:0}' +
       '.inbox-item .info b{display:block;font-size:12.5px;line-height:1.35;word-break:break-word}' +
       '.inbox-item .info small{display:block;font-size:10.5px;color:#8a6a7a;margin-top:2px}' +
-      '.inbox-item .arr{flex:0 0 auto;color:#c08aa0;font-size:15px;font-weight:900}' +
+      '.inbox-item .arr{flex:0 0 auto;color:#c08aa0;font-size:11px;font-weight:900}' +
       '.inbox-new{flex:0 0 auto;background:#ff4d6d;color:#fff;font:900 9px var(--rf);padding:2px 6px;border-radius:8px}' +
-      '.inbox-det{flex:1 1 auto;min-height:0;overflow-y:auto;touch-action:pan-y;background:#fff;border:2px solid #cfe6ff;border-radius:14px;padding:12px;margin:0 0 8px;text-align:left;font-size:12.5px;line-height:1.65}' +
-      '.inbox-det h3{margin:0 0 4px;font-size:14.5px;color:#c0507a;line-height:1.4;border:none;padding:0}' +
-      '.inbox-det .rw{margin-top:8px;padding:7px 10px;background:#fff9e6;border:1.5px solid #ffd166;border-radius:10px;font:900 12px var(--rf);color:#c26a00}' +
-      '.inbox-back{align-self:flex-start;margin-bottom:8px;border:2px solid #ffd3e2;border-radius:12px;padding:6px 12px;background:#fff4f8;color:#c0507a;font:900 12px var(--rf);cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
+      '.inbox-det{border-top:1.5px dashed #ffd3e2;padding:9px 11px 11px;text-align:left;font-size:12px;line-height:1.6;background:rgba(255,255,255,.72)}' +
+      '.inbox-det .rw{margin-top:7px;padding:6px 9px;background:#fff9e6;border:1.5px solid #ffd166;border-radius:10px;font:900 11.5px var(--rf);color:#c26a00}' +
       '.inbox-btn-home{position:relative;width:100%;margin:6px 0 2px;padding:7px 12px;border:2px solid #fff;border-radius:14px;background:linear-gradient(#fff7fb,#ffe5f0);box-shadow:0 3px 0 #e6bfd0;font:900 12px var(--rf);color:#c0507a;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}';
     document.head.appendChild(style);
 
@@ -1384,76 +1384,63 @@
       '<h2>📬 おしらせ・受賞メール</h2>' +
       '<div class="inbox-meta" id="inboxMeta"></div>' +
       '<div class="inbox-list" id="inboxList"></div>' +
-      '<button type="button" class="inbox-back" id="bInboxBack" style="display:none">◀ 一覧にもどる</button>' +
-      '<div class="inbox-det" id="inboxDet" style="display:none"></div>' +
       '<button class="big sec" id="bInboxClose" style="margin-top:0">とじる</button>' +
       '</div>';
     document.body.appendChild(mov);
 
     let selInboxId = null;
     function renderInbox() {
-      const metaEl = $('#inboxMeta'), listEl = $('#inboxList'), detEl = $('#inboxDet'), backBtn = $('#bInboxBack');
-      if (!listEl || !detEl) return;
+      const metaEl = $('#inboxMeta'), listEl = $('#inboxList');
+      if (!listEl) return;
+      const prevTop = listEl.scrollTop;
       const arr = loadInbox();
       listEl.innerHTML = '';
       if (!arr.length) {
         if (metaEl) metaEl.textContent = '';
-        listEl.style.display = 'block';
-        if (backBtn) backBtn.style.display = 'none';
-        detEl.style.display = 'none';
         listEl.innerHTML = '<p class="fine" style="text-align:center;margin:20px 0">まだメッセージはありません。<br>運営からのお知らせやコンテスト受賞メールがここに届きます。</p>';
-        return;
-      }
-      const cur = selInboxId ? arr.find(x => x.id === selInboxId) : null;
-      if (cur) {
-        if (!cur.read) { cur.read = true; saveInbox(arr); updateInboxBadge(); }
-        if (metaEl) metaEl.style.display = 'none';
-        listEl.style.display = 'none';
-        if (backBtn) backBtn.style.display = 'inline-block';
-        detEl.style.display = 'block';
-        detEl.scrollTop = 0;
-        const dStr = cur.at ? new Date(cur.at).toLocaleDateString('ja-JP') : '';
-        detEl.innerHTML =
-          '<h3></h3>' +
-          '<small class="fine" style="display:block;margin-bottom:6px"></small>' +
-          '<div class="body" style="white-space:pre-line;font-weight:700"></div>' +
-          (cur.rewardText ? '<div class="rw"></div>' : '');
-        detEl.querySelector('h3').textContent = cur.title;
-        detEl.querySelector('small').textContent = (cur.badge || '') + (dStr ? ' · ' + dStr : '');
-        detEl.querySelector('.body').textContent = cur.body;
-        if (cur.rewardText) detEl.querySelector('.rw').textContent = '🎁 うけとった報酬：' + cur.rewardText;
         return;
       }
       const unreadCnt = arr.filter(x => !x.read).length;
       if (metaEl) {
-        metaEl.style.display = 'flex';
-        metaEl.innerHTML = '<span>全 ' + arr.length + '件' + (unreadCnt ? '（未読 ' + unreadCnt + '件）' : '') + '</span><span>タップで全文を読む ↕</span>';
+        metaEl.innerHTML = '<span>全 ' + arr.length + '件' + (unreadCnt ? '（未読 ' + unreadCnt + '件）' : '') + '</span><span>タップで開閉 ↕</span>';
       }
-      listEl.style.display = 'block';
-      if (backBtn) backBtn.style.display = 'none';
-      detEl.style.display = 'none';
       for (const item of arr) {
+        const isOpen = selInboxId === item.id;
+        if (isOpen && !item.read) { item.read = true; saveInbox(arr); updateInboxBadge(); }
+        const wrap = document.createElement('div');
+        wrap.className = 'inbox-card' + (item.kind === 'award' ? ' award' : '') + (!item.read ? ' unread' : '') + (isOpen ? ' open' : '');
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'inbox-item' + (item.kind === 'award' ? ' award' : '') + (!item.read ? ' unread' : '');
+        btn.className = 'inbox-item';
         const dStr = item.at ? new Date(item.at).toLocaleDateString('ja-JP') : '';
         btn.innerHTML =
           '<span style="font-size:20px;flex:0 0 auto">' + (item.kind === 'award' ? '🏆' : item.kind === 'update' ? '🚀' : '💌') + '</span>' +
           '<span class="info"><b></b><small></small></span>' +
           (!item.read ? '<span class="inbox-new">NEW</span>' : '') +
-          '<span class="arr">›</span>';
+          '<span class="arr">' + (isOpen ? '▲' : '▼') + '</span>';
         btn.querySelector('b').textContent = item.title;
         btn.querySelector('small').textContent = (dStr || '') + (item.badge ? ' · ' + String(item.badge).replace(/^[^\s]+\s/, '') : '');
         btn.addEventListener('click', () => {
           Sound.tap();
-          selInboxId = item.id;
-          if (!item.read) { item.read = true; saveInbox(arr); updateInboxBadge(); }
+          selInboxId = (selInboxId === item.id) ? null : item.id;
+          if (selInboxId && !item.read) { item.read = true; saveInbox(arr); updateInboxBadge(); }
           renderInbox();
         });
-        listEl.appendChild(btn);
+        wrap.appendChild(btn);
+        if (isOpen) {
+          const det = document.createElement('div');
+          det.className = 'inbox-det';
+          det.innerHTML =
+            '<div class="body" style="white-space:pre-line;font-weight:700"></div>' +
+            (item.rewardText ? '<div class="rw"></div>' : '');
+          det.querySelector('.body').textContent = item.body;
+          if (item.rewardText) det.querySelector('.rw').textContent = '🎁 うけとった報酬：' + item.rewardText;
+          wrap.appendChild(det);
+        }
+        listEl.appendChild(wrap);
       }
+      listEl.scrollTop = prevTop;
     }
-    if ($('#bInboxBack')) $('#bInboxBack').addEventListener('click', () => { Sound.tap(); selInboxId = null; renderInbox(); });
     function openInbox() {
       seedOfficialNews();
       selInboxId = null;
