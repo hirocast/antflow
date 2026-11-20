@@ -88,12 +88,23 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .fb-cat{border:2px solid #ffd3e2;border-radius:12px;padding:7px 6px;background:#fff;color:var(--ink);font:800 11.5px var(--rf);cursor:pointer;box-shadow:0 2px 0 #f2c8d8}
 .fb-cat.on{background:linear-gradient(#ff9fbf,#ff6f9e);color:#fff;border-color:#fff;box-shadow:0 2px 0 #d64575}
 .fb-ta,.fb-in{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:14px;padding:9px 11px;font:700 13px/1.5 var(--rf);color:var(--ink);background:#fff;user-select:text;-webkit-user-select:text;touch-action:auto}
-.fb-ta{min-height:110px;resize:vertical}
+.fb-ta{min-height:78px;resize:vertical}
 .fb-in{margin-top:6px}
 .fb-cnt{text-align:right;font-size:10.5px;color:#9a7a8a;font-weight:700;margin:2px 2px 4px}
 .fb-hist{margin-top:10px;padding-top:8px;border-top:2px dotted #ffd3e2;text-align:left}
 .fb-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px;font-size:11px;line-height:1.45}
 .fb-hitem b{color:#c0507a;font-size:10.5px;display:block;margin-bottom:2px}
+#ov-feedback .card{display:flex;flex-direction:column;overflow:hidden;padding:14px 12px 12px}
+.fb-body{flex:1 1 auto;min-height:0;overflow-y:auto;touch-action:pan-y;padding:0 2px}
+.fb-foot{flex:0 0 auto;margin-top:6px;padding-top:6px;border-top:2px dashed #ffd3e2}
+.fb-scroll-hint{font-size:10px;font-weight:800;color:#b8406e;margin-bottom:5px;opacity:.85}
+.fb-foot .cfrow{margin-top:0}
+.fb-foot #bFbSend{flex:2}
+.fb-foot #bFbClose{flex:1}
+.fb-note-det{margin:7px 0 4px;text-align:left}
+.fb-note-det summary{font-size:11px;font-weight:800;color:#8a5a6e;cursor:pointer;padding:5px 8px;background:#fff8fb;border:1.5px solid #ffd8e6;border-radius:10px;list-style:none}
+.fb-note-det[open] summary{border-radius:10px 10px 0 0;border-bottom:none}
+.fb-note-det[open] .fb-note{margin-top:0;border-radius:0 0 10px 10px}
 .fb-imgrow{display:flex;align-items:center;gap:6px;margin-top:7px}
 .fb-imgbtn{flex:1;border:2px dashed #f0a8c4;border-radius:12px;padding:8px 7px;background:#fff8fb;color:#b8406e;font:800 11.5px var(--rf);cursor:pointer;text-align:center;line-height:1.3}
 .fb-imgbtn.snap{border-color:#74c79a;background:#f2fff8;color:#1b7346}
@@ -3507,11 +3518,11 @@ layout();
   ov.id = 'ov-feedback';
   ov.innerHTML =
     '<div class="card">' +
-    '<h2 style="font-size:18px;padding:6px 18px">💬 要望・不具合ポスト</h2>' +
+    '<h2 style="font-size:18px;padding:6px 18px;margin-bottom:6px">💬 要望・不具合ポスト</h2>' +
+    '<div class="fb-body" id="fbBody">' +
     '<div class="fb-ctx" id="fbCtxBadge" style="display:none"></div>' +
     '<div class="fb-camp" id="fbCamp" style="display:none"></div>' +
     '<div class="fb-thanks" id="fbThanks"></div>' +
-    '<p class="fine" style="margin:2px 0 6px;line-height:1.5">特に<b>「つくる・シェア」機能</b>のご意見や不具合報告を大募集中！<br>ほしい機能・使いにくい所・不具合など気軽に送ってね📷</p>' +
     '<div class="fb-cats" id="fbCats">' +
     CATS.map(([k, lbl], i) => '<button type="button" class="fb-cat' + (i === 0 ? ' on' : '') + '" data-cat="' + k + '">' + lbl + '</button>').join('') +
     '</div>' +
@@ -3523,15 +3534,14 @@ layout();
       '<div class="fb-auto-hint">🌟「こうしたら友達に送りたくなる！」「ここが描きにくい」など大歓迎！お礼も <b>🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t + '</b> 増量中✨</div>' +
     '</div>' +
     '<div class="fb-bugbox" id="fbBugBox">' +
-      '<div class="fb-blbl">① 何が起きましたか？（1タップで複数選択OK・選ぶだけで送信可）</div>' +
+      '<div class="fb-blbl">① 何が起きましたか？（選ぶだけで送信可）</div>' +
       '<div class="fb-chips" id="fbSyms">' +
         BUG_SYMPTOMS.map(([k, lbl]) => '<button type="button" class="fb-chip" data-sym="' + k + '">' + lbl + '</button>').join('') +
       '</div>' +
-      '<div class="fb-blbl">② どこで起きましたか？（自動で選択済み・変更OK）</div>' +
+      '<div class="fb-blbl">② どこで起きましたか？（自動選択済み）</div>' +
       '<div class="fb-chips" id="fbScenes">' +
         BUG_SCENES.map(([k, lbl]) => '<button type="button" class="fb-chip" data-scene="' + k + '">' + lbl + '</button>').join('') +
       '</div>' +
-      '<div class="fb-auto-hint">✨ 端末・画面サイズ・遊んでいた面・直前の画面とエラー記録は自動で添えられるので手入力は不要です</div>' +
     '</div>' +
     '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="' + PLACEHOLDERS.maker + '"></textarea>' +
     '<div class="fb-cnt"><span id="fbCnt">0</span> / 500</div>' +
@@ -3546,15 +3556,18 @@ layout();
       '<button type="button" class="fb-del" id="bFbDel">✕ 外す</button>' +
     '</div>' +
     '<input id="fbNick" class="fb-in" type="text" maxlength="16" placeholder="ニックネーム（空欄でもOK）">' +
-    '<div class="fb-note">' +
+    '<details class="fb-note-det"><summary>📋 送信される情報とご注意（タップで確認）</summary><div class="fb-note">' +
       '<div>・アカウント不要で送れます。<b>送信内容と添付スクショは開発者のみ閲覧できる非公開の管理ページに記録されます</b>が、本名・連絡先・スクショ内の通知など個人情報が映り込まないようご注意ください。</div>' +
       '<div>・原因調査のため、直前の画面・端末種別・画面サイズ・プレイ中の面・操作/エラー履歴などの技術情報のみ自動で添えられます（個人情報は送信されません）。</div>' +
       '<div>・不具合は確認のうえ改善に努めますが、<b>端末や環境によっては改善できない場合もあります</b>。</div>' +
       '<div>・<b>基本的には個別の返信は行っておりません</b>（対応内容はホームの「最近のアップデート」やおてがみ箱でお知らせします）。</div>' +
-    '</div>' +
-    '<button class="big" id="bFbSend">📮 送る！</button>' +
-    '<button class="big sec" id="bFbClose">とじる</button>' +
+    '</div></details>' +
     '<div class="fb-hist" id="fbHist" style="display:none"></div>' +
+    '</div>' +
+    '<div class="fb-foot">' +
+      '<div class="fb-scroll-hint">↕ 中身をスクロールして入力・スクショ添付できます</div>' +
+      '<div class="cfrow"><button class="big" id="bFbSend">📮 送る！</button><button class="big sec" id="bFbClose">とじる</button></div>' +
+    '</div>' +
     '</div>';
   document.body.appendChild(ov);
 
@@ -3898,6 +3911,7 @@ layout();
     refreshFbCampaignUI();
     renderHist();
     showOv('feedback');
+    if ($('#fbBody')) $('#fbBody').scrollTop = 0;
   }
   window.AF_openFeedback = openFeedback;
 
