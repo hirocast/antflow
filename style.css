@@ -37,9 +37,10 @@ footer{flex:0 0 76px;display:flex;gap:8px;justify-content:center;align-items:cen
 #toast{position:absolute;left:50%;bottom:10px;transform:translate(-50%,16px);width:max-content;max-width:92%;background:rgba(90,61,92,.93);color:#fff;font-size:14px;font-weight:700;padding:9px 16px;border-radius:18px;pointer-events:none;opacity:0;transition:all .25s;z-index:3}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 .ov{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(110,60,100,.32);z-index:10}
+.ov:not(#ov-title){padding:calc(env(safe-area-inset-top,0px) + 24px) 0 calc(env(safe-area-inset-bottom,0px) + 8px)}
 .ov.show{display:flex;animation:ovFade .18s ease-out}
 @keyframes ovFade{from{opacity:0}to{opacity:1}}
-.card{background:#fffdf8;border-radius:28px;border:4px solid #ffd3e2;padding:18px;width:min(92vw,400px);max-height:94vh;overflow:auto;box-shadow:0 10px 24px rgba(110,60,100,.28);text-align:center;touch-action:pan-y}
+.card{background:#fffdf8;border-radius:28px;border:4px solid #ffd3e2;padding:18px;width:min(92vw,400px);max-height:min(94vh,100%);overflow:auto;box-shadow:0 10px 24px rgba(110,60,100,.28);text-align:center;touch-action:pan-y}
 .ov.show .card{animation:cardPop .22s cubic-bezier(.3,1.35,.5,1)}
 @keyframes cardPop{from{transform:scale(.94)}to{transform:none}}
 .card h2{margin:0 0 8px;font-size:21px;font-weight:900;color:var(--pinkd)}
