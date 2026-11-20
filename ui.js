@@ -233,6 +233,8 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .restot{font-size:22px;font-weight:900;color:#d08a00;line-height:1.2}
 .restot small{display:block;font-size:11px;color:var(--ink)}
 #ov-clear .chip,#ov-clear .teaser{margin:4px 0;padding:5px 10px}
+#ov-clear .chip{cursor:pointer;transition:transform .08s}
+#ov-clear .chip:active{transform:scale(.98)}
 #ov-clear .cfrow{margin-top:6px}
 #ov-clear .big{padding:9px 10px;font-size:14px;margin-top:6px}
 .restalk{display:none;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:6px 10px;margin:5px 0;text-align:left;font-size:11px;font-weight:800;color:var(--ink)}
@@ -1333,14 +1335,14 @@ function showClear() {
       const showBg = newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0;
       let html = '';
       if (stAll.length > 0) {
-        const stHead = '✨ このステージ専用' + (stNew.length ? '（新着 +' + stNew.length + 'こ）' : '');
+        const stHead = '✨ このステージ専用セリフ' + (stNew.length ? '（新着 +' + stNew.length + 'こ）' : '');
         const stProg = stSeen + '/' + stAll.length + (stSeen === stAll.length ? ' 🎉コンプ！' : '');
         html += '<div class="restalk-h"><span>' + stHead + '</span><span>' + stProg + (!otherNew.length ? ' · 累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk : '') + '</span></div>';
         if (stNew.length) html += '<div class="restalk-list">' + mkChips(stNew) + '</div>';
       }
       if (otherNew.length > 0) {
         const cls = stAll.length > 0 ? 'restalk-sub' : 'restalk-h';
-        html += '<div class="' + cls + '"><span>💬 そのほかの新着（+' + otherNew.length + 'こ）</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>';
+        html += '<div class="' + cls + '"><span>💬 その他の新着セリフ（+' + otherNew.length + 'こ）</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>';
         html += '<div class="restalk-list">' + mkChips(otherNew) + '</div>';
       } else if (!stAll.length) {
         html += '<div class="restalk-h"><span>💬 セリフ進捗</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>';
@@ -2895,7 +2897,7 @@ window.addEventListener('keydown', e => {
   else if (save.settings.dev && k === ']') devStep(1);
 });
 const on = (id, f) => $(id).addEventListener('click', f);
-const back = () => { if (G.fromTitle) showOv('title'); else hideOv(); };
+const back = () => { if (G.fromTitle === 'clear') showOv('clear'); else if (G.fromTitle) showOv('title'); else hideOv(); };
 // はじめての「あそぶ」は、文字の説明ではなく、遊びながら教えるチュートリアルから始める
 on('#bPlay', () => {
   Sound.init();
@@ -2923,6 +2925,7 @@ on('#hDots', e => { const p = e.target && e.target.dataset ? e.target.dataset.p 
 on('#bSetTut', tutReplay);
 on('#bTitleAlbum', () => openAlbum(true));
 on('#bAlbum', () => openAlbum(false));
+on('#ov-clear .chip', () => { Sound.tap(); openAlbum('clear'); });
 on('#bAlbumClose', back);
 on('#bViewBack', () => openAlbum(G.fromTitle));
 on('#bViewPlay', () => { hideOv(); loadLevel(G.viewId); });
