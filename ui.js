@@ -3021,9 +3021,13 @@ function renderUpdateBox() {
     html += '</div><button type="button" class="upd-btn" id="bTitleUpdate">🔄 今すぐ更新！</button></div>';
   } else if (appUpd.checked && d) {
     html += '<span class="upd-badge">✨ 最新版' + (verLabel ? ' ' + escUpd(verLabel) : '') + '</span>';
-    html += '</div><button type="button" class="upd-hist-btn" data-upd="hist">🆕 最近のアップデート ' + (appUpd.openHist ? '▲' : '▼') + '</button></div>';
+    html += '</div><div style="display:flex;gap:4px;flex:0 0 auto">' +
+      '<button type="button" class="upd-hist-btn" data-upd="recheck">🔄 更新確認</button>' +
+      '<button type="button" class="upd-hist-btn" data-upd="hist">📜 履歴 ' + (appUpd.openHist ? '▲' : '▼') + '</button>' +
+      '</div></div>';
   } else {
-    html += '<span class="upd-badge">✨ 更新を確認中…</span></div></div>';
+    html += '<span class="upd-badge">✨ 更新を確認中…</span></div>' +
+      '<button type="button" class="upd-hist-btn" data-upd="recheck">🔄 更新確認</button></div>';
   }
 
   // 更新が必要な人には、更新内容をそのまま自動で表示してお知らせ
