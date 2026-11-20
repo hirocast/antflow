@@ -972,6 +972,133 @@ async function handleFeedback(request, env, cors) {
   return jsonRes({ ok: true, number: created.number, author: nick, hasImage: !!imageData }, 201, cors);
 }
 
+const TRANSFER_ALLOW_KEYS = new Set([
+  'antflow-save-v2',
+  'antflow-my-stages-v1',
+  'antflow-my-bgms-v1',
+  'antflow-active-bgm-v1',
+  'antflow-inbox-v1',
+  'antflow-contest-claimed-v1',
+  'antflow-talk-likes-v1',
+  'antflow-stage-likes-v1',
+  'antflow-stage-votes-v1',
+  'antflow-fb-camp-v1',
+  'antflow-nick-v1',
+  'antflow-fb-nick-v1',
+  'antflow-anon-name-v1',
+  'antflow-seen-ver'
+]);
+const TRANSFER_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+function genTransferCode() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < 8; i++) {
+    out += TRANSFER_ALPHABET[bytes[i] % TRANSFER_ALPHABET.length];
+  }
+  return out;
+}
+
+async function handleTransferCreate(request, env, cors) {
+  const { body, errorRes } = await parseJsonPost(request, env, cors, 131072);
+  if (errorRes) return errorRes;
+
+  if (!env || !env.RATE_LIMIT_KV) {
+    return jsonRes({ ok: false, error: '引継ぎ機能が利用できません（KV未設定）' }, 503, cors);
+  }
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (checkBurstLimit(ip)) {
+    return jsonRes({ ok: false, error: 'アクセスが集中しています。少し待ってね' }, 429, cors);
+  }
+  const cdKey = 'tr-create:' + ip;
+  if (await rlHas(env, cdKey)) {
+    return jsonRes({ ok: false, error: '引継ぎコードの発行は1日に1回までです（不正配布防止）' }, 429, cors);
+  }
+  if (!body.data || typeof body.data !== 'object' || Array.isArray(body.data)) {
+    return jsonRes({ ok: false, error: 'セーブデータが正しくありません' }, 400, cors);
+  }
+  const cleanData = Object.create(null);
+  let totalBytes = 0;
+  let keyCount = 0;
+  for (const [k, v] of Object.entries(body.data)) {
+    if (!TRANSFER_ALLOW_KEYS.has(k) || typeof v !== 'string') continue;
+    totalBytes += v.length;
+    if (totalBytes > 110000) {
+      return jsonRes({ ok: false, error: 'セーブデータが大きすぎます' }, 413, cors);
+    }
+    cleanData[k] = v;
+    keyCount++;
+  }
+  if (!keyCount) {
+    return jsonRes({ ok: false, error: '引き継ぐセーブデータがありません' }, 400, cors);
+  }
+
+  let code = '';
+  for (let i = 0; i < 5; i++) {
+    const cand = genTransferCode();
+    const exists = await env.RATE_LIMIT_KV.get('tr-code:' + cand);
+    if (exists === null) { code = cand; break; }
+  }
+  if (!code) {
+    return jsonRes({ ok: false, error: 'コード発行に失敗しました。もう一度お試しください' }, 503, cors);
+  }
+
+  await rlSet(env, cdKey, 86400);
+  try {
+    await env.RATE_LIMIT_KV.put(
+      'tr-code:' + code,
+      JSON.stringify({ d: cleanData, createdAt: Date.now() }),
+      { expirationTtl: 86400 }
+    );
+  } catch {
+    await rlDel(env, cdKey);
+    return jsonRes({ ok: false, error: '保存に失敗しました' }, 502, cors);
+  }
+  const displayCode = code.slice(0, 4) + '-' + code.slice(4);
+  return jsonRes({ ok: true, code: displayCode, expiresHours: 24 }, 201, cors);
+}
+
+async function handleTransferClaim(request, env, cors) {
+  const { body, errorRes } = await parseJsonPost(request, env, cors, 4096);
+  if (errorRes) return errorRes;
+
+  if (!env || !env.RATE_LIMIT_KV) {
+    return jsonRes({ ok: false, error: '引継ぎ機能が利用できません（KV未設定）' }, 503, cors);
+  }
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (checkBurstLimit(ip)) {
+    return jsonRes({ ok: false, error: 'アクセスが集中しています。少し待ってね' }, 429, cors);
+  }
+  const lockKey = 'tr-lock:' + ip;
+  if (await rlHas(env, lockKey)) {
+    return jsonRes({ ok: false, error: '失敗が続いたため一時制限中です。10分後に試してね' }, 429, cors);
+  }
+
+  const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(code)) {
+    return jsonRes({ ok: false, error: '引継ぎコードの形式が正しくありません（8文字）' }, 400, cors);
+  }
+
+  const kvKey = 'tr-code:' + code;
+  const stored = await env.RATE_LIMIT_KV.get(kvKey, 'json');
+  if (!stored || !stored.d || typeof stored.d !== 'object') {
+    const failKey = 'tr-fail:' + ip;
+    const fails = (Number(await env.RATE_LIMIT_KV.get(failKey)) || 0) + 1;
+    if (fails >= 5) {
+      await rlSet(env, lockKey, 600);
+      await env.RATE_LIMIT_KV.delete(failKey).catch(() => {});
+    } else {
+      await env.RATE_LIMIT_KV.put(failKey, String(fails), { expirationTtl: 600 }).catch(() => {});
+    }
+    return jsonRes({ ok: false, error: 'コードが見つからないか、期限切れ・使用済みです' }, 404, cors);
+  }
+
+  // ワンタイム消費（1回限りでサーバーから即時削除）
+  await env.RATE_LIMIT_KV.delete(kvKey);
+  return jsonRes({ ok: true, data: safeDict(stored.d) }, 200, cors);
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -999,6 +1126,12 @@ export default {
     }
     if (request.method === 'POST' && url.pathname === '/feedback') {
       return handleFeedback(request, env, cors);
+    }
+    if (request.method === 'POST' && url.pathname === '/transfer/create') {
+      return handleTransferCreate(request, env, cors);
+    }
+    if (request.method === 'POST' && url.pathname === '/transfer/claim') {
+      return handleTransferClaim(request, env, cors);
     }
 
     if (request.method !== 'POST' || (url.pathname !== '/post' && url.pathname !== '/')) {
