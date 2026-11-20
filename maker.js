@@ -140,6 +140,7 @@
     updateInboxBadge();
     return true;
   }
+  window.AF_pushInboxItem = pushInboxItem;
   function seedOfficialNews() {
     for (const n of OFFICIAL_NEWS) pushInboxItem(n);
   }
@@ -1297,7 +1298,7 @@
         btn.className = 'inbox-item' + (item.kind === 'award' ? ' award' : '') + (item.id === selInboxId ? ' sel' : '');
         const dStr = item.at ? new Date(item.at).toLocaleDateString('ja-JP') : '';
         btn.innerHTML =
-          '<span style="font-size:20px">' + (item.kind === 'award' ? '🏆' : '💌') + '</span>' +
+          '<span style="font-size:20px">' + (item.kind === 'award' ? '🏆' : item.kind === 'update' ? '🚀' : '💌') + '</span>' +
           '<span class="info"><b></b><small></small></span>' +
           (!item.read ? '<span class="inbox-new">NEW</span>' : '');
         btn.querySelector('b').textContent = item.title;

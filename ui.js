@@ -2881,6 +2881,45 @@ function runAppUpdate() {
     okLabel: '更新する！'
   }, execAppUpdateNow);
 }
+function parseUpdDate(dateStr, fallbackDate) {
+  const s = String(dateStr || fallbackDate || '').trim();
+  const mFull = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (mFull) return Date.UTC(+mFull[1], +mFull[2] - 1, +mFull[3]);
+  const mMd = s.match(/^(\d{1,2})[\/\-](\d{1,2})/);
+  if (mMd) {
+    const fb = String(fallbackDate || '').match(/^(\d{4})/);
+    const y = fb ? +fb[1] : new Date().getFullYear();
+    return Date.UTC(y, +mMd[1] - 1, +mMd[2]);
+  }
+  return Date.now();
+}
+function syncUpdatesToInbox(data) {
+  if (!data) return;
+  if (typeof window.AF_pushInboxItem !== 'function') {
+    setTimeout(() => syncUpdatesToInbox(data), 400);
+    return;
+  }
+  const hist = Array.isArray(data.history) && data.history.length
+    ? data.history.slice(0, 10)
+    : [{ version: data.version, date: data.date, title: data.headline || '最新アップデート', notes: data.notes || [] }];
+  // 古い順に unshift して、おてがみ箱の上から新しい順に並べる（最新1件のみ未読、過去履歴は既読アーカイブ）
+  for (let i = hist.length - 1; i >= 0; i--) {
+    const h = hist[i];
+    if (!h || !h.version) continue;
+    const notes = Array.isArray(h.notes) ? h.notes : [];
+    const body = (notes.length ? notes.map(n => '・' + n).join('\n') : (data.headline || 'アプリがアップデートされました！')) +
+      '\n\n※ アントフローはこれからもどんどん新機能を追加していくよ！';
+    window.AF_pushInboxItem({
+      id: 'upd-' + h.version,
+      kind: 'update',
+      badge: '🚀 アップデート',
+      title: '【更新】' + (h.title || data.headline || '最新アップデート'),
+      body,
+      at: parseUpdDate(h.date, data.date) + (hist.length - i) * 1000,
+      read: i > 0
+    });
+  }
+}
 function renderUpdateBox() {
   const box = $('#homeUpdateBox');
   const setDot = $('#setUpdDot');
@@ -2897,13 +2936,13 @@ function renderUpdateBox() {
   if (appUpd.hasUpdate) {
     html += '<span class="upd-badge">🔴 NEW! 更新あり</span>';
     if (shortDate) html += '<span style="font-size:10.5px;font-weight:900;color:#c03060">' + escUpd(shortDate) + '版</span>';
+    html += '</div><button type="button" class="upd-btn" id="bTitleUpdate">🔄 今すぐ更新！</button></div>';
   } else if (appUpd.checked && d) {
-    html += '<span class="upd-badge">✨ 最新' + (shortDate ? ' ' + escUpd(shortDate) : '') + '</span>';
-    html += '<button type="button" class="upd-hist-btn" data-upd="hist">🆕 内容 ' + (appUpd.openHist ? '▲' : '▼') + '</button>';
+    html += '<span class="upd-badge">✨ 最新版' + (shortDate ? ' ' + escUpd(shortDate) : '') + '</span>';
+    html += '</div><button type="button" class="upd-hist-btn" data-upd="hist">🆕 最近のアップデート ' + (appUpd.openHist ? '▲' : '▼') + '</button></div>';
   } else {
-    html += '<span class="upd-badge">✨ 確認中…</span>';
+    html += '<span class="upd-badge">✨ 更新を確認中…</span></div></div>';
   }
-  html += '</div><button type="button" class="upd-btn" id="bTitleUpdate">' + (appUpd.hasUpdate ? '🔄 今すぐ更新！' : '🔄 アプリを最新に更新') + '</button></div>';
 
   // 更新が必要な人には、更新内容をそのまま自動で表示してお知らせ
   if (appUpd.hasUpdate && d) {
@@ -2926,6 +2965,7 @@ function renderUpdateBox() {
         (Array.isArray(h.notes) && h.notes.length ? '<ul class="upd-ul">' + h.notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>' : '') +
         '</div>'
       ).join('');
+      html += '<div class="upd-sub" style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span>💌 おてがみ箱にも残るよ</span><button type="button" class="upd-hist-btn" data-upd="recheck">🔄 更新を確認</button></div>';
     }
     html += '</div>';
   }
@@ -2950,6 +2990,7 @@ async function checkAppUpdate(force) {
       if (seen && seen !== curVer) appUpd.justUpdated = true;
       else if (!seen) { try { localStorage.setItem(SEEN_VER_KEY, curVer); } catch (e) {} }
     }
+    syncUpdatesToInbox(data);
     renderUpdateBox();
     return appUpd.hasUpdate;
   } catch (e) {
@@ -2970,15 +3011,17 @@ if (homeUpdEl) {
       renderUpdateBox();
       return;
     }
+    const recheckBtn = e.target.closest('[data-upd="recheck"]');
+    if (recheckBtn) {
+      Sound.tap();
+      recheckBtn.textContent = '確認中…';
+      const found = await checkAppUpdate(true);
+      if (!found) toast('✨ すでに最新版です！');
+      return;
+    }
     if (e.target.closest('#bTitleUpdate')) {
       Sound.tap();
-      if (appUpd.hasUpdate) { execAppUpdateNow(); return; }
-      const bt = $('#bTitleUpdate');
-      if (bt) { bt.disabled = true; bt.textContent = '確認中…'; }
-      const found = await checkAppUpdate(true);
-      if (found) { execAppUpdateNow(); return; }
-      renderUpdateBox();
-      runAppUpdate();
+      execAppUpdateNow();
     }
   });
 }
