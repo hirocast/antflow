@@ -140,11 +140,18 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .hud-fb b{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#ff5c93;color:#fff;font-size:10px;line-height:1}
 .quick-fb{position:fixed;top:max(4px,calc(env(safe-area-inset-top,0px) - 8px));right:8px;z-index:25;border:2px solid #fff;border-radius:999px;padding:4px 10px 4px 6px;background:linear-gradient(#fff7fa,#ffdbe9);color:#b83060;font:900 11px/1 var(--rf);box-shadow:0 3px 0 rgba(90,61,92,.22),0 4px 10px rgba(90,61,92,.14);cursor:pointer;display:none;align-items:center;gap:4px;white-space:nowrap}
 .quick-fb.on{display:inline-flex}
-.quick-fb:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(90,61,92,.22)}
+.quick-fb:active,.quick-back:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(90,61,92,.22)}
 .quick-fb b{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#ff5c93;color:#fff;font-size:11px;line-height:1}
 .quick-fb .qdot{width:7px;height:7px;border-radius:50%;background:#ffb800;border:1.5px solid #fff;display:none;margin-left:-1px}
 .quick-fb.gift .qdot,.hud-fb.gift .qdot{display:inline-block}
 .hud-fb .qdot{width:6px;height:6px;border-radius:50%;background:#ffb800;border:1px solid #fff;display:none}
+.quick-back{position:fixed;top:max(4px,calc(env(safe-area-inset-top,0px) - 8px));left:8px;z-index:25;border:2px solid #fff;border-radius:999px;padding:5px 11px 5px 9px;background:linear-gradient(#fffdf8,#fff1d6);color:var(--ink);font:900 11px/1 var(--rf);box-shadow:0 3px 0 rgba(90,61,92,.22),0 4px 10px rgba(90,61,92,.14);cursor:pointer;display:none;align-items:center;gap:3px;white-space:nowrap}
+.quick-back.on{display:inline-flex}
+@media (max-width:600px){
+ #bQClose,#bMisClose,#bBingoClose,#bSkClose,#bHelpClose,#bAlbumClose,#bViewBack,#bDevClose,#bMkClose,#bGalClose,#bgmCloseBtn,#bBgmGalClose,#bStBgmBack,#bBgmBuiltinBack,#bCtClose,#bA2hsClose,#bTrClose,#ov-settings .set-foot{position:sticky;bottom:0;z-index:6;box-shadow:0 4px 0 #e1c48e,0 0 0 8px #fffdf8}
+ #ov-settings .set-foot{background:#fffdf8;box-shadow:0 -6px 12px #fffdf8;padding-top:6px;margin-top:10px}
+ #ov-settings .set-foot .big{margin-top:0}
+}
 .fb-ctx{margin:2px 0 6px;padding:6px 9px;background:#eef9ff;border:1.5px solid #bde3fa;border-radius:11px;text-align:left;font-size:10.5px;font-weight:800;line-height:1.45;color:#1b5b82}
 .mk-fb-cta{width:100%;margin-top:8px;padding:9px 10px;border:2px solid #ffc95e;border-radius:15px;background:linear-gradient(135deg,#fff9dc,#ffeaf3);color:#8a3a58;font:900 12.5px/1.3 var(--rf);cursor:pointer;box-shadow:0 3px 0 #eab962;text-align:center}
 .mk-fb-cta:active{transform:translateY(2px);box-shadow:0 1px 0 #eab962}
@@ -492,7 +499,12 @@ function handleTalkLikeClick(e) {
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
   cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><div class="cfrow"><button class="big sec" id="bClearShare">📣 シェアする</button><button class="big sec" id="bClearHome">🏠 ホームへ</button></div><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
-  $('#ov-settings h2').insertAdjacentHTML('afterend', '<button class="big sec" id="bSetHome" style="margin-bottom:8px">🏠 ホームへもどる（女王さま・ミッション・きせかえ）</button>');
+  if ($('#bSetClose')) {
+    const sf = document.createElement('div'); sf.className = 'cfrow set-foot';
+    $('#bSetClose').parentNode.insertBefore(sf, $('#bSetClose'));
+    const hb = document.createElement('button'); hb.className = 'big sec'; hb.id = 'bSetHome'; hb.textContent = '🏠 ホームへ';
+    sf.appendChild(hb); sf.appendChild($('#bSetClose'));
+  }
   const setSfxRow = $('#ov-settings input[data-k="sfx"]')?.closest('.row');
   if (setSfxRow) setSfxRow.insertAdjacentHTML('beforebegin', '<h3>🔊 サウンド・振動</h3>');
   const setTalkRow = $('#ov-settings input[data-k="talk"]')?.closest('.row');
@@ -1138,10 +1150,16 @@ function pushCrumb(tag) {
 }
 function syncQuickFbVis() {
   const b = $('#bQuickFb');
-  if (!b) return;
   const ov = G.overlay;
-  const hide = !ov || ov === 'title' || ov === 'feedback' || ov === 'confirm' || ov === 'load' || ov === 'daily';
-  b.classList.toggle('on', !hide);
+  if (b) {
+    const hideFb = !ov || ov === 'title' || ov === 'feedback' || ov === 'confirm' || ov === 'load' || ov === 'daily';
+    b.classList.toggle('on', !hideFb);
+  }
+  const bk = $('#bQuickBack');
+  if (bk) {
+    const hideBk = !ov || ov === 'title' || ov === 'load' || ov === 'confirm' || ov === 'daily' || ov === 'award' || ov === 'jam';
+    bk.classList.toggle('on', !hideBk);
+  }
 }
 function showOv(name) {
   G.overlay = name;
@@ -3513,6 +3531,30 @@ layout();
   qfb.setAttribute('aria-label', '要望・不具合報告');
   qfb.innerHTML = '<b>!</b><span>要望・不具合</span><i class="qdot"></i>';
   document.body.appendChild(qfb);
+
+  const qbk = document.createElement('button');
+  qbk.type = 'button';
+  qbk.className = 'quick-back';
+  qbk.id = 'bQuickBack';
+  qbk.setAttribute('aria-label', 'もどる');
+  qbk.textContent = '◀ もどる';
+  const BACK_MAP = {
+    settings: '#bSetClose', album: '#bAlbumClose', view: '#bViewBack',
+    colony: '#bQClose', missions: '#bMisClose', bingo: '#bBingoClose',
+    skins: '#bSkClose', maker: '#bMkClose', gallery: '#bGalClose',
+    bgm: '#bgmCloseBtn', 'bgm-gal': '#bBgmGalClose', 'stage-bgm': '#bStBgmBack',
+    'bgm-builtin': '#bBgmBuiltinBack', inbox: '#bInboxClose', clear: '#bClearHome',
+    help: '#bHelpClose', dev: '#bDevClose', feedback: '#bFbClose',
+    contest: '#bCtClose', a2hs: '#bA2hsClose', transfer: '#bTrClose',
+    posthelp: '#bPostBack', 'bgm-posthelp': '#bBgmPostBack', stageerr: '#bStImpClose'
+  };
+  qbk.addEventListener('click', () => {
+    const sel = BACK_MAP[G.overlay];
+    const btn = sel ? $(sel) : null;
+    if (btn) btn.click();
+    else { Sound.tap(); showOv('title'); }
+  });
+  document.body.appendChild(qbk);
 
   const ov = document.createElement('div');
   ov.className = 'ov';
