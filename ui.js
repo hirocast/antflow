@@ -1578,6 +1578,12 @@ function updateClearQueenBtn() {
 function renderTitle() {
   const el = $('#titleInfo');
   if (!el) return;
+  const playBtn = $('#bPlay');
+  if (playBtn) {
+    const willLoadNext = G.clearShown || !G.level || (G.run && G.run.done);
+    if (willLoadNext) playBtn.textContent = 'あそぶ（Lv.' + posOf(save.level) + '）';
+    else if (!G.level.custom) playBtn.textContent = 'あそぶ（Lv.' + posOf(G.levelId) + '）';
+  }
   misCheck();
   const qs = queenStatus(), ts = totalStars(), got = gotCount(), lv = save.qlv, maxQ = lv >= Q_MAX, bg = bingoSummary();
   const talkCur = seenTalkSet.size, talkTot = BINGO_IDX.totalTalk;
@@ -1914,7 +1920,16 @@ function toast(msg, ms) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), ms || 2200);
 }
-function startPlay() { if (G.loading) showOv('load'); else { hideOv(); updateTip(); } }
+function startPlay() {
+  if (G.loading) { showOv('load'); return; }
+  if (G.clearShown || !G.level || (G.run && G.run.done)) {
+    G.reveal = null; G.clearTok++;
+    hideOv();
+    loadLevel(save.level);
+    return;
+  }
+  hideOv(); updateTip();
+}
 function findSolvableUndo() {
   const n = G.undo.length, sol = G.level.solution;
   if (!n) return -1;
