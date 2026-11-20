@@ -95,6 +95,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .fb-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px;font-size:11px;line-height:1.45}
 .fb-hitem b{color:#c0507a;font-size:10.5px;display:block;margin-bottom:2px}
 #ov-feedback .card{display:flex;flex-direction:column;overflow:hidden;padding:14px 12px 12px}
+@media (max-width:600px){#ov-feedback{padding:0!important;background:#fffdf8}#ov-feedback .card{width:100vw;max-width:100vw;height:100%;max-height:100%;border:none;border-radius:0;box-shadow:none;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px calc(env(safe-area-inset-bottom,0px) + 14px)}}
 .fb-body{flex:1 1 auto;min-height:0;overflow-y:auto;touch-action:pan-y;padding:0 2px}
 .fb-foot{flex:0 0 auto;margin-top:6px;padding-top:6px;border-top:2px dashed #ffd3e2}
 .fb-scroll-hint{font-size:10px;font-weight:800;color:#b8406e;margin-bottom:5px;opacity:.85}
