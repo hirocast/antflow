@@ -1259,7 +1259,7 @@
       '.mkref-url input{flex:1;min-width:0;border:1.5px solid #f0c6d6;border-radius:10px;padding:6px 8px;font:700 11px var(--rf);color:var(--ink);background:#fff}' +
       '.mkref-url button{flex:0 0 auto;border:2px solid #fff;border-radius:10px;padding:4px 12px;background:linear-gradient(#ff9fc0,#ff6f9f);color:#fff;font:900 11px var(--rf);cursor:pointer;box-shadow:0 2px 0 #d4507c}' +
       '.mkpal{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:6px 0}' +
-      '.mksw{width:30px;height:30px;border-radius:9px;border:2px solid #fff;box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;padding:0;font-size:14px;line-height:26px;background:#fff}' +
+      '.mksw{width:30px;height:30px;border-radius:9px;border:2px solid #fff;box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;padding:0;font-size:14px;line-height:26px;background:#fff;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}' +
       '.mksw.on{outline:3px solid #5a3d5c;transform:scale(1.12)}' +
       '.mktools{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:5px 0;align-items:center}' +
       '.mktools button{border:2px solid #fff;border-radius:12px;padding:6px 10px;min-height:32px;background:#fff;box-shadow:0 2px 0 #e5c6d3;font:800 11.5px var(--rf);color:var(--ink);cursor:pointer}' +
@@ -1558,7 +1558,7 @@
       '<button id="mkHeart">❤️ ハート</button>' +
       '<button id="mkCat">🐱 ネコ</button>' +
       '<button id="mkFlower">🌸 おはな</button>' +
-      '<button id="mkClear">🗑️ けす</button>' +
+      '<button id="mkClear">🗑️ ぜんぶ消す</button>' +
       '</div>' +
       '<div class="mkpal" id="mkPal"></div>' +
       '<div class="mkbgm">' +
@@ -1703,9 +1703,35 @@
       '</div>';
     document.body.appendChild(iov);
 
+    const clov = document.createElement('div');
+    clov.className = 'ov';
+    clov.id = 'ov-mk-clear';
+    clov.innerHTML =
+      '<div class="card">' +
+      '<h2>🗑️ ぜんぶ消す？</h2>' +
+      '<p class="mkref-desc" style="text-align:center">' +
+      'いま描いているキャンバスの絵を<b>すべて消します</b>。<br>' +
+      '<small style="color:#8a6578">（※ 消したあとも「↶ もどす」で戻せます）</small>' +
+      '</p>' +
+      '<div class="cfrow">' +
+      '<button class="big" id="bMkClearOk" style="background:linear-gradient(#ff8a9f,#e84a6f);box-shadow:0 3px 0 #b82d4f">🗑️ ぜんぶ消す</button>' +
+      '<button class="big sec" id="bMkClearCancel">やめる</button>' +
+      '</div>' +
+      '</div>';
+    document.body.appendChild(clov);
+
     const pal = $('#mkPal');
     const er = document.createElement('button');
-    er.className = 'mksw'; er.textContent = '🧹'; er.title = 'けしゴム';
+    er.className = 'mksw';
+    er.title = 'けしゴム（1マスずつ消す）';
+    er.setAttribute('aria-label', 'けしゴム');
+    er.innerHTML =
+      '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">' +
+      '<path d="M15.5 3.5L20.5 8.5L10.5 18.5H5.5L3.5 16.5L15.5 3.5Z" fill="#ffd1dc" stroke="#5a3d5c" stroke-width="1.6" stroke-linejoin="round"/>' +
+      '<path d="M11 8L16 13" stroke="#5a3d5c" stroke-width="1.5"/>' +
+      '<path d="M5.5 18.5L3.5 16.5L7.5 12.5L11.5 16.5L9.5 18.5H5.5Z" fill="#fff" stroke="#5a3d5c" stroke-width="1.4" stroke-linejoin="round"/>' +
+      '<line x1="12" y1="19.5" x2="20" y2="19.5" stroke="#5a3d5c" stroke-width="1.6" stroke-linecap="round"/>' +
+      '</svg>';
     er.addEventListener('click', () => { Sound.tap(); mkCol = -1; refreshPal(); });
     pal.appendChild(er);
     HEX.forEach((hex, idx) => {
@@ -2187,7 +2213,25 @@
     $('#mkHeart').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('heart'); });
     $('#mkCat').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('cat'); });
     $('#mkFlower').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); applyTemplate('flower'); });
-    $('#mkClear').addEventListener('click', () => { Sound.tap(); commitSel(); pushMkUndo(); mkGrid.fill(-1); drawMaker(); });
+    $('#mkClear').addEventListener('click', () => {
+      Sound.tap();
+      let hasAny = !!mkSel;
+      if (!hasAny) {
+        for (let i = 0; i < mkGrid.length; i++) { if (mkGrid[i] >= 0) { hasAny = true; break; } }
+      }
+      if (!hasAny) { toast('すでに全部消えているよ'); return; }
+      showOv('mk-clear');
+    });
+    $('#bMkClearOk').addEventListener('click', () => {
+      Sound.tap();
+      commitSel();
+      pushMkUndo();
+      mkGrid.fill(-1);
+      drawMaker();
+      showOv('maker');
+      toast('🗑️ キャンバスをぜんぶ消したよ');
+    });
+    $('#bMkClearCancel').addEventListener('click', () => { Sound.tap(); showOv('maker'); });
 
     const talkIds = [['hi', '#mkTalkHi'], ['p', '#mkTalkP'], ['c', '#mkTalkC'], ['j', '#mkTalkJ'], ['q', '#mkTalkQ']];
     function readTalkFromUI() {
