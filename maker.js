@@ -1204,6 +1204,12 @@
       '#ov-maker .card{width:min(97vw,560px);padding:10px 10px 14px}' +
       '#ov-maker .card>h2{display:none}' +
       '#ov-gallery .card{padding:12px 14px}' +
+      '#ov-gallery .card>h2{display:none}' +
+      '.galtabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:2px 0 8px}' +
+      '.galtab{border:2px solid #ffd3e2;border-radius:12px;padding:7px 6px;background:#fff;font:900 12px var(--rf);color:#8c546e;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
+      '.galtab.on{background:#ffe0ed;border-color:#ff8fb3;color:#c03060}' +
+      '.galpane{display:none}' +
+      '.galpane.on{display:block}' +
       '.mktop{display:flex;gap:6px;justify-content:center;margin:4px 0 6px}' +
       '.mktop button{border:2px solid #ffd3e2;border-radius:14px;padding:7px 12px;min-height:34px;background:#fff4f8;font:900 12px var(--rf);color:#c0507a;cursor:pointer;box-shadow:0 2px 0 #f0c6d6}' +
       '.mktop button:active{transform:translateY(2px);box-shadow:none}' +
@@ -1238,20 +1244,20 @@
       '.mktalk-row input{flex:1;min-width:0;border:1.5px solid #f0c6d6;border-radius:10px;padding:5px 8px;font:700 11px var(--rf);color:var(--ink);background:#fff}' +
       '.mktalk-act{display:flex;gap:6px;margin-top:6px}' +
       '.mktalk-act button{flex:1;border:2px solid #fff;border-radius:10px;padding:5px;font:800 11px var(--rf);cursor:pointer;background:#ffeef4;color:#c0507a;box-shadow:0 2px 0 #e6bfd0}' +
-      '.galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:190px;overflow:auto;padding:4px 2px}' +
-      '.galcard{position:relative;border:2px solid #fff;border-radius:14px;padding:6px 4px;background:#fff;box-shadow:0 3px 0 #f0c6d6;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-family:var(--rf);color:var(--ink)}' +
+      '.galgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:4px 2px 8px}' +
+      '.galcard{position:relative;border:2px solid #fff;border-radius:14px;padding:8px 6px;background:#fff;box-shadow:0 3px 0 #f0c6d6;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-family:var(--rf);color:var(--ink)}' +
       '.galcard canvas{border-radius:8px}' +
-      '.galcard b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}' +
-      '.galcard small{font-size:9px;color:#9a7b8c}' +
+      '.galcard b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}' +
+      '.galcard small{font-size:10px;color:#9a7b8c}' +
       '.galrep{position:absolute;top:2px;right:3px;font-size:12px;line-height:1;padding:3px;border-radius:8px;opacity:.75}' +
       '.galrep:hover{opacity:1;background:#ffe0ed}' +
-      '.galshare{margin-top:2px;padding:3px 8px;border-radius:10px;background:#e6f9f1;border:1.5px solid #9ee6c7;color:#1b7a53;font:800 10px var(--rf);line-height:1.2}' +
+      '.galshare{margin-top:2px;padding:4px 9px;border-radius:10px;background:#e6f9f1;border:1.5px solid #9ee6c7;color:#1b7a53;font:800 10.5px var(--rf);line-height:1.2}' +
       '.galshare:hover{background:#cff3e4}' +
-      '.galacts{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;margin-top:2px}' +
-      '.galarr{padding:3px 7px;border-radius:10px;background:#fff1d6;border:1.5px solid #f0d39a;color:#8a5a00;font:800 10px var(--rf);line-height:1.2}' +
+      '.galacts{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:2px}' +
+      '.galarr{padding:4px 8px;border-radius:10px;background:#fff1d6;border:1.5px solid #f0d39a;color:#8a5a00;font:800 10.5px var(--rf);line-height:1.2}' +
       '.galarr:hover{background:#ffe5b4}' +
-      '.galstats{display:flex;flex-direction:column;gap:1px;width:100%;font-size:8.5px;font-weight:800;line-height:1.25;color:#7a5368;background:#fff7fb;border-radius:7px;padding:3px 4px;box-sizing:border-box}' +
-      '.gallike{padding:3px 7px;border-radius:10px;background:#fff0f5;border:1.5px solid #ffb8d0;color:#c03060;font:800 10px var(--rf);line-height:1.2;cursor:pointer}' +
+      '.galstats{display:flex;flex-direction:column;gap:1px;width:100%;font-size:9.5px;font-weight:800;line-height:1.3;color:#7a5368;background:#fff7fb;border-radius:7px;padding:4px 5px;box-sizing:border-box}' +
+      '.gallike{padding:4px 8px;border-radius:10px;background:#fff0f5;border:1.5px solid #ffb8d0;color:#c03060;font:800 10.5px var(--rf);line-height:1.2;cursor:pointer}' +
       '.gallike.on{background:#ff6f9f;border-color:#ff4d88;color:#fff}' +
       '.galsort{display:flex;justify-content:center;gap:5px;margin:2px 0 6px}' +
       '.galsort-btn{border:2px solid #fff;border-radius:10px;padding:4px 9px;background:#ffeef4;color:#8c546e;font:900 10.5px var(--rf);cursor:pointer;box-shadow:0 2px 0 #e6bfd0}' +
@@ -1580,15 +1586,21 @@
       '<div class="card">' +
       '<div class="mktabs"><button type="button" class="mktab on">🎨 ステージ作品</button><button type="button" class="mktab" id="bGalToBgm">🎵 BGM作品</button></div>' +
       '<h2>💾 マイ作品・みんなの絵</h2>' +
-      '<h3>💾 マイ作品</h3>' +
-      '<div class="galgrid" id="galMine"></div>' +
-      '<h3>📮 みんなの絵（投稿作品）</h3>' +
+      '<div class="galtabs">' +
+      '<button type="button" class="galtab on" data-gal="pub">📮 みんなの絵</button>' +
+      '<button type="button" class="galtab" data-gal="mine">💾 マイ作品</button>' +
+      '</div>' +
+      '<div class="galpane on" id="galPanePub">' +
       '<div class="galsort">' +
       '<button type="button" class="galsort-btn on" data-sort="new">🆕 新着順</button>' +
       '<button type="button" class="galsort-btn" data-sort="pop">🔥 人気順</button>' +
       '<button type="button" class="galsort-btn" data-sort="like">❤️ いいね順</button>' +
       '</div>' +
       '<div class="galgrid" id="galPub"></div>' +
+      '</div>' +
+      '<div class="galpane" id="galPaneMine">' +
+      '<div class="galgrid" id="galMine"></div>' +
+      '</div>' +
       '<button class="big" id="bGalBack">🎨 つくるにもどる</button>' +
       '<button class="big sec" id="bGalImport">📥 URL・メッセージから読み込む</button>' +
       '<button type="button" class="mk-fb-cta" id="bGalFeedback">💬「つくる・シェア」の要望・不具合を送る<span class="fb-gift-tag">🎁お礼増量中</span></button>' +
@@ -2413,6 +2425,13 @@
     $('#bMkCloseTop').addEventListener('click', () => { Sound.tap(); showOv('title'); });
     if ($('#bMkFeedback')) $('#bMkFeedback').addEventListener('click', () => { Sound.tap(); if (window.AF_openFeedback) window.AF_openFeedback('maker', { defaultCat: 'maker' }); });
     $('#bGalToBgm').addEventListener('click', () => { Sound.tap(); if (window.AF_openBgmGallery) window.AF_openBgmGallery(); });
+    gov.querySelectorAll('.galtab').forEach(btn => btn.addEventListener('click', () => {
+      Sound.tap();
+      const target = btn.dataset.gal;
+      gov.querySelectorAll('.galtab').forEach(b => b.classList.toggle('on', b === btn));
+      $('#galPanePub').classList.toggle('on', target === 'pub');
+      $('#galPaneMine').classList.toggle('on', target === 'mine');
+    }));
     $('#bGalBack').addEventListener('click', () => { Sound.tap(); openMaker(); });
     if ($('#bGalFeedback')) $('#bGalFeedback').addEventListener('click', () => { Sound.tap(); if (window.AF_openFeedback) window.AF_openFeedback('gallery', { defaultCat: 'maker' }); });
     $('#bGalImport').addEventListener('click', () => {

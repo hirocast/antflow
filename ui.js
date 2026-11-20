@@ -471,7 +471,7 @@ function handleTalkLikeClick(e) {
   const cr = document.createElement('div'); cr.className = 'cfrow';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
-  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><button class="big sec" id="bClearShare">📣 クリアをシェアする</button><button class="big sec" id="bClearHome">🏠 ホームへもどる</button><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
+  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><div class="cfrow"><button class="big sec" id="bClearShare">📣 シェアする</button><button class="big sec" id="bClearHome">🏠 ホームへ</button></div><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
   $('#ov-settings h2').insertAdjacentHTML('afterend', '<button class="big sec" id="bSetHome" style="margin-bottom:8px">🏠 ホームへもどる（女王さま・ミッション・きせかえ）</button>');
   const setSfxRow = $('#ov-settings input[data-k="sfx"]')?.closest('.row');
   if (setSfxRow) setSfxRow.insertAdjacentHTML('beforebegin', '<h3>🔊 サウンド・振動</h3>');
