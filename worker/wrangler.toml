@@ -4,3 +4,7 @@ compatibility_date = "2024-11-01"
 
 [vars]
 ALLOWED_ORIGINS = "https://hirocast.github.io"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "6fe4ca85191b4d76b366275592432c98"

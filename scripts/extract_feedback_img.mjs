@@ -5,13 +5,15 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
-let repo = process.env.AF_FEEDBACK_REPO || 'hirocast/antflow';
+let repo = process.env.AF_FEEDBACK_REPO || 'hirocast/antflow-feedback';
 const positional = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--repo' && args[i + 1]) {
     repo = args[++i];
   } else if (args[i] === '--private') {
     repo = 'hirocast/antflow-feedback';
+  } else if (args[i] === '--public') {
+    repo = 'hirocast/antflow';
   } else {
     positional.push(args[i]);
   }
