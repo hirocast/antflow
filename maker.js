@@ -82,7 +82,7 @@
   };
   const POST_COOLDOWN_MS = 60 * 1000; // 連続投稿制限（60秒）
   const REPO_URL = 'https://github.com/hirocast/antflow';
-  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
+  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=100';
   const CLAIMED_KEY = 'antflow-contest-claimed-v1';
   const INBOX_KEY = 'antflow-inbox-v1';
   const CONTEST = {

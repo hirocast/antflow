@@ -311,6 +311,79 @@ async function handleStageStatPost(request, env, cors) {
   return jsonRes({ ok: true, stat: cur }, 200, cors);
 }
 
+const FEEDBACK_CATS = {
+  idea: '💡 新機能アイデア',
+  stage: '🎨 ステージ・曲の希望',
+  bug: '🐛 不具合・重い報告',
+  other: '💌 感想・応援'
+};
+
+async function handleFeedback(request, env, cors) {
+  let body;
+  try { body = await request.json(); } catch { return jsonRes({ ok: false, error: 'Invalid JSON' }, 400, cors); }
+
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const catKey = FEEDBACK_CATS[body.category] ? body.category : 'idea';
+  const catLabel = FEEDBACK_CATS[catKey];
+  const message = String(body.message || '').trim().replace(/\r\n/g, '\n').slice(0, 500);
+  if (message.length < 2) {
+    return jsonRes({ ok: false, error: '内容を入力してね（2文字以上）' }, 400, cors);
+  }
+  if (hasNgWord(message)) {
+    return jsonRes({ ok: false, error: '使えない言葉やURL・メールアドレスが入っています' }, 400, cors);
+  }
+
+  let nick = String(body.nick || '').trim().replace(/[\r\n]/g, '').slice(0, 16);
+  if (!nick || nick === '名無しのありんこ' || nick === '名無し') {
+    nick = await makeAnonName(ip, body.clientId);
+  } else if (hasNgWord(nick)) {
+    return jsonRes({ ok: false, error: 'ニックネームに使えない言葉やURLが入っています' }, 400, cors);
+  }
+
+  const cache = caches.default;
+  const fbKey = new Request('https://antflow-rl.internal/fb/' + encodeURIComponent(ip));
+  if (await cache.match(fbKey)) {
+    return jsonRes({ ok: false, error: '連続送信制限：少し待ってから送ってね（60秒）' }, 429, cors);
+  }
+
+  const appVer = String(body.version || '').trim().replace(/[\r\n]/g, '').slice(0, 24) || 'unknown';
+  const device = String(body.device || '').trim().replace(/[\r\n]/g, '').slice(0, 80) || 'unknown';
+  const progress = String(body.progress || '').trim().replace(/[\r\n]/g, '').slice(0, 60) || '-';
+
+  const firstLine = message.split('\n')[0].trim().slice(0, 32);
+  const title = `[要望][${catLabel.replace(/^[^\s]+\s*/, '')}] ${firstLine}${message.length > 32 ? '…' : ''}`;
+  const issueBody =
+    '### 💌 ユーザーからの要望・ご意見\n' +
+    `- カテゴリ: ${catLabel}\n` +
+    `- 投稿者: ${nick}\n` +
+    `- アプリ版: ${appVer}\n` +
+    `- 進行度: ${progress}\n` +
+    `- 端末情報: ${device}\n\n` +
+    '#### 内容\n' +
+    message + '\n';
+
+  const labels = catKey === 'bug' ? ['feedback', 'bug'] : ['feedback'];
+  const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'antflow-post-worker',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ title, labels, body: issueBody })
+  });
+
+  if (!ghRes.ok) {
+    const errText = await ghRes.text();
+    return jsonRes({ ok: false, error: '送信に失敗しました (' + ghRes.status + ')', detail: errText.slice(0, 200) }, 502, cors);
+  }
+
+  const created = await ghRes.json();
+  await cache.put(fbKey, new Response('1', { headers: { 'Cache-Control': 'public, max-age=' + RATE_LIMIT_SEC } }));
+  return jsonRes({ ok: true, number: created.number, author: nick }, 201, cors);
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -335,6 +408,9 @@ export default {
     }
     if (request.method === 'POST' && url.pathname === '/like-talk') {
       return handleTalkLike(request, env, cors);
+    }
+    if (request.method === 'POST' && url.pathname === '/feedback') {
+      return handleFeedback(request, env, cors);
     }
 
     if (request.method !== 'POST' || (url.pathname !== '/post' && url.pathname !== '/')) {

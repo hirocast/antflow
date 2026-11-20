@@ -83,6 +83,16 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .upd-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px}
 .upd-hitem b{font-size:11px;color:#c0507a;display:block;margin-bottom:2px}
 .upd-ok{border:none;border-radius:9px;padding:2px 8px;background:#ffd8e6;color:#a02854;font:900 10px var(--rf);cursor:pointer;margin-left:6px}
+.fb-cats{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:8px 0}
+.fb-cat{border:2px solid #ffd3e2;border-radius:12px;padding:7px 6px;background:#fff;color:var(--ink);font:800 11.5px var(--rf);cursor:pointer;box-shadow:0 2px 0 #f2c8d8}
+.fb-cat.on{background:linear-gradient(#ff9fbf,#ff6f9e);color:#fff;border-color:#fff;box-shadow:0 2px 0 #d64575}
+.fb-ta,.fb-in{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:14px;padding:9px 11px;font:700 13px/1.5 var(--rf);color:var(--ink);background:#fff;user-select:text;-webkit-user-select:text;touch-action:auto}
+.fb-ta{min-height:110px;resize:vertical}
+.fb-in{margin-top:6px}
+.fb-cnt{text-align:right;font-size:10.5px;color:#9a7a8a;font-weight:700;margin:2px 2px 4px}
+.fb-hist{margin-top:10px;padding-top:8px;border-top:2px dotted #ffd3e2;text-align:left}
+.fb-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px;font-size:11px;line-height:1.45}
+.fb-hitem b{color:#c0507a;font-size:10.5px;display:block;margin-bottom:2px}
 .tinfo span,.tinfo-btn{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
 .tinfo-btn{border:none;font-family:var(--rf);color:var(--ink);cursor:pointer}
 .tinfo-btn:active{transform:translateY(2px);box-shadow:none}
@@ -418,11 +428,11 @@ function handleTalkLikeClick(e) {
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
   cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><button class="big sec" id="bClearShare">📣 クリアをシェアする</button><button class="big sec" id="bClearHome">🏠 ホームへもどる</button><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
   $('#ov-settings h2').insertAdjacentHTML('afterend', '<button class="big sec" id="bSetHome" style="margin-bottom:8px">🏠 ホームへもどる（女王さま・ミッション・きせかえ）</button>');
-  $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button><button class="big sec" id="bSetA2hs">📲 ホーム画面に追加（アプリ化）</button>');
+  $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button><button class="big sec" id="bSetFeedback">💬 要望・不具合を送る</button><button class="big sec" id="bSetA2hs">📲 ホーム画面に追加（アプリ化）</button>');
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
   const titleFine = $('#ov-title .fine');
-  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
+  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big sec" id="bTitleFeedback" style="margin-top:8px">💬 要望・アイデアを送る</button><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
   // あそびかた：ページめくり式に作りかえる
   $('#ov-help .help').innerHTML =
     '<div class="hpic" id="hPic"><canvas id="hCv"></canvas><b class="hnum" id="hNum"></b></div>' +
@@ -3252,6 +3262,131 @@ layout();
     refreshA2hsBtns();
     if (res && res.outcome === 'accepted') { toast('ホーム画面に追加したよ！'); hideOv(); }
     else renderA2hsBody();
+  });
+})();
+
+/* ================= ユーザー要望・ご意見ポスト ================= */
+(function initFeedback() {
+  const FB_API = (window.AF_FEEDBACK_API || 'https://antflow.hiroshi-artcast.workers.dev/feedback').trim();
+  const FB_SENT_KEY = 'antflow-fb-sent-v1';
+  const FB_NICK_KEY = 'antflow-fb-nick-v1';
+  const CATS = [
+    ['idea', '💡 新機能アイデア'],
+    ['stage', '🎨 ステージ・曲の希望'],
+    ['bug', '🐛 不具合・重い報告'],
+    ['other', '💌 感想・応援']
+  ];
+  let selCat = 'idea', prevOv = 'title', sending = false;
+
+  const ov = document.createElement('div');
+  ov.className = 'ov';
+  ov.id = 'ov-feedback';
+  ov.innerHTML =
+    '<div class="card">' +
+    '<h2 style="font-size:18px;padding:6px 18px">💬 要望・ご意見ポスト</h2>' +
+    '<p class="fine" style="margin:2px 0 6px;line-height:1.5">アントフローはみんなの声でどんどん進化するよ！<br>ほしい機能・遊びたい絵・使いにくい所など気軽に送ってね✨</p>' +
+    '<div class="fb-cats" id="fbCats">' +
+    CATS.map(([k, lbl], i) => '<button type="button" class="fb-cat' + (i === 0 ? ' on' : '') + '" data-cat="' + k + '">' + lbl + '</button>').join('') +
+    '</div>' +
+    '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="例：〇〇のステージを作ってほしい！／ここが押しにくい／こんな新機能があったら楽しそう！"></textarea>' +
+    '<div class="fb-cnt"><span id="fbCnt">0</span> / 500</div>' +
+    '<input id="fbNick" class="fb-in" type="text" maxlength="16" placeholder="ニックネーム（空欄でもOK）">' +
+    '<p class="fine" style="font-size:10.5px;margin:5px 0 2px">※ アカウント不要・そのまま送れます（本名・連絡先などの個人情報は書かないでね）</p>' +
+    '<button class="big" id="bFbSend">📮 送る！</button>' +
+    '<button class="big sec" id="bFbClose">とじる</button>' +
+    '<div class="fb-hist" id="fbHist" style="display:none"></div>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  function loadSent() {
+    try { const a = JSON.parse(localStorage.getItem(FB_SENT_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  }
+  function saveSent(item) {
+    const a = loadSent();
+    a.unshift(item);
+    try { localStorage.setItem(FB_SENT_KEY, JSON.stringify(a.slice(0, 5))); } catch (e) {}
+  }
+  function renderHist() {
+    const el = $('#fbHist'), list = loadSent();
+    if (!el) return;
+    if (!list.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<div class="upd-hl">📝 あなたが送った要望（最近の5件）</div>' + list.map(x => {
+      const cat = (CATS.find(c => c[0] === x.cat) || CATS[0])[1];
+      const dt = x.at ? new Date(x.at).toLocaleDateString('ja-JP') : '';
+      return '<div class="fb-hitem"><b>' + escUpd(cat) + (dt ? ' · ' + escUpd(dt) : '') + '</b>' + escUpd(x.msg) + '</div>';
+    }).join('');
+  }
+  function detectDevice() {
+    const ua = navigator.userAgent || '';
+    const os = /Android/i.test(ua) ? 'Android' : /iPhone|iPad|iPod/i.test(ua) ? 'iOS' : 'PC';
+    const inApp = /Line\/|LIFF|Instagram|FBAN|FBAV|Twitter|MicroMessenger|GSA\//i.test(ua) ? ' (アプリ内)' : '';
+    return os + inApp + ' / ' + innerWidth + 'x' + innerHeight + ' (DPR ' + (window.devicePixelRatio || 1).toFixed(1) + ')';
+  }
+  function openFeedback(from) {
+    prevOv = from || G.overlay || 'title';
+    const ni = $('#fbNick');
+    if (ni && !ni.value) {
+      try { ni.value = localStorage.getItem(FB_NICK_KEY) || ''; } catch (e) {}
+    }
+    renderHist();
+    showOv('feedback');
+  }
+
+  $('#fbCats').addEventListener('click', e => {
+    const b = e.target.closest('[data-cat]');
+    if (!b) return;
+    Sound.tap();
+    selCat = b.dataset.cat;
+    $('#fbCats').querySelectorAll('.fb-cat').forEach(x => x.classList.toggle('on', x.dataset.cat === selCat));
+  });
+  $('#fbText').addEventListener('input', () => {
+    const el = $('#fbCnt');
+    if (el) el.textContent = String($('#fbText').value.length);
+  });
+  on('#bTitleFeedback', () => openFeedback('title'));
+  on('#bSetFeedback', () => openFeedback('settings'));
+  on('#bFbClose', () => { if (prevOv && prevOv !== 'feedback') showOv(prevOv); else hideOv(); });
+  on('#bFbSend', async () => {
+    if (sending) return;
+    const ta = $('#fbText'), ni = $('#fbNick'), btn = $('#bFbSend');
+    const msg = (ta ? ta.value : '').trim();
+    if (msg.length < 2) { toast('要望やアイデアを2文字以上で書いてね！'); if (ta) ta.focus(); return; }
+    const nick = (ni ? ni.value : '').trim();
+    try { if (nick) localStorage.setItem(FB_NICK_KEY, nick); } catch (e) {}
+    sending = true;
+    btn.disabled = true; btn.textContent = '📮 送信中…';
+    try {
+      const progress = 'クリア ' + gotCount() + '/' + TOTAL + '面' + (G.level && G.level.name ? '（現在:' + G.level.name + '）' : '');
+      const res = await fetch(FB_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: selCat,
+          message: msg,
+          nick,
+          version: window.AF_APP_VER || '',
+          progress,
+          device: detectDevice()
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        toast('⚠️ ' + (data.error || '送信に失敗しました。少し待って試してね'), 3400);
+        return;
+      }
+      saveSent({ cat: selCat, msg, at: Date.now() });
+      if (ta) ta.value = '';
+      if ($('#fbCnt')) $('#fbCnt').textContent = '0';
+      renderHist();
+      Sound.albumIn();
+      toast('🎉 届いたよ！読んで今後のアップデートに活かすね✨', 3800);
+    } catch (e) {
+      toast('⚠️ 通信エラー：ネット環境を確認してもう一度試してね', 3400);
+    } finally {
+      sending = false;
+      btn.disabled = false; btn.textContent = '📮 送る！';
+    }
   });
 })();
 
