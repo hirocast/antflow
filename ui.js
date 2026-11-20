@@ -434,7 +434,8 @@ function handleTalkLikeClick(e) {
   $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2>');
   const setBtn = $('#bSet');
   if (setBtn && !$('#setUpdDot')) setBtn.insertAdjacentHTML('beforeend', '<em class="dot" id="setUpdDot"></em>');
-  $('#ttl').insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div><div class="hub" id="homeHub"></div>');
+  const titleDescEnd = $('#ov-title .fine') || $('#ttl');
+  titleDescEnd.insertAdjacentHTML('afterend', '<div class="tinfo" id="titleInfo"></div><div class="hub" id="homeHub"></div>');
   $('#titleInfo').addEventListener('click', e => {
     const t = e.target.closest('button[data-hub]');
     if (!t) return;
@@ -514,8 +515,8 @@ function handleTalkLikeClick(e) {
   $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button><button class="big sec" id="bSetFeedback">💬 要望・不具合を送る</button><button class="big sec" id="bSetA2hs">📲 ホーム画面に追加（アプリ化）</button>');
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
-  const titleFine = $('#ov-title .fine');
-  if (titleFine) titleFine.insertAdjacentHTML('beforebegin', '<button class="big sec" id="bTitleFeedback" style="margin-top:8px">💬 要望・不具合を送る</button><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
+  const titleCard = $('#ov-title .card');
+  if (titleCard) titleCard.insertAdjacentHTML('beforeend', '<button class="big sec" id="bTitleFeedback" style="margin-top:8px">💬 要望・不具合を送る</button><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
   // あそびかた：ページめくり式に作りかえる
   $('#ov-help .help').innerHTML =
     '<div class="hpic" id="hPic"><canvas id="hCv"></canvas><b class="hnum" id="hNum"></b></div>' +
