@@ -148,9 +148,9 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .quick-back{position:fixed;top:max(4px,calc(env(safe-area-inset-top,0px) - 8px));left:8px;z-index:25;border:2px solid #fff;border-radius:999px;padding:5px 11px 5px 9px;background:linear-gradient(#fffdf8,#fff1d6);color:var(--ink);font:900 11px/1 var(--rf);box-shadow:0 3px 0 rgba(90,61,92,.22),0 4px 10px rgba(90,61,92,.14);cursor:pointer;display:none;align-items:center;gap:3px;white-space:nowrap}
 .quick-back.on{display:inline-flex}
 @media (max-width:600px){
- #bQClose,#bMisClose,#bBingoClose,#bSkClose,#bHelpClose,#bAlbumClose,#bViewBack,#bDevClose,#bMkClose,#bGalClose,#bgmCloseBtn,#bBgmGalClose,#bStBgmBack,#bBgmBuiltinBack,#bCtClose,#bA2hsClose,#bTrClose,#ov-settings .set-foot{position:sticky;bottom:0;z-index:6;box-shadow:0 4px 0 #e1c48e,0 0 0 8px #fffdf8}
- #ov-settings .set-foot{background:#fffdf8;box-shadow:0 -6px 12px #fffdf8;padding-top:6px;margin-top:10px}
- #ov-settings .set-foot .big{margin-top:0}
+ #bQClose,#bMisClose,#bBingoClose,#bSkClose,#bHelpClose,#bAlbumClose,#bViewBack,#bDevClose,#bMkClose,#bGalClose,#bgmCloseBtn,#bBgmGalClose,#bStBgmBack,#bBgmBuiltinBack,#bCtClose,#bA2hsClose,#bTrClose,#ov-settings .set-foot,#ov-clear .clear-foot{position:sticky;bottom:0;z-index:6;box-shadow:0 4px 0 #e1c48e,0 0 0 8px #fffdf8}
+ #ov-settings .set-foot,#ov-clear .clear-foot{background:#fffdf8;box-shadow:0 -6px 12px #fffdf8;padding-top:6px;margin-top:10px}
+ #ov-settings .set-foot .big,#ov-clear .clear-foot .big{margin-top:0}
 }
 .fb-ctx{margin:2px 0 6px;padding:6px 9px;background:#eef9ff;border:1.5px solid #bde3fa;border-radius:11px;text-align:left;font-size:10.5px;font-weight:800;line-height:1.45;color:#1b5b82}
 .mk-fb-cta{width:100%;margin-top:8px;padding:9px 10px;border:2px solid #ffc95e;border-radius:15px;background:linear-gradient(135deg,#fff9dc,#ffeaf3);color:#8a3a58;font:900 12.5px/1.3 var(--rf);cursor:pointer;box-shadow:0 3px 0 #eab962;text-align:center}
@@ -239,7 +239,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .restalk.on{display:block}
 .restalk-h{display:flex;justify-content:space-between;align-items:center;gap:6px;color:#c0507a;font-weight:900;margin-bottom:4px}
 .restalk-sub{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:10.5px;font-weight:900;color:#9a5072;margin:5px 0 3px;padding-top:4px;border-top:1.5px dashed #ffd3e2}
-.restalk-list{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px;max-height:112px;overflow:auto;touch-action:pan-y}
+.restalk-list{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px}
 .resvote{display:none;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:6px 10px;margin:5px 0;text-align:center;font-size:11px;font-weight:800;color:var(--ink)}
 .resvote.on{display:block}
 .resvote-btns{display:flex;justify-content:center;gap:6px;margin-top:4px}
@@ -495,7 +495,7 @@ function handleTalkLikeClick(e) {
   });
   $('#viewInfo').insertAdjacentHTML('afterend', '<div class="restalk" id="viewTalkBox" style="max-height:26vh;overflow:auto"></div>');
   $('#viewTalkBox').addEventListener('click', handleTalkLikeClick);
-  const cr = document.createElement('div'); cr.className = 'cfrow';
+  const cr = document.createElement('div'); cr.className = 'cfrow clear-foot';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
   cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><div class="cfrow"><button class="big sec" id="bClearShare">📣 シェアする</button><button class="big sec" id="bClearHome">🏠 ホームへ</button></div><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
