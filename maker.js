@@ -158,12 +158,19 @@
   ];
   function validateStageName(name) {
     const s = String(name || '');
-    if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|@/i.test(s)) return 'ステージ名にURLや@は使えません';
+    if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|[@＠]/i.test(s)) return 'ステージ名にURLや@は使えません';
     const norm = s.toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
     for (let i = 0; i < NG_WORDS.length; i++) {
       if (norm.indexOf(NG_WORDS[i]) >= 0) return 'ステージ名に使えない言葉が入っています';
     }
     return '';
+  }
+  function hasNgCustomTalk(talk) {
+    if (!talk || typeof talk !== 'object') return false;
+    for (const k of ['hi', 'p', 'c', 'j', 'q']) {
+      if (Array.isArray(talk[k]) && talk[k].some(s => validateStageName(s))) return true;
+    }
+    return false;
   }
   function checkPostLimit(token) {
     try {
@@ -978,13 +985,19 @@
         const id = 'gh_' + iss.number;
         if (reported.has(id) || reported.has(m[1])) continue;
         const art = await decodeCustomStage(m[1]);
-        if (!art || validateStageName(art.name)) continue;
+        if (!art || validateStageName(art.name) || hasNgCustomTalk(art.talk)) continue;
+        if (art.bgm && (validateStageName(art.bgm.name) || (Array.isArray(art.bgm.bars) && art.bgm.bars.some(b => b && b.lyric && validateStageName(b.lyric))))) continue;
         const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
-        const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿作品');
+        const rawAuthor = am ? am[1].trim().slice(0, 16) : '';
+        const ghLogin = iss.user && iss.user.login ? String(iss.user.login).slice(0, 15) : '';
+        if (rawAuthor ? validateStageName(rawAuthor) : (ghLogin && validateStageName(ghLogin))) continue;
+        const author = rawAuthor || (ghLogin ? '@' + ghLogin : '投稿作品');
         const bm = (iss.body || '').match(/^- 元作者:\s*(.+)$/m);
+        const baseAuthor = bm ? bm[1].trim().slice(0, 16) : '';
+        if (baseAuthor && validateStageName(baseAuthor.replace(/^@/, ''))) continue;
         const h = stageContentHash(art.grid, art.W, art.H);
         art.author = author;
-        art.baseAuthor = bm ? bm[1].trim().slice(0, 16) : '';
+        art.baseAuthor = baseAuthor;
         art.award = detectIssueAward(iss);
         entries.push({ art, author, id, hash: h, stat: stats[h] || null });
       }

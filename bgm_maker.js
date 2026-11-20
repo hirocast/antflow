@@ -20,7 +20,7 @@
   ];
   function validateBgmName(name) {
     const s = String(name || '');
-    if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|@/i.test(s)) return '曲名にURLや@は使えません';
+    if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|[@＠]/i.test(s)) return '曲名にURLや@は使えません';
     const norm = s.toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
     for (let i = 0; i < NG_WORDS.length; i++) {
       if (norm.indexOf(NG_WORDS[i]) >= 0) return '曲名に使えない言葉が入っています';
@@ -1240,9 +1240,13 @@
           const s = decodeBgm(m[1]);
           if (!s || validateBgmName(s.name) || s.bars.some(b => b.lyric && validateBgmName(b.lyric))) continue;
           const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
-          const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM');
+          const rawAuthor = am ? am[1].trim().slice(0, 16) : '';
+          const ghLogin = iss.user && iss.user.login ? String(iss.user.login).slice(0, 15) : '';
+          if (rawAuthor ? validateBgmName(rawAuthor) : (ghLogin && validateBgmName(ghLogin))) continue;
+          const author = rawAuthor || (ghLogin ? '@' + ghLogin : '投稿BGM');
           const bm = (iss.body || '').match(/^- 元作者:\s*(.+)$/m);
           const baseAuthor = bm ? bm[1].trim().slice(0, 16) : '';
+          if (baseAuthor && validateBgmName(baseAuthor.replace(/^@/, ''))) continue;
           const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
           const card = document.createElement('div');
           card.className = 'bgm-gcard';
@@ -1451,7 +1455,10 @@
         const s = decodeBgm(m[1]);
         if (!s || !s.allowUse || validateBgmName(s.name) || s.bars.some(b => b.lyric && validateBgmName(b.lyric))) continue;
         const am = (iss.body || '').match(/^- 作者:\s*(.+)$/m);
-        const author = am ? am[1].trim().slice(0, 16) : (iss.user && iss.user.login ? '@' + iss.user.login : '投稿BGM');
+        const rawAuthor = am ? am[1].trim().slice(0, 16) : '';
+        const ghLogin = iss.user && iss.user.login ? String(iss.user.login).slice(0, 15) : '';
+        if (rawAuthor ? validateBgmName(rawAuthor) : (ghLogin && validateBgmName(ghLogin))) continue;
+        const author = rawAuthor || (ghLogin ? '@' + ghLogin : '投稿BGM');
         const instInfo = INSTS.find(x => x.id === s.inst) || INSTS[0];
         out.push({ song: s, token: m[1], author, instLabel: instInfo.label });
       }
