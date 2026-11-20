@@ -71,7 +71,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .upd-left{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0}
 .upd-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:900;padding:2px 6px;border-radius:9px;background:#e8f8f0;color:#1f7a4d;border:1.5px solid #9fe0be;white-space:nowrap}
 .upd-bar.has-new .upd-badge{background:#ff4d6d;color:#fff;border-color:#fff}
-.upd-hist-btn{border:none;background:none;padding:2px 3px;font:800 10.5px var(--rf);color:#c0507a;cursor:pointer;white-space:nowrap}
+.upd-hist-btn{border:none;background:none;padding:5px 7px;margin:-3px 0;border-radius:9px;font:800 10.5px var(--rf);color:#c0507a;cursor:pointer;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
 .upd-btn{position:relative;border:2px solid #fff;border-radius:12px;padding:4px 8px;background:#fff1d6;color:var(--ink);font:900 10.5px var(--rf);box-shadow:0 2px 0 #e2c48c;cursor:pointer;white-space:nowrap;flex:0 0 auto;margin-left:auto}
 .upd-btn:active{transform:translateY(2px);box-shadow:none}
 .upd-btn:disabled{opacity:.6}
@@ -3206,10 +3206,26 @@ async function checkAppUpdate(force) {
 const homeUpdEl = $('#homeUpdateBox');
 if (homeUpdEl) {
   homeUpdEl.addEventListener('click', async e => {
+    const clampTitleScroll = () => {
+      const card = $('#ov-title .card');
+      if (!card) return;
+      const max = Math.max(0, card.scrollHeight - card.clientHeight);
+      if (card.scrollTop > max) card.scrollTop = max;
+    };
     const histBtn = e.target.closest('[data-upd="hist"]');
-    if (histBtn) { Sound.tap(); appUpd.openHist = !appUpd.openHist; renderUpdateBox(); return; }
+    if (histBtn) {
+      Sound.tap();
+      if (appUpd.justUpdated) {
+        appUpd.justUpdated = false;
+        try { if (window.AF_APP_VER) localStorage.setItem(SEEN_VER_KEY, window.AF_APP_VER); } catch (er) {}
+      }
+      appUpd.openHist = !appUpd.openHist;
+      renderUpdateBox();
+      clampTitleScroll();
+      return;
+    }
     const moreBtn = e.target.closest('[data-upd="more"]');
-    if (moreBtn) { Sound.tap(); appUpd.showAllHist = !appUpd.showAllHist; renderUpdateBox(); return; }
+    if (moreBtn) { Sound.tap(); appUpd.showAllHist = !appUpd.showAllHist; renderUpdateBox(); clampTitleScroll(); return; }
     const okBtn = e.target.closest('[data-upd="ok"]');
     if (okBtn) {
       Sound.tap();
