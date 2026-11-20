@@ -312,6 +312,7 @@ async function handleStageStatPost(request, env, cors) {
 }
 
 const FEEDBACK_CATS = {
+  maker: '🎨 つくる要望・不具合',
   idea: '💡 新機能アイデア',
   stage: '🎨 ステージ・曲の希望',
   bug: '🐛 不具合・重い報告',
@@ -333,7 +334,7 @@ async function handleFeedback(request, env, cors) {
   const scene = cleanLine(body.scene, 40);
 
   const message = String(body.message || '').trim().replace(/\r\n/g, '\n').slice(0, 500);
-  const canSkipMsg = catKey === 'bug' && symptoms.length > 0;
+  const canSkipMsg = (catKey === 'bug' || catKey === 'maker') && symptoms.length > 0;
   if (!canSkipMsg && message.length < 2) {
     return jsonRes({ ok: false, error: '内容を入力してね（2文字以上）' }, 400, cors);
   }
@@ -406,12 +407,13 @@ async function handleFeedback(request, env, cors) {
   const firstLine = message ? message.split('\n')[0].trim().slice(0, 32) : '';
   const symTag = symptoms.length ? symptoms[0].replace(/^[^\s]+\s*/, '').slice(0, 16) : catLabel.replace(/^[^\s]+\s*/, '');
   const titleBody = firstLine ? `${firstLine}${message.length > 32 ? '…' : ''}` : (scene ? scene.replace(/^[^\s]+\s*/, '') : '状況報告');
-  const title = `[${catKey === 'bug' ? '不具合' : '要望'}][${symTag}] ${titleBody}`;
+  const titlePrefix = catKey === 'bug' ? '不具合' : catKey === 'maker' ? 'つくる' : '要望';
+  const title = `[${titlePrefix}][${symTag}] ${titleBody}`;
 
   const issueBody =
     '### 💌 ユーザーからの要望・不具合連絡\n' +
     `- カテゴリ: ${catLabel}\n` +
-    (symptoms.length ? `- 症状: ${symptoms.join(' / ')}\n` : '') +
+    (symptoms.length ? `- 項目・症状: ${symptoms.join(' / ')}\n` : '') +
     (scene ? `- 発生場所: ${scene}\n` : '') +
     `- 投稿者: ${nick}\n` +
     `- アプリ版: ${appVer}\n` +
@@ -423,7 +425,10 @@ async function handleFeedback(request, env, cors) {
     diagSection +
     (imageData ? `\n<!-- FEEDBACK_IMG:${imageData} -->\n` : '');
 
-  const labels = catKey === 'bug' ? ['feedback', 'bug'] : ['feedback'];
+  const labels = ['feedback'];
+  const isMakerRelated = catKey === 'maker' || !!body.isMaker || /メーカー|みんなの絵|みんなのBGM/.test(scene);
+  if (isMakerRelated) labels.push('maker-feedback');
+  if (catKey === 'bug' || symptoms.some(s => s.includes('不具合'))) labels.push('bug');
   const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
     method: 'POST',
     headers: {

@@ -1453,6 +1453,7 @@
       '<button class="big sec" id="bMkPost">' + (CONTEST.active ? '📮 投稿・🏆応募' : '📮 みんなに投稿') + '</button>' +
       '<button class="big sec" id="bMkGal">🌟 みんなの絵</button>' +
       '</div>' +
+      '<button type="button" class="mk-fb-cta" id="bMkFeedback">💬「つくる」の要望・不具合を送る<span class="fb-gift-tag">🎁お礼増量中</span></button>' +
       '<button class="big sec" id="bMkClose">とじる</button>' +
       '</div>';
     document.body.appendChild(ov);
@@ -1490,6 +1491,7 @@
       '<div class="galgrid" id="galPub"></div>' +
       '<button class="big" id="bGalBack">🎨 つくるにもどる</button>' +
       '<button class="big sec" id="bGalImport">📥 URL・メッセージから読み込む</button>' +
+      '<button type="button" class="mk-fb-cta" id="bGalFeedback">💬「つくる・シェア」の要望・不具合を送る<span class="fb-gift-tag">🎁お礼増量中</span></button>' +
       '<button class="big sec" id="bGalClose">ホームへ</button>' +
       '</div>';
     document.body.appendChild(gov);
@@ -2307,8 +2309,10 @@
     $('#bMkGalTop').addEventListener('click', () => { Sound.tap(); openGallery(); });
     $('#bMkClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
     $('#bMkCloseTop').addEventListener('click', () => { Sound.tap(); showOv('title'); });
+    if ($('#bMkFeedback')) $('#bMkFeedback').addEventListener('click', () => { Sound.tap(); if (window.AF_openFeedback) window.AF_openFeedback('maker', { defaultCat: 'maker' }); });
     $('#bGalToBgm').addEventListener('click', () => { Sound.tap(); if (window.AF_openBgmGallery) window.AF_openBgmGallery(); });
     $('#bGalBack').addEventListener('click', () => { Sound.tap(); openMaker(); });
+    if ($('#bGalFeedback')) $('#bGalFeedback').addEventListener('click', () => { Sound.tap(); if (window.AF_openFeedback) window.AF_openFeedback('gallery', { defaultCat: 'maker' }); });
     $('#bGalImport').addEventListener('click', () => {
       Sound.tap();
       $('#stImpTitle').textContent = '🔗 ステージURLを読み込む';

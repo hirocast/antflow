@@ -133,6 +133,8 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .quick-fb.gift .qdot,.hud-fb.gift .qdot{display:inline-block}
 .hud-fb .qdot{width:6px;height:6px;border-radius:50%;background:#ffb800;border:1px solid #fff;display:none}
 .fb-ctx{margin:2px 0 6px;padding:6px 9px;background:#eef9ff;border:1.5px solid #bde3fa;border-radius:11px;text-align:left;font-size:10.5px;font-weight:800;line-height:1.45;color:#1b5b82}
+.mk-fb-cta{width:100%;margin-top:8px;padding:9px 10px;border:2px solid #ffc95e;border-radius:15px;background:linear-gradient(135deg,#fff9dc,#ffeaf3);color:#8a3a58;font:900 12.5px/1.3 var(--rf);cursor:pointer;box-shadow:0 3px 0 #eab962;text-align:center}
+.mk-fb-cta:active{transform:translateY(2px);box-shadow:0 1px 0 #eab962}
 .tinfo span,.tinfo-btn{background:#fff;border-radius:12px;padding:3px 10px;font-weight:900;font-size:13px;box-shadow:0 2px 0 #f0d3df}
 .tinfo-btn{border:none;font-family:var(--rf);color:var(--ink);cursor:pointer}
 .tinfo-btn:active{transform:translateY(2px);box-shadow:none}
@@ -3347,13 +3349,22 @@ layout();
     maxTotal: 5,
     minChars: 6,
     base: { c: 300, t: 1, h: 1, s: 1 },
-    imgBonus: { c: 100 }
+    imgBonus: { c: 100 },
+    makerBonus: { c: 200, t: 1 }
   };
   const CATS = [
-    ['idea', '💡 新機能アイデア'],
+    ['maker', '🎨 つくる要望・不具合'],
     ['bug', '🐛 不具合・重い報告'],
-    ['stage', '🎨 ステージ・曲の希望'],
-    ['other', '💌 感想・応援']
+    ['idea', '💡 新機能アイデア'],
+    ['other', '💌 ステージ希望・感想']
+  ];
+  const MAKER_CHIPS = [
+    ['draw', '🖌️ 描きやすさ・ツール'],
+    ['bgm', '🎵 BGM作成の改善'],
+    ['share', '🔗 シェア・友達招待'],
+    ['post', '📮 投稿・みんなの絵'],
+    ['viral', '✨ もっと楽しくなる案'],
+    ['mbug', '🐛 つくる画面の不具合']
   ];
   const BUG_SYMPTOMS = [
     ['layout', '🖼️ 画面の崩れ・切れ'],
@@ -3369,6 +3380,7 @@ layout();
     ['maker', '🎨 メーカー・投稿'],
     ['other', '🎵 BGM・きせかえ他']
   ];
+  const MAKER_OVS = new Set(['maker', 'gallery', 'bgm', 'bgm-gal', 'bgm-builtin', 'stage-bgm', 'contest', 'award', 'posthelp', 'bgm-posthelp']);
   const OV_NAMES = {
     play: '🎮 パズルプレイ中',
     title: '🏠 ホーム画面',
@@ -3396,13 +3408,13 @@ layout();
     a2hs: '📲 ホーム画面に追加'
   };
   const PLACEHOLDERS = {
+    maker: '例：こんな描き方ツールが欲しい／友達にシェアするときここが分かりにくい／こんな演出があったら自慢したくなる！（上の項目を選べば空欄でもOK）',
     idea: '例：こんな新機能があったら楽しそう！／ここがもっと使いやすいと嬉しい',
     bug: 'くわしい状況があればひとこと（上の症状を選べば、書かずにそのまま送ってもOK！）',
-    stage: '例：〇〇のステージを作ってほしい！／こんなBGMを追加してほしい！',
-    other: '例：ここが楽しかった！／ありんこ隊への応援メッセージなど'
+    other: '例：〇〇のステージを作ってほしい！／ありんこ隊への応援メッセージなど'
   };
-  let selCat = 'idea', selScene = 'title', prevOv = 'title', sending = false, attachedImg = null, liveCtx = null;
-  const selSyms = new Set();
+  let selCat = 'maker', selScene = 'title', prevOv = 'title', sending = false, attachedImg = null, liveCtx = null;
+  const selSyms = new Set(), selMaker = new Set();
 
   // 直近の操作ログ（ボタンID等の技術タグのみ・入力文字や個人情報は一切記録しない）
   const AF_ACT_LOG = [];
@@ -3443,9 +3455,16 @@ layout();
     '<div class="fb-ctx" id="fbCtxBadge" style="display:none"></div>' +
     '<div class="fb-camp" id="fbCamp" style="display:none"></div>' +
     '<div class="fb-thanks" id="fbThanks"></div>' +
-    '<p class="fine" style="margin:2px 0 6px;line-height:1.5">ほしい機能・遊びたい絵・動かない／表示がおかしい等の不具合を気軽に送ってね！<br>状況がわかるスクショも1枚添えられます📷</p>' +
+    '<p class="fine" style="margin:2px 0 6px;line-height:1.5">特に<b>「つくる・シェア」機能</b>のご意見や不具合報告を大募集中！<br>ほしい機能・使いにくい所・不具合など気軽に送ってね📷</p>' +
     '<div class="fb-cats" id="fbCats">' +
     CATS.map(([k, lbl], i) => '<button type="button" class="fb-cat' + (i === 0 ? ' on' : '') + '" data-cat="' + k + '">' + lbl + '</button>').join('') +
+    '</div>' +
+    '<div class="fb-bugbox" id="fbMakerBox">' +
+      '<div class="fb-blbl">🎨「つくる・シェア」で気になること（1タップ複数選択OK）</div>' +
+      '<div class="fb-chips" id="fbMakerChips">' +
+        MAKER_CHIPS.map(([k, lbl]) => '<button type="button" class="fb-chip" data-mk="' + k + '">' + lbl + '</button>').join('') +
+      '</div>' +
+      '<div class="fb-auto-hint">🌟「こうしたら友達に送りたくなる！」「ここが描きにくい」など大歓迎！お礼も <b>🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t + '</b> 増量中✨</div>' +
     '</div>' +
     '<div class="fb-bugbox" id="fbBugBox">' +
       '<div class="fb-blbl">① 何が起きましたか？（1タップで複数選択OK・選ぶだけで送信可）</div>' +
@@ -3458,7 +3477,7 @@ layout();
       '</div>' +
       '<div class="fb-auto-hint">✨ 端末・画面サイズ・遊んでいた面・直前の画面とエラー記録は自動で添えられるので手入力は不要です</div>' +
     '</div>' +
-    '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="' + PLACEHOLDERS.idea + '"></textarea>' +
+    '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="' + PLACEHOLDERS.maker + '"></textarea>' +
     '<div class="fb-cnt"><span id="fbCnt">0</span> / 500</div>' +
     '<input type="file" id="fbFile" accept="image/*" style="display:none">' +
     '<div class="fb-imgrow">' +
@@ -3517,7 +3536,7 @@ layout();
       box.innerHTML =
         '<div class="fb-camp-hd"><span class="fb-camp-pill">🎁 期間限定</span><span>お礼キャンペーン開催中！</span></div>' +
         '<div class="fb-camp-r">お礼：<span style="white-space:nowrap">🪙' + FB_CAMPAIGN.base.c + '</span>＋<span style="white-space:nowrap">🎟️おたからばこ×' + FB_CAMPAIGN.base.t + '</span>＋<span style="white-space:nowrap">💡ヒント×' + FB_CAMPAIGN.base.h + '</span>＋<span style="white-space:nowrap">🔍全部運べる×' + FB_CAMPAIGN.base.s + '</span></div>' +
-        '<div class="fb-camp-sub">📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>！（1日1回／あと<b>' + cs.rem + '回</b>・不具合は症状選択＋スクショだけでもOK）</div>';
+        '<div class="fb-camp-sub">🎨 <b>「つくる」要望・不具合はさらに 🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t + '！</b><br>📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>（1日1回／あと<b>' + cs.rem + '回</b>）</div>';
     } else if (cs.rem > 0 && cs.todayDone) {
       box.innerHTML =
         '<div class="fb-camp-hd"><span>🎁 お礼キャンペーン（本日分は受取済み ✅）</span></div>' +
@@ -3551,7 +3570,7 @@ layout();
   }
   function sceneFromOv(ovId) {
     if (!ovId || ovId === 'play' || ovId === 'clear' || ovId === 'jam' || ovId === 'load') return 'play';
-    if (ovId === 'maker' || ovId === 'gallery' || ovId === 'contest' || ovId === 'award' || ovId === 'posthelp' || ovId === 'stage-bgm') return 'maker';
+    if (MAKER_OVS.has(ovId)) return 'maker';
     if (ovId === 'title') return 'title';
     return 'other';
   }
@@ -3565,12 +3584,30 @@ layout();
     }
     return prevOv === 'title' ? 'title' : 'play';
   }
-  // 報告ボタンを押した瞬間の画面・盤面・操作状態を裏側で丸ごとスナップショット取得
+  // 報告ボタンを押した瞬間の画面・盤面・メーカー状態を裏側で丸ごとスナップショット取得
   function captureLiveContext(originOv) {
     const key = originOv || 'play';
     const baseName = OV_NAMES[key] || ('画面:' + key);
     let sub = '';
-    if (key !== 'play') {
+    if (key === 'maker') {
+      const sz = ($('#ov-maker .mksz.on')?.textContent || '').trim();
+      const zm = ($('#mkZoomLbl')?.textContent || '').trim();
+      const tools = [...document.querySelectorAll('#ov-maker .mktools button.on')].map(b => (b.textContent || '').trim()).filter(t => t && t !== sz).slice(0, 3);
+      const refOn = $('#mkRefBar') && $('#mkRefBar').style.display !== 'none';
+      const aiOn = $('#mkAiRes') && $('#mkAiRes').style.display !== 'none';
+      const parts = [];
+      if (sz) parts.push(sz);
+      if (zm && zm !== '1x') parts.push('ズーム' + zm);
+      if (tools.length) parts.push(tools.join('/'));
+      if (refOn) parts.push('お手本ON');
+      if (aiOn) parts.push('AI測定済');
+      sub = parts.join(' · ');
+    } else if (key === 'bgm') {
+      const inst = $('#bgmInst') ? ($('#bgmInst').options[$('#bgmInst').selectedIndex]?.textContent || '') : '';
+      const bpm = $('#bgmBpmVal') ? ('BPM' + $('#bgmBpmVal').textContent) : '';
+      const md = ($('#bgmMode .on')?.textContent || '').trim();
+      sub = [inst, bpm, md].filter(Boolean).join(' · ');
+    } else if (key !== 'play') {
       const ovEl = $('#ov-' + key);
       if (ovEl) {
         const tabs = [...ovEl.querySelectorAll('.on')].map(el => (el.textContent || '').trim().replace(/\s+/g, ' ')).filter(t => t && t.length <= 18).slice(0, 3);
@@ -3594,6 +3631,9 @@ layout();
         ', undo:' + (G.undo ? G.undo.length : 0) +
         (stFlags.length ? ', 状態:' + stFlags.join('/') : '') + ')';
     }
+    if ((key === 'maker' || key === 'bgm') && sub) {
+      stageNote = baseName + '[' + sub + ']' + (stageNote ? ' / ' + stageNote : '');
+    }
     let originFull = baseName;
     if ((key === 'play' || key === 'clear' || key === 'jam') && G.level) {
       originFull += '（Lv.' + posOf(G.levelId) + ' ' + (G.level.name || '') + (G.s ? '・のこり' + G.s.left : '') + '）';
@@ -3603,14 +3643,16 @@ layout();
     const snapKind = (key === 'maker' && $('#mkCv') && $('#mkCv').width > 0)
       ? 'maker'
       : ((G.s && CW > 0 && $('#game') && $('#game').width > 0) ? 'game' : '');
-    return { key, originFull, stageNote, snapKind };
+    return { key, originFull, stageNote, snapKind, isMakerOrigin: MAKER_OVS.has(key) };
   }
   function syncBugPanelUI() {
-    const isBug = selCat === 'bug';
-    const box = $('#fbBugBox');
-    if (box) box.classList.toggle('on', isBug);
+    const isBug = selCat === 'bug', isMaker = selCat === 'maker';
+    const bBox = $('#fbBugBox'), mBox = $('#fbMakerBox');
+    if (bBox) bBox.classList.toggle('on', isBug);
+    if (mBox) mBox.classList.toggle('on', isMaker);
     $('#fbCats').querySelectorAll('.fb-cat').forEach(x => x.classList.toggle('on', x.dataset.cat === selCat));
     $('#fbSyms').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', selSyms.has(x.dataset.sym)));
+    $('#fbMakerChips').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', selMaker.has(x.dataset.mk)));
     $('#fbScenes').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', x.dataset.scene === selScene));
     const ta = $('#fbText');
     if (ta && PLACEHOLDERS[selCat]) ta.placeholder = PLACEHOLDERS[selCat];
@@ -3818,6 +3860,14 @@ layout();
     if (selSyms.has(k)) selSyms.delete(k); else selSyms.add(k);
     b.classList.toggle('on', selSyms.has(k));
   });
+  $('#fbMakerChips').addEventListener('click', e => {
+    const b = e.target.closest('[data-mk]');
+    if (!b) return;
+    Sound.tap();
+    const k = b.dataset.mk;
+    if (selMaker.has(k)) selMaker.delete(k); else selMaker.add(k);
+    b.classList.toggle('on', selMaker.has(k));
+  });
   $('#fbScenes').addEventListener('click', e => {
     const b = e.target.closest('[data-scene]');
     if (!b) return;
@@ -3858,12 +3908,13 @@ layout();
       toast('⚠️ ' + (err && err.message ? err.message : '画像を添付できませんでした'), 3400);
     }
   });
-  on('#bTitleFeedback', () => openFeedback('title', { defaultCat: 'idea' }));
+  on('#bTitleFeedback', () => openFeedback('title', { defaultCat: 'maker' }));
   on('#bSetFeedback', () => openFeedback('settings'));
   on('#bHudFb', () => openFeedback('play', { defaultCat: 'bug' }));
   on('#bQuickFb', () => {
     const cur = G.overlay || 'play';
-    openFeedback(cur, { defaultCat: cur === 'title' ? 'idea' : 'bug' });
+    const defCat = MAKER_OVS.has(cur) ? 'maker' : (cur === 'title' ? 'maker' : 'bug');
+    openFeedback(cur, { defaultCat: defCat });
   });
   on('#bFbClose', () => {
     if (prevOv && prevOv !== 'feedback' && prevOv !== 'play') showOv(prevOv);
@@ -3875,13 +3926,17 @@ layout();
     const msg = (ta ? ta.value : '').trim();
     const symptoms = selCat === 'bug'
       ? BUG_SYMPTOMS.filter(([k]) => selSyms.has(k)).map(([, lbl]) => lbl)
-      : [];
+      : selCat === 'maker'
+        ? MAKER_CHIPS.filter(([k]) => selMaker.has(k)).map(([, lbl]) => lbl)
+        : [];
     const sceneLabel = selCat === 'bug'
       ? ((BUG_SCENES.find(([k]) => k === selScene) || BUG_SCENES[0])[1])
-      : '';
-    if (selCat === 'bug') {
+      : selCat === 'maker'
+        ? (liveCtx && liveCtx.isMakerOrigin ? liveCtx.originFull : '🎨 つくる・シェア機能')
+        : '';
+    if (selCat === 'bug' || selCat === 'maker') {
       if (!symptoms.length && msg.length < 2) {
-        toast('症状を1つタップするか、内容を2文字以上で書いてね！');
+        toast('項目を1つタップするか、内容を2文字以上で書いてね！');
         return;
       }
     } else if (msg.length < 2) {
@@ -3896,6 +3951,7 @@ layout();
     try {
       const progress = 'クリア ' + gotCount() + '/' + TOTAL + '面' + (G.level && G.level.name ? '（現在:' + G.level.name + '）' : '');
       const hasImg = !!attachedImg;
+      const isMakerPost = selCat === 'maker' || !!(liveCtx && liveCtx.isMakerOrigin) || (selCat === 'bug' && selScene === 'maker');
       const payload = {
         category: selCat,
         message: msg,
@@ -3903,6 +3959,7 @@ layout();
         version: window.AF_APP_VER || '',
         progress,
         device: detectDevice(),
+        isMaker: isMakerPost,
         diag: collectDiagnostics()
       };
       if (symptoms.length) payload.symptoms = symptoms;
@@ -3922,14 +3979,14 @@ layout();
         return;
       }
 
-      // お礼キャンペーンの付与判定（送信成功時のみ・6文字以上 or 不具合の症状選択＋スクショ/ひとこと・1日1回・上限5回）
+      // お礼キャンペーンの付与判定（送信成功時のみ・6文字以上 or 症状/項目選択＋スクショ/ひとこと・1日1回・上限5回）
       const cs = campStatus();
-      const qualifies = msg.length >= FB_CAMPAIGN.minChars || (selCat === 'bug' && symptoms.length > 0 && (hasImg || msg.length >= 2));
+      const qualifies = msg.length >= FB_CAMPAIGN.minChars || ((selCat === 'bug' || selCat === 'maker') && symptoms.length > 0 && (hasImg || msg.length >= 2));
       let rewarded = null;
       if (cs.eligible && qualifies) {
         rewarded = {
-          c: (FB_CAMPAIGN.base.c || 0) + (hasImg ? (FB_CAMPAIGN.imgBonus.c || 0) : 0),
-          t: FB_CAMPAIGN.base.t || 0,
+          c: (FB_CAMPAIGN.base.c || 0) + (hasImg ? (FB_CAMPAIGN.imgBonus.c || 0) : 0) + (isMakerPost ? (FB_CAMPAIGN.makerBonus.c || 0) : 0),
+          t: (FB_CAMPAIGN.base.t || 0) + (isMakerPost ? (FB_CAMPAIGN.makerBonus.t || 0) : 0),
           h: FB_CAMPAIGN.base.h || 0,
           s: FB_CAMPAIGN.base.s || 0
         };
@@ -3942,9 +3999,12 @@ layout();
         haptic(20);
         Fx.burst(innerWidth / 2, innerHeight * 0.35, 70, 420, ['star', 'conf', 'dot']);
         const rTxt = fmtReward(rewarded);
+        const bonusNotes = [];
+        if (isMakerPost) bonusNotes.push('🎨つくるボーナス🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t);
+        if (hasImg) bonusNotes.push('📷スクショ🪙+' + FB_CAMPAIGN.imgBonus.c);
         const th = $('#fbThanks');
         if (th) {
-          th.innerHTML = '🎁 ありがとう！お礼をプレゼントしたよ！<br>' + escUpd(rTxt) + (hasImg ? '<br><small style="font-size:10.5px;font-weight:800">（📷スクショ添付ボーナス込み！）</small>' : '');
+          th.innerHTML = '🎁 ありがとう！お礼をプレゼントしたよ！<br>' + escUpd(rTxt) + (bonusNotes.length ? '<br><small style="font-size:10.5px;font-weight:800">（' + escUpd(bonusNotes.join(' / ')) + '込み！）</small>' : '');
           th.classList.add('on');
         }
         if (typeof window.AF_pushInboxItem === 'function') {
@@ -3952,19 +4012,19 @@ layout();
             id: 'fb-thanks-' + cs.today + '-' + (cs.st.count + 1),
             kind: 'update',
             badge: '🎁 お礼プレゼント',
-            title: '要望・不具合報告のお礼を届けたよ！',
+            title: (isMakerPost ? '「つくる」へのご意見のお礼を届けたよ！' : '要望・不具合報告のお礼を届けたよ！'),
             body: 'ご報告・ご要望ありがとう！\nお礼として ' + rTxt + ' をお渡ししました✨' +
-              (hasImg ? '\n（スクショ添付ボーナス 🪙+' + FB_CAMPAIGN.imgBonus.c + ' を含むよ！）' : '') +
+              (bonusNotes.length ? '\n（' + bonusNotes.join('・') + ' を含むよ！）' : '') +
               '\n\nいただいた声は確認のうえ、今後のアップデートに活かしていくね！',
             at: Date.now(),
             read: true
           });
         }
-        toast('🎁 お礼ゲット！ ' + rTxt, 4200);
+        toast('🎁 お礼ゲット！ ' + rTxt, 4400);
       } else {
         Sound.albumIn();
         if (cs.eligible && !qualifies) {
-          toast('🎉 届いたよ！ありがとう✨（お礼は' + FB_CAMPAIGN.minChars + '文字以上の記入、または不具合＋スクショ添付で受け取れるよ）', 4200);
+          toast('🎉 届いたよ！ありがとう✨（お礼は' + FB_CAMPAIGN.minChars + '文字以上の記入、または項目選択＋スクショ/ひとことで受け取れるよ）', 4400);
         } else {
           toast('🎉 届いたよ！確認して今後の改善に活かすね✨', 3800);
         }
@@ -3975,6 +4035,7 @@ layout();
       if (ta) ta.value = '';
       if ($('#fbCnt')) $('#fbCnt').textContent = '0';
       selSyms.clear();
+      selMaker.clear();
       clearAttachment();
       syncBugPanelUI();
       refreshFbCampaignUI();

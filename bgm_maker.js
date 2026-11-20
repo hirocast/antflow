@@ -812,6 +812,7 @@
         '</div>' +
         '<button type="button" class="big sec" id="bgmBuiltinBtn" style="margin-top:8px;height:42px;font-size:14px">🎼 公式BGMをえらんでアレンジ</button>' +
         '<div class="bgm-saved" id="bgmSavedList"></div>' +
+        '<button type="button" class="mk-fb-cta" id="bBgmFeedback">💬「BGMつくる」の要望・不具合を送る<span class="fb-gift-tag">🎁お礼増量中</span></button>' +
         '<button type="button" class="big sec" id="bgmCloseBtn" style="margin-top:8px">とじる</button>' +
       '</div>';
     document.body.appendChild(ov);
@@ -1359,6 +1360,10 @@
       Sound.tap(); stopGalPreview();
       if (save.settings.bgm) Sound.startBgm();
       showOv('title');
+    });
+    if ($('#bBgmFeedback')) $('#bBgmFeedback').addEventListener('click', () => {
+      Sound.tap(); stopPreview();
+      if (window.AF_openFeedback) window.AF_openFeedback('bgm', { defaultCat: 'maker' });
     });
     $('#bgmCloseBtn').addEventListener('click', () => {
       stopPreview();
