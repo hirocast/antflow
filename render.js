@@ -339,12 +339,16 @@ function visDist(ex, ey) {
   return d;
 }
 // 向かっている途中のマスを通れるとみなした距離。これで、奥のキャンディ担当のアリも同時に出発できる
-function planDist(ex, ey) {
-  if (G.pcacheVer !== G.pver) { G.pcache = new Map(); G.pcacheVer = G.pver; }
+// プレイ中は空きマスが単調に増えるだけなので、直前の距離表で到達可能ならそのまま通行でき、未到達または一定数空いたときだけ再計算する
+function planDist(ex, ey, forceFresh) {
+  if (G.pcacheGrid !== G.pgrid) { G.pcache = new Map(); G.pcacheGrid = G.pgrid; }
   const k = ey * 1000 + ex;
-  let d = G.pcache.get(k);
-  if (!d) { d = bfs(G.pgrid, G.s.W, G.s.H, ex, ey); G.pcache.set(k, d); }
-  return d;
+  let ent = G.pcache.get(k);
+  if (!ent || forceFresh || (G.pver - ent.ver) >= 12) {
+    ent = { dist: bfs(G.pgrid, G.s.W, G.s.H, ex, ey), ver: G.pver };
+    G.pcache.set(k, ent);
+  }
+  return ent;
 }
 function pathFrom(dist, goal, EW, EH) {
   const out = [goal];
@@ -392,23 +396,29 @@ function tryDispatch(b) {
   // 同じスロットから最後に出たアリが、アリ1匹ぶん以上進むまで待つ
   const last = G.lastOut[b.slot];
   if (last && last.state === 'out' && last.trav < gapCells()) return;
-  const W = G.s.W, EW = W + 2, EH = G.s.H + 2, en = slotEntry(b.slot), dist = planDist(en.ex, en.ey);
-  for (let q = 0; q < b.queue.length; q++) {
-    const cell = b.queue[q], x = cell % W, y = (cell - x) / W, ci = (y + 1) * EW + (x + 1);
-    let best = -1, bd = 1e9;
-    for (const ni of [ci - 1, ci + 1, ci - EW, ci + EW]) if (dist[ni] >= 0 && dist[ni] < bd) { bd = dist[ni]; best = ni; }
-    if (best < 0) continue;
-    b.queue.splice(q, 1);
-    b.dispatched++;
-    G.pgrid[cell] = -1; G.pver++;
-    const path = pathFrom(dist, best, EW, EH), pts = [{ x: (slotX(b.slot) - ox) / cs + 0.5, y: (slotY - slotSize * 0.3 - oy) / cs + 0.5 }];
-    for (const ei of path) pts.push({ x: ei % EW, y: Math.floor(ei / EW) });
-    const p0 = pts[0], p1 = pts[1] || p0, dx0 = p1.x - p0.x, dy0 = p1.y - p0.y, L0 = Math.sqrt(dx0 * dx0 + dy0 * dy0) || 1;
-    const ant = { vb: b, c: b.c, cell, tx: x + 1, ty: y + 1, pts, i: 0, d: 0, x: p0.x, y: p0.y, face: 1, state: 'out', t: 0, phase: Math.random() * 6, speed: G.antSpeed * G.spdMul * (0.97 + Math.random() * 0.06), sweat: Math.random() * 2, said: false, lifted: false, trav: 0, hx: dx0 / L0, hy: dy0 / L0 };
-    G.ants.push(ant);
-    G.lastOut[b.slot] = ant;
-    if (b.dispatched === 1) maybeSay(ant, 'go', 0.3);
-    return;
+  const W = G.s.W, EW = W + 2, EH = G.s.H + 2, en = slotEntry(b.slot);
+  let ent = planDist(en.ex, en.ey, false);
+  for (let pass = 0; pass < 2; pass++) {
+    const dist = ent.dist;
+    for (let q = 0; q < b.queue.length; q++) {
+      const cell = b.queue[q], x = cell % W, y = (cell - x) / W, ci = (y + 1) * EW + (x + 1);
+      let best = -1, bd = 1e9;
+      for (const ni of [ci - 1, ci + 1, ci - EW, ci + EW]) if (dist[ni] >= 0 && dist[ni] < bd) { bd = dist[ni]; best = ni; }
+      if (best < 0) continue;
+      b.queue.splice(q, 1);
+      b.dispatched++;
+      G.pgrid[cell] = -1; G.pver++;
+      const path = pathFrom(dist, best, EW, EH), pts = [{ x: (slotX(b.slot) - ox) / cs + 0.5, y: (slotY - slotSize * 0.3 - oy) / cs + 0.5 }];
+      for (const ei of path) pts.push({ x: ei % EW, y: Math.floor(ei / EW) });
+      const p0 = pts[0], p1 = pts[1] || p0, dx0 = p1.x - p0.x, dy0 = p1.y - p0.y, L0 = Math.sqrt(dx0 * dx0 + dy0 * dy0) || 1;
+      const ant = { vb: b, c: b.c, cell, tx: x + 1, ty: y + 1, pts, i: 0, d: 0, x: p0.x, y: p0.y, face: 1, state: 'out', t: 0, phase: Math.random() * 6, speed: G.antSpeed * G.spdMul * (0.97 + Math.random() * 0.06), sweat: Math.random() * 2, said: false, lifted: false, trav: 0, hx: dx0 / L0, hy: dy0 / L0 };
+      G.ants.push(ant);
+      G.lastOut[b.slot] = ant;
+      if (b.dispatched === 1) maybeSay(ant, 'go', 0.3);
+      return;
+    }
+    if (ent.ver === G.pver) break;
+    ent = planDist(en.ex, en.ey, true);
   }
 }
 function moveAlong(a, dist) {
@@ -503,8 +513,11 @@ function pickCube(a) {
 }
 // 帰り道：板の中の道 → 巣穴の真上の門（板の下のふち） → 板の外の巣穴の穴
 function startReturn(a) {
-  const W = G.s.W, H = G.s.H, EW = W + 2, EH = H + 2, ne = nestGate(), dist = planDist(ne.ex, ne.ey), last = a.pts[a.pts.length - 1];
+  const W = G.s.W, H = G.s.H, EW = W + 2, EH = H + 2, ne = nestGate(), last = a.pts[a.pts.length - 1];
   const cur = Math.round(last.y) * EW + Math.round(last.x), pts = [{ x: a.x, y: a.y }];
+  let ent = planDist(ne.ex, ne.ey, false);
+  if (ent.dist[cur] < 0 && ent.ver !== G.pver) ent = planDist(ne.ex, ne.ey, true);
+  const dist = ent.dist;
   if (dist[cur] >= 0) for (const ei of pathFrom(dist, cur, EW, EH).reverse()) pts.push({ x: ei % EW, y: Math.floor(ei / EW) });
   else pts.push({ x: ne.ex, y: ne.ey });
   pts.push(nestHole());

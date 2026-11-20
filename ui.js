@@ -1047,18 +1047,42 @@ function popText(el, text) {
     el.appendChild(s);
   });
 }
+const thumbCache = new WeakMap();
+function getThumbCached(art, size, shadow) {
+  const key = size + '|' + (shadow ? 1 : 0) + '|' + dpr;
+  let m = thumbCache.get(art.grid);
+  if (!m) { m = new Map(); thumbCache.set(art.grid, m); }
+  let off = m.get(key);
+  if (!off) {
+    off = document.createElement('canvas');
+    off.width = off.height = Math.round(size * dpr);
+    const g = off.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = art.W, c = (size - 6) / W, x0 = 3;
+    let lastCol = '';
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+      const v = art.grid[y * W + x];
+      if (v < 0) continue;
+      const col = shadow ? 'rgba(120,80,110,.3)' : HEX[v];
+      if (col !== lastCol) { g.fillStyle = col; lastCol = col; }
+      g.fillRect(x0 + x * c, x0 + y * c, c + 0.4, c + 0.4);
+    }
+    m.set(key, off);
+  }
+  return off;
+}
+function hasThumbCached(art, size, shadow) {
+  const m = thumbCache.get(art.grid);
+  return !!(m && m.has(size + '|' + (shadow ? 1 : 0) + '|' + dpr));
+}
 function drawThumb(cv, art, size, shadow) {
-  cv.width = cv.height = Math.round(size * dpr);
+  const pw = Math.round(size * dpr);
+  if (cv.width !== pw || cv.height !== pw) cv.width = cv.height = pw;
   cv.style.width = cv.style.height = size + 'px';
   const g = cv.getContext('2d');
-  g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const W = art.W, c = (size - 6) / W, x0 = 3;
-  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
-    const v = art.grid[y * W + x];
-    if (v < 0) continue;
-    g.fillStyle = shadow ? 'rgba(120,80,110,.3)' : HEX[v];
-    g.fillRect(x0 + x * c, x0 + y * c, c + 0.4, c + 0.4);
-  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, pw, pw);
+  g.drawImage(getThumbCached(art, size, shadow), 0, 0);
 }
 function updateBadge() {
   const b = $('#albumBadge'), n = save.newArts.length;
@@ -1828,20 +1852,35 @@ function doScan() {
     toast('🔍 全部運べる箱が光るよ！（このステージ中）', 2600);
   });
 }
+let albumRenderTok = 0;
+const albumCvCache = new Map();
 function openAlbum(fromTitle) {
   G.fromTitle = fromTitle;
   const ah = $('#bAlbumHome'); if (ah) ah.style.display = fromTitle ? 'none' : 'block';
-  const grid = $('#albumGrid'), fresh = new Set(save.newArts);
-  grid.innerHTML = '';
+  const grid = $('#albumGrid'), fresh = new Set(save.newArts), tok = ++albumRenderTok;
+  const frag = document.createDocumentFragment(), deferred = [];
+  let drawnUncached = 0;
   for (let pos = 1; pos <= TOTAL; pos++) {
     const id = idAt(pos), btn = document.createElement('button'), cleared = !!save.cleared[id], open = isOpen(id);
     btn.className = 'al' + (open ? '' : ' locked');
     if (open) {
-      const cv = document.createElement('canvas');
-      drawThumb(cv, getArt(id), 64, !cleared);
+      const ck = id + '|' + (cleared ? 1 : 0) + '|' + dpr;
+      let cv = albumCvCache.get(ck);
+      const art = getArt(id);
+      if (!cv) {
+        cv = document.createElement('canvas');
+        cv.style.width = cv.style.height = '64px';
+        if (hasThumbCached(art, 64, !cleared) || drawnUncached < 16) {
+          if (!hasThumbCached(art, 64, !cleared)) drawnUncached++;
+          drawThumb(cv, art, 64, !cleared);
+          albumCvCache.set(ck, cv);
+        } else {
+          deferred.push([cv, art, !cleared, ck]);
+        }
+      }
       btn.appendChild(cv);
       const sp = document.createElement('span');
-      sp.textContent = pos + '. ' + (cleared ? getArt(id).name : '？？？');
+      sp.textContent = pos + '. ' + (cleared ? art.name : '？？？');
       btn.appendChild(sp);
       if (cleared) {
         const b = save.best[id], s = b ? b.s : 1, bs = document.createElement('small');
@@ -1851,7 +1890,23 @@ function openAlbum(fromTitle) {
       if (fresh.has(id)) { const n = document.createElement('i'); n.className = 'new'; n.textContent = 'NEW'; btn.appendChild(n); }
       btn.addEventListener('click', () => cleared ? openView(id) : (hideOv(), loadLevel(id)));
     } else btn.innerHTML = '<div class="q">🔒</div><span>' + pos + '</span>';
-    grid.appendChild(btn);
+    frag.appendChild(btn);
+  }
+  grid.innerHTML = '';
+  grid.appendChild(frag);
+  if (deferred.length) {
+    let idx = 0;
+    const step = () => {
+      if (tok !== albumRenderTok || G.overlay !== 'album') return;
+      const t0 = performance.now();
+      while (idx < deferred.length && (performance.now() - t0 < 8 || idx % 6 !== 0)) {
+        const d = deferred[idx++];
+        drawThumb(d[0], d[1], 64, d[2]);
+        albumCvCache.set(d[3], d[0]);
+      }
+      if (idx < deferred.length) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
   const got = gotCount();
   $('#albumSum').textContent = 'あつめた絵：' + got + ' / ' + TOTAL + ' 枚　⭐' + totalStars() + ' / ' + TOTAL * 3;

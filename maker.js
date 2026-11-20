@@ -2331,11 +2331,18 @@
     refreshZoomUI();
   }
 
+  let mkCvSize = 0, mkLastStTf = '', mkLastImDisp = '', mkLastImTf = '';
+  window.addEventListener('resize', () => { mkCvSize = 0; });
+
   function drawMaker() {
     const cv = $('#mkCv');
     if (!cv) return;
-    const S = Math.round(cv.clientWidth || 272);
-    if (cv.width !== Math.round(S * dpr)) { cv.width = cv.height = Math.round(S * dpr); }
+    if (!mkCvSize) {
+      const w = Math.round(cv.clientWidth || 0);
+      if (w > 0) mkCvSize = w;
+    }
+    const S = mkCvSize || 272, pw = Math.round(S * dpr);
+    if (cv.width !== pw || cv.height !== pw) { cv.width = cv.height = pw; }
     const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (mkRefUrl && mkRefOn) {
@@ -2347,54 +2354,77 @@
       g.fillRect(0, 0, S, S);
     }
     const st = $('#mkRefStage'), im = $('#mkRefImg');
-    if (st) st.style.transform = 'translate(' + mkPanX + 'px,' + mkPanY + 'px) scale(' + mkZoom + ')';
+    if (st) {
+      const tf = 'translate(' + mkPanX + 'px,' + mkPanY + 'px) scale(' + mkZoom + ')';
+      if (tf !== mkLastStTf) { mkLastStTf = tf; st.style.transform = tf; }
+    }
     if (im) {
-      im.style.display = (mkRefUrl && mkRefOn) ? 'block' : 'none';
-      im.style.transform = 'translate(calc(-50% + ' + mkRefX + 'px), calc(-50% + ' + mkRefY + 'px)) scale(' + mkRefScale + ')';
+      const disp = (mkRefUrl && mkRefOn) ? 'block' : 'none';
+      if (disp !== mkLastImDisp) { mkLastImDisp = disp; im.style.display = disp; }
+      if (disp === 'block') {
+        const itf = 'translate(calc(-50% + ' + mkRefX + 'px), calc(-50% + ' + mkRefY + 'px)) scale(' + mkRefScale + ')';
+        if (itf !== mkLastImTf) { mkLastImTf = itf; im.style.transform = itf; }
+      }
     }
     g.save();
     g.translate(mkPanX, mkPanY);
     g.scale(mkZoom, mkZoom);
-    const cs = S / mkW;
-    for (let y = 0; y < mkH; y++) for (let x = 0; x < mkW; x++) {
-      const v = mkGrid[y * mkW + x];
-      if (v >= 0) {
-        g.fillStyle = HEX[v];
-        g.fillRect(x * cs + 0.35 / mkZoom, y * cs + 0.35 / mkZoom, cs - 0.7 / mkZoom, cs - 0.7 / mkZoom);
+    const cs = S / mkW, invZ = 1 / mkZoom, pad = 0.35 * invZ, fsz = cs - 0.7 * invZ;
+    // 視界カリング：ズーム中は画面に映るセルとグリッド線だけを描く
+    const vx0 = -mkPanX * invZ, vy0 = -mkPanY * invZ, vx1 = (S - mkPanX) * invZ, vy1 = (S - mkPanY) * invZ;
+    const x0 = Math.max(0, Math.floor(vx0 / cs)), x1 = Math.min(mkW - 1, Math.ceil(vx1 / cs));
+    const y0 = Math.max(0, Math.floor(vy0 / cs)), y1 = Math.min(mkH - 1, Math.ceil(vy1 / cs));
+    let lastV = -2;
+    for (let y = y0; y <= y1; y++) {
+      const row = y * mkW, py = y * cs + pad;
+      for (let x = x0; x <= x1; x++) {
+        const v = mkGrid[row + x];
+        if (v >= 0) {
+          if (v !== lastV) { g.fillStyle = HEX[v]; lastV = v; }
+          g.fillRect(x * cs + pad, py, fsz, fsz);
+        }
       }
     }
     g.strokeStyle = 'rgba(90,61,92,.14)';
-    g.lineWidth = 1 / mkZoom;
+    g.lineWidth = invZ;
     g.beginPath();
-    for (let i = 1; i < mkW; i++) {
-      const p = i * cs;
-      g.moveTo(p, 0); g.lineTo(p, S);
-      g.moveTo(0, p); g.lineTo(S, p);
-    }
+    const gx0 = Math.max(1, x0), gx1 = Math.min(mkW - 1, x1 + 1);
+    const gy0 = Math.max(1, y0), gy1 = Math.min(mkH - 1, y1 + 1);
+    const ly0 = Math.max(0, vy0), ly1 = Math.min(S, vy1), lx0 = Math.max(0, vx0), lx1 = Math.min(S, vx1);
+    for (let i = gx0; i <= gx1; i++) { const p = i * cs; g.moveTo(p, ly0); g.lineTo(p, ly1); }
+    for (let i = gy0; i <= gy1; i++) { const p = i * cs; g.moveTo(lx0, p); g.lineTo(lx1, p); }
     g.stroke();
     if (mkMirror) {
       g.strokeStyle = 'rgba(255,90,122,.45)';
-      g.lineWidth = 2 / mkZoom;
-      g.beginPath(); g.moveTo(S / 2, 0); g.lineTo(S / 2, S); g.stroke();
+      g.lineWidth = 2 * invZ;
+      g.beginPath(); g.moveTo(S / 2, ly0); g.lineTo(S / 2, ly1); g.stroke();
     }
     if (mkMirrorV) {
       g.strokeStyle = 'rgba(255,90,122,.45)';
-      g.lineWidth = 2 / mkZoom;
-      g.beginPath(); g.moveTo(0, S / 2); g.lineTo(S, S / 2); g.stroke();
+      g.lineWidth = 2 * invZ;
+      g.beginPath(); g.moveTo(lx0, S / 2); g.lineTo(lx1, S / 2); g.stroke();
     }
     if (mkSel) {
       if (mkSel.buf) {
-        for (let dy = 0; dy < mkSel.h; dy++) for (let dx = 0; dx < mkSel.w; dx++) {
-          const v = mkSel.buf[dy * mkSel.w + dx];
-          if (v >= 0) {
-            g.fillStyle = HEX[v];
-            g.fillRect((mkSel.x + dx) * cs + 0.35 / mkZoom, (mkSel.y + dy) * cs + 0.35 / mkZoom, cs - 0.7 / mkZoom, cs - 0.7 / mkZoom);
+        let lastSv = -2;
+        for (let dy = 0; dy < mkSel.h; dy++) {
+          const gy = mkSel.y + dy;
+          if (gy < y0 || gy > y1) continue;
+          const row = dy * mkSel.w, py = gy * cs + pad;
+          for (let dx = 0; dx < mkSel.w; dx++) {
+            const gx = mkSel.x + dx;
+            if (gx < x0 || gx > x1) continue;
+            const v = mkSel.buf[row + dx];
+            if (v >= 0) {
+              if (v !== lastSv) { g.fillStyle = HEX[v]; lastSv = v; }
+              g.fillRect(gx * cs + pad, py, fsz, fsz);
+            }
           }
         }
       }
       g.strokeStyle = '#ff4d6d';
-      g.lineWidth = 2 / mkZoom;
-      g.setLineDash([4 / mkZoom, 3 / mkZoom]);
+      g.lineWidth = 2 * invZ;
+      g.setLineDash([4 * invZ, 3 * invZ]);
       g.strokeRect(mkSel.x * cs, mkSel.y * cs, mkSel.w * cs, mkSel.h * cs);
       g.setLineDash([]);
     }
@@ -2403,6 +2433,7 @@
 
   function openMaker() {
     buildMakerUI();
+    mkCvSize = 0; mkLastStTf = ''; mkLastImDisp = ''; mkLastImTf = '';
     showOv('maker');
     requestAnimationFrame(drawMaker);
   }
