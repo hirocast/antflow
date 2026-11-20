@@ -93,9 +93,19 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .fb-hist{margin-top:10px;padding-top:8px;border-top:2px dotted #ffd3e2;text-align:left}
 .fb-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px;font-size:11px;line-height:1.45}
 .fb-hitem b{color:#c0507a;font-size:10.5px;display:block;margin-bottom:2px}
-.fb-imgrow{display:flex;align-items:center;gap:8px;margin-top:7px}
-.fb-imgbtn{flex:1;border:2px dashed #f0a8c4;border-radius:12px;padding:8px 10px;background:#fff8fb;color:#b8406e;font:800 12px var(--rf);cursor:pointer;text-align:center}
+.fb-imgrow{display:flex;align-items:center;gap:6px;margin-top:7px}
+.fb-imgbtn{flex:1;border:2px dashed #f0a8c4;border-radius:12px;padding:8px 7px;background:#fff8fb;color:#b8406e;font:800 11.5px var(--rf);cursor:pointer;text-align:center;line-height:1.3}
+.fb-imgbtn.snap{border-color:#74c79a;background:#f2fff8;color:#1b7346}
 .fb-imgbtn:active{background:#ffeaf3}
+.fb-imgbtn.snap:active{background:#dff9eb}
+.fb-bugbox{display:none;margin:6px 0 8px;padding:8px 9px;background:#fff7fa;border:1.5px solid #ffd1e1;border-radius:14px;text-align:left}
+.fb-bugbox.on{display:block}
+.fb-blbl{font-size:11px;font-weight:900;color:#b83862;margin:0 0 5px}
+.fb-blbl+.fb-chips{margin-bottom:8px}
+.fb-chips{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+.fb-chip{border:1.5px solid #f0bfd2;border-radius:10px;padding:6px 5px;background:#fff;color:var(--ink);font:800 10.5px var(--rf);cursor:pointer;text-align:center}
+.fb-chip.on{background:linear-gradient(#ff8fb3,#ff5e92);color:#fff;border-color:#ff5e92}
+.fb-auto-hint{margin-top:7px;padding:5px 8px;border-radius:9px;background:#eef9ff;border:1px solid #bde3fa;color:#20638a;font-size:10px;font-weight:800;line-height:1.45}
 .fb-prev{display:none;align-items:center;gap:8px;margin-top:7px;padding:6px 8px;background:#fff;border:2px solid #ffd3e2;border-radius:12px;text-align:left}
 .fb-prev.on{display:flex}
 .fb-prev img{width:52px;height:52px;object-fit:cover;border-radius:8px;border:1.5px solid #ffd3e2;flex:0 0 auto}
@@ -1077,8 +1087,15 @@ function showPreview(j) {
 }
 
 /* ================= オーバーレイ・クリア演出 ================= */
+const AF_BREADCRUMBS = [];
+function pushCrumb(tag) {
+  if (!tag || AF_BREADCRUMBS[AF_BREADCRUMBS.length - 1] === tag) return;
+  AF_BREADCRUMBS.push(tag);
+  if (AF_BREADCRUMBS.length > 10) AF_BREADCRUMBS.shift();
+}
 function showOv(name) {
   G.overlay = name;
+  pushCrumb(name);
   document.querySelectorAll('.ov').forEach(o => o.classList.toggle('show', o.id === 'ov-' + name));
   const card = document.querySelector('#ov-' + name + ' .card');
   if (card) card.scrollTop = 0;
@@ -1089,7 +1106,12 @@ function showOv(name) {
   }
   updateCoins();
 }
-function hideOv() { G.overlay = null; document.querySelectorAll('.ov').forEach(o => o.classList.remove('show')); updateCoins(); }
+function hideOv() {
+  G.overlay = null;
+  pushCrumb('play' + (G.level ? '(Lv.' + posOf(G.levelId) + (G.level.custom ? '/自作' : '') + ')' : ''));
+  document.querySelectorAll('.ov').forEach(o => o.classList.remove('show'));
+  updateCoins();
+}
 function popText(el, text) {
   el.innerHTML = '';
   [...text].forEach((ch, i) => {
@@ -3120,8 +3142,15 @@ if (/[?&]dev\b/.test(location.search)) { save.settings.dev = true; persist(); }
 
 /* ================= メインループ ================= */
 let lastT = performance.now(), lastDrawT = 0, lastOvDrawT = 0;
+const afPerf = { avgMs: 0, slowCnt: 0, maxMs: 0 };
 function frame(now) {
-  const rdt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
+  const rawMs = now - lastT;
+  if (rawMs > 0 && rawMs < 2000) {
+    afPerf.avgMs = afPerf.avgMs ? afPerf.avgMs * 0.96 + rawMs * 0.04 : rawMs;
+    if (rawMs > 80) afPerf.slowCnt++;
+    if (rawMs > afPerf.maxMs) afPerf.maxMs = rawMs;
+  }
+  const rdt = Math.min(0.05, Math.max(0, rawMs / 1000));
   lastT = now;
   G.rt += rdt;
   let dt = rdt * G.speed;
@@ -3305,13 +3334,28 @@ layout();
     ['stage', '🎨 ステージ・曲の希望'],
     ['other', '💌 感想・応援']
   ];
+  const BUG_SYMPTOMS = [
+    ['layout', '🖼️ 画面の崩れ・切れ'],
+    ['tap', '👆 押せない・無反応'],
+    ['lag', '🐢 重い・カクつく'],
+    ['audio', '🔇 音・BGMがおかしい'],
+    ['freeze', '❄️ 固まった・進めない'],
+    ['save', '💾 記録・報酬の異常']
+  ];
+  const BUG_SCENES = [
+    ['title', '🏠 ホーム画面'],
+    ['play', '🎮 パズルプレイ中'],
+    ['maker', '🎨 メーカー・投稿'],
+    ['other', '🎵 BGM・きせかえ他']
+  ];
   const PLACEHOLDERS = {
     idea: '例：こんな新機能があったら楽しそう！／ここがもっと使いやすいと嬉しい',
-    bug: '例：〇〇の画面でボタンが押せない／表示が崩れる／急に重くなる（起きた場面やスクショがあると助かります）',
+    bug: 'くわしい状況があればひとこと（上の症状を選べば、書かずにそのまま送ってもOK！）',
     stage: '例：〇〇のステージを作ってほしい！／こんなBGMを追加してほしい！',
     other: '例：ここが楽しかった！／ありんこ隊への応援メッセージなど'
   };
-  let selCat = 'idea', prevOv = 'title', sending = false, attachedImg = null;
+  let selCat = 'idea', selScene = 'title', prevOv = 'title', sending = false, attachedImg = null;
+  const selSyms = new Set();
 
   const ov = document.createElement('div');
   ov.className = 'ov';
@@ -3325,10 +3369,24 @@ layout();
     '<div class="fb-cats" id="fbCats">' +
     CATS.map(([k, lbl], i) => '<button type="button" class="fb-cat' + (i === 0 ? ' on' : '') + '" data-cat="' + k + '">' + lbl + '</button>').join('') +
     '</div>' +
+    '<div class="fb-bugbox" id="fbBugBox">' +
+      '<div class="fb-blbl">① 何が起きましたか？（1タップで複数選択OK・選ぶだけで送信可）</div>' +
+      '<div class="fb-chips" id="fbSyms">' +
+        BUG_SYMPTOMS.map(([k, lbl]) => '<button type="button" class="fb-chip" data-sym="' + k + '">' + lbl + '</button>').join('') +
+      '</div>' +
+      '<div class="fb-blbl">② どこで起きましたか？（自動で選択済み・変更OK）</div>' +
+      '<div class="fb-chips" id="fbScenes">' +
+        BUG_SCENES.map(([k, lbl]) => '<button type="button" class="fb-chip" data-scene="' + k + '">' + lbl + '</button>').join('') +
+      '</div>' +
+      '<div class="fb-auto-hint">✨ 端末・画面サイズ・遊んでいた面・エラー記録は自動で添えられるので手入力は不要です</div>' +
+    '</div>' +
     '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="' + PLACEHOLDERS.idea + '"></textarea>' +
     '<div class="fb-cnt"><span id="fbCnt">0</span> / 500</div>' +
     '<input type="file" id="fbFile" accept="image/*" style="display:none">' +
-    '<div class="fb-imgrow"><button type="button" class="fb-imgbtn" id="bFbPick">📷 スクショ・画像を添える（任意・1枚）</button></div>' +
+    '<div class="fb-imgrow">' +
+      '<button type="button" class="fb-imgbtn" id="bFbPick">📷 スクショを選ぶ</button>' +
+      '<button type="button" class="fb-imgbtn snap" id="bFbSnap" style="display:none">🎮 プレイ盤面を自動撮影</button>' +
+    '</div>' +
     '<div class="fb-prev" id="fbPrev">' +
       '<img id="fbPrevImg" alt="添付画像プレビュー">' +
       '<div class="meta"><div id="fbPrevName">スクショ添付済み</div><div id="fbPrevInfo" style="font-size:10px;color:#8a6a7a;font-weight:700"></div></div>' +
@@ -3337,6 +3395,7 @@ layout();
     '<input id="fbNick" class="fb-in" type="text" maxlength="16" placeholder="ニックネーム（空欄でもOK）">' +
     '<div class="fb-note">' +
       '<div>・アカウント不要で送れます。本名・連絡先・スクショ内の通知など<b>個人情報が映り込まないよう</b>ご注意ください。</div>' +
+      '<div>・原因調査のため、端末種別・画面サイズ・プレイ中の面・エラー記録などの技術情報のみ自動で添えられます（個人情報は送信されません）。</div>' +
       '<div>・不具合は確認のうえ改善に努めますが、<b>端末や環境によっては改善できない場合もあります</b>。</div>' +
       '<div>・<b>基本的には個別の返信は行っておりません</b>（対応内容はホームの「最近のアップデート」やおてがみ箱でお知らせします）。</div>' +
     '</div>' +
@@ -3377,7 +3436,7 @@ layout();
       box.innerHTML =
         '<div class="fb-camp-hd"><span class="fb-camp-pill">🎁 期間限定</span><span>お礼キャンペーン開催中！</span></div>' +
         '<div class="fb-camp-r">お礼：<span style="white-space:nowrap">🪙' + FB_CAMPAIGN.base.c + '</span>＋<span style="white-space:nowrap">🎟️おたからばこ×' + FB_CAMPAIGN.base.t + '</span>＋<span style="white-space:nowrap">💡ヒント×' + FB_CAMPAIGN.base.h + '</span>＋<span style="white-space:nowrap">🔍全部運べる×' + FB_CAMPAIGN.base.s + '</span></div>' +
-        '<div class="fb-camp-sub">📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>！（' + FB_CAMPAIGN.minChars + '文字以上・1日1回／あと<b>' + cs.rem + '回</b>）</div>';
+        '<div class="fb-camp-sub">📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>！（1日1回／あと<b>' + cs.rem + '回</b>・不具合は症状選択＋スクショだけでもOK）</div>';
     } else if (cs.rem > 0 && cs.todayDone) {
       box.innerHTML =
         '<div class="fb-camp-hd"><span>🎁 お礼キャンペーン（本日分は受取済み ✅）</span></div>' +
@@ -3409,11 +3468,131 @@ layout();
       return '<div class="fb-hitem"><b>' + escUpd(cat) + (dt ? ' · ' + escUpd(dt) : '') + imgTag + giftTag + '</b>' + escUpd(x.msg) + '</div>';
     }).join('');
   }
-  function detectDevice() {
+  function guessScene() {
+    for (let i = AF_BREADCRUMBS.length - 1; i >= 0; i--) {
+      const c = AF_BREADCRUMBS[i];
+      if (c === 'feedback' || c === 'settings') continue;
+      if (c.startsWith('play') || c === 'clear' || c === 'jam' || c === 'load') return 'play';
+      if (c === 'maker' || c === 'gallery' || c === 'contest' || c === 'posthelp' || c === 'stage-bgm') return 'maker';
+      if (c === 'title') return 'title';
+      return 'other';
+    }
+    return prevOv === 'title' ? 'title' : 'play';
+  }
+  function syncBugPanelUI() {
+    const isBug = selCat === 'bug';
+    const box = $('#fbBugBox');
+    if (box) box.classList.toggle('on', isBug);
+    $('#fbSyms').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', selSyms.has(x.dataset.sym)));
+    $('#fbScenes').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', x.dataset.scene === selScene));
+    const ta = $('#fbText');
+    if (ta && PLACEHOLDERS[selCat]) ta.placeholder = PLACEHOLDERS[selCat];
+    const snap = $('#bFbSnap');
+    if (snap) snap.style.display = (G.s && CW > 0 && $('#game')) ? '' : 'none';
+  }
+  function parseUaEnv() {
     const ua = navigator.userAgent || '';
-    const os = /Android/i.test(ua) ? 'Android' : /iPhone|iPad|iPod/i.test(ua) ? 'iOS' : 'PC';
-    const inApp = /Line\/|LIFF|Instagram|FBAN|FBAV|Twitter|MicroMessenger|GSA\//i.test(ua) ? ' (アプリ内)' : '';
-    return os + inApp + ' / ' + innerWidth + 'x' + innerHeight + ' (DPR ' + (window.devicePixelRatio || 1).toFixed(1) + ')';
+    let os = 'PC';
+    const mAnd = ua.match(/Android\s*([0-9.]+)/i);
+    const mIos = ua.match(/(?:iPhone OS|CPU OS)\s*([0-9_]+)/i);
+    if (mAnd) os = 'Android ' + mAnd[1];
+    else if (mIos) os = 'iOS ' + mIos[1].replace(/_/g, '.');
+    else if (/iPad|iPhone|iPod/i.test(ua)) os = 'iOS';
+    else if (/Windows NT/i.test(ua)) os = 'Windows';
+    else if (/Mac OS X/i.test(ua)) os = 'macOS';
+
+    let br = 'Browser';
+    const mLine = ua.match(/Line\/([0-9.]+)/i);
+    const mIg = /Instagram/i.test(ua);
+    const mFb = /FBAN|FBAV/i.test(ua);
+    const mSam = ua.match(/SamsungBrowser\/([0-9.]+)/i);
+    const mEdg = ua.match(/EdgA?\/([0-9.]+)/i);
+    const mFx = ua.match(/(?:Firefox|FxiOS)\/([0-9.]+)/i);
+    const mCr = ua.match(/(?:Chrome|CriOS)\/([0-9.]+)/i);
+    const mSf = ua.match(/Version\/([0-9.]+).*Safari/i);
+    if (mLine) br = 'LINE ' + mLine[1] + ' (アプリ内)';
+    else if (mIg) br = 'Instagram (アプリ内)';
+    else if (mFb) br = 'Facebook (アプリ内)';
+    else if (mSam) br = 'Samsung ' + mSam[1];
+    else if (mEdg) br = 'Edge ' + mEdg[1];
+    else if (mFx) br = 'Firefox ' + mFx[1];
+    else if (mCr) br = 'Chrome ' + mCr[1];
+    else if (mSf) br = 'Safari ' + mSf[1];
+
+    let model = '';
+    if (mAnd) {
+      const mm = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build\/|[;)])/i);
+      if (mm && mm[1] && !/^(?:K|wv|Mobile|Linux|U)$/i.test(mm[1].trim())) {
+        model = mm[1].trim().slice(0, 40);
+      }
+    }
+    return { os, br, model };
+  }
+  function detectDevice() {
+    const { os, br, model } = parseUaEnv();
+    return os + ' / ' + br + (model ? ' / ' + model : '') + ' / ' + innerWidth + 'x' + innerHeight + ' (DPR ' + (window.devicePixelRatio || 1).toFixed(1) + ')';
+  }
+  function collectDiagnostics() {
+    const { os, br, model } = parseUaEnv();
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+    const orient = innerWidth > innerHeight ? '横' : '縦';
+    const display = innerWidth + 'x' + innerHeight + ' (DPR ' + (window.devicePixelRatio || 1).toFixed(1) + ' / ' + orient + ' / ' + (standalone ? 'PWA' : 'ブラウザ') + ')';
+
+    const hwParts = [];
+    if (navigator.hardwareConcurrency) hwParts.push('CPU:' + navigator.hardwareConcurrency + 'コア');
+    if (navigator.deviceMemory) hwParts.push('RAM:' + navigator.deviceMemory + 'GB');
+    if (navigator.onLine === false) hwParts.push('オフライン');
+    else if (navigator.connection && navigator.connection.effectiveType) hwParts.push('ネット:' + navigator.connection.effectiveType);
+
+    const avg = afPerf.avgMs ? afPerf.avgMs.toFixed(1) : '-';
+    const fps = afPerf.avgMs ? Math.min(120, Math.round(1000 / afPerf.avgMs)) : '-';
+    const perf = '平均' + avg + 'ms (約' + fps + 'fps) / 80ms超:' + afPerf.slowCnt + '回 / 最大' + Math.round(afPerf.maxMs) + 'ms';
+
+    let stage = '未読込';
+    if (G.level && G.s) {
+      stage = 'Lv.' + posOf(G.levelId) + ' ' + (G.level.name || '') +
+        ' (id:' + G.levelId + (G.level.custom ? '/自作' : '') +
+        ', ' + (G.level.W || G.s.W || '?') + 'x' + (G.level.H || G.s.H || '?') +
+        ', のこり:' + G.s.left + '/' + G.level.total +
+        ', スロット:' + G.s.boxes.length + '/' + SLOT_COUNT +
+        ', アリ:' + (G.ants ? G.ants.length : 0) +
+        ', 速度:' + G.speed + 'x' +
+        ', 直前:' + (prevOv || 'play') + ')';
+    } else {
+      stage = '直前画面:' + (prevOv || 'title');
+    }
+
+    const audio = 'BGM:' + (save.settings.bgm ? 'ON' : 'OFF') +
+      ' / SE:' + (save.settings.se ? 'ON' : 'OFF') +
+      ' / AudioCtx:' + (Sound && Sound.ctx ? Sound.ctx.state : '未起動');
+
+    const loaded = (window.AF_LOADED ? window.AF_LOADED.length : 0) + '/' + (window.AF_FILES ? window.AF_FILES.length : 0);
+    const miss = (window.AF_FILES || []).filter(f => (window.AF_LOADED || []).indexOf(f) < 0);
+    let lsInfo = 'OK';
+    try {
+      const raw = localStorage.getItem(SAVE_KEY) || '';
+      lsInfo = 'OK (' + Math.max(1, Math.round(raw.length / 1024)) + 'KB)';
+    } catch (e) { lsInfo = '利用不可'; }
+    const health = 'JS:' + loaded + (miss.length ? ' (欠損:' + miss.join(',') + ')' : '') + ' / 保存:' + lsInfo;
+
+    const now = Date.now();
+    const errors = (window.AF_ERR_LOG || []).slice(-6).map(x => {
+      const ago = Math.max(0, Math.round((now - (x.t || now)) / 1000));
+      return '[-' + ago + 's] ' + x.m;
+    });
+
+    return {
+      env: os + ' / ' + br,
+      model,
+      display,
+      hw: hwParts.join(' / '),
+      perf,
+      stage,
+      audio,
+      health,
+      trail: AF_BREADCRUMBS.join(' → '),
+      errors
+    };
   }
   function clearAttachment() {
     attachedImg = null;
@@ -3421,7 +3600,28 @@ layout();
     if (f) f.value = '';
     if (pv) pv.classList.remove('on');
     if (im) im.removeAttribute('src');
-    if (btn) btn.textContent = '📷 スクショ・画像を添える（任意・1枚）';
+    if (btn) btn.textContent = '📷 スクショを選ぶ';
+  }
+  function compressSourceToJpeg(src, w, h) {
+    if (!w || !h) throw new Error('画像サイズを取得できませんでした');
+    const cv = document.createElement('canvas');
+    const ctx = cv.getContext('2d');
+    const attempts = [[720, 0.72], [720, 0.58], [600, 0.55], [480, 0.50], [380, 0.45], [320, 0.40]];
+    for (const [maxSide, q] of attempts) {
+      const scale = Math.min(1, maxSide / Math.max(w, h));
+      const nw = Math.max(1, Math.round(w * scale));
+      const nh = Math.max(1, Math.round(h * scale));
+      cv.width = nw; cv.height = nh;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, nw, nh);
+      ctx.drawImage(src, 0, 0, nw, nh);
+      const dataUrl = cv.toDataURL('image/jpeg', q);
+      if (dataUrl && dataUrl.length <= 48000) {
+        const kb = Math.max(1, Math.round(dataUrl.length * 0.75 / 1024));
+        return { dataUrl, info: nw + 'x' + nh + ' / 約' + kb + 'KB' };
+      }
+    }
+    throw new Error('画像サイズが大きすぎました。別の画像でお試しください');
   }
   function compressFeedbackImage(file) {
     return new Promise((resolve, reject) => {
@@ -3435,41 +3635,34 @@ layout();
         const img = new Image();
         img.onerror = () => reject(new Error('この画像は読み込めませんでした（PNG/JPEGでお試しください）'));
         img.onload = () => {
-          const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-          if (!w || !h) { reject(new Error('画像サイズを取得できませんでした')); return; }
-          const cv = document.createElement('canvas');
-          const ctx = cv.getContext('2d');
-          const attempts = [[720, 0.72], [720, 0.58], [600, 0.55], [480, 0.50], [380, 0.45], [320, 0.40]];
-          for (const [maxSide, q] of attempts) {
-            const scale = Math.min(1, maxSide / Math.max(w, h));
-            const nw = Math.max(1, Math.round(w * scale));
-            const nh = Math.max(1, Math.round(h * scale));
-            cv.width = nw; cv.height = nh;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, nw, nh);
-            ctx.drawImage(img, 0, 0, nw, nh);
-            const dataUrl = cv.toDataURL('image/jpeg', q);
-            if (dataUrl && dataUrl.length <= 48000) {
-              const kb = Math.max(1, Math.round(dataUrl.length * 0.75 / 1024));
-              resolve({ dataUrl, info: nw + 'x' + nh + ' / 約' + kb + 'KB' });
-              return;
-            }
-          }
-          reject(new Error('画像サイズが大きすぎました。別の画像でお試しください'));
+          try {
+            resolve(compressSourceToJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height));
+          } catch (err) { reject(err); }
         };
         img.src = reader.result;
       };
       reader.readAsDataURL(file);
     });
   }
+  function showAttachedPreview(res, label) {
+    attachedImg = res;
+    const im = $('#fbPrevImg'), nm = $('#fbPrevName'), inf = $('#fbPrevInfo'), pv = $('#fbPrev'), btn = $('#bFbPick');
+    if (im) im.src = res.dataUrl;
+    if (nm) nm.textContent = label || 'スクショ添付済み';
+    if (inf) inf.textContent = res.info + '（自動圧縮）';
+    if (pv) pv.classList.add('on');
+    if (btn) btn.textContent = '📷 別の画像に変更';
+  }
   function openFeedback(from) {
     prevOv = from || G.overlay || 'title';
+    selScene = guessScene();
     const ni = $('#fbNick');
     if (ni && !ni.value) {
       try { ni.value = localStorage.getItem(FB_NICK_KEY) || ''; } catch (e) {}
     }
     const th = $('#fbThanks');
     if (th) { th.classList.remove('on'); th.innerHTML = ''; }
+    syncBugPanelUI();
     refreshFbCampaignUI();
     renderHist();
     showOv('feedback');
@@ -3481,28 +3674,49 @@ layout();
     Sound.tap();
     selCat = b.dataset.cat;
     $('#fbCats').querySelectorAll('.fb-cat').forEach(x => x.classList.toggle('on', x.dataset.cat === selCat));
-    const ta = $('#fbText');
-    if (ta && PLACEHOLDERS[selCat]) ta.placeholder = PLACEHOLDERS[selCat];
+    syncBugPanelUI();
+  });
+  $('#fbSyms').addEventListener('click', e => {
+    const b = e.target.closest('[data-sym]');
+    if (!b) return;
+    Sound.tap();
+    const k = b.dataset.sym;
+    if (selSyms.has(k)) selSyms.delete(k); else selSyms.add(k);
+    b.classList.toggle('on', selSyms.has(k));
+  });
+  $('#fbScenes').addEventListener('click', e => {
+    const b = e.target.closest('[data-scene]');
+    if (!b) return;
+    Sound.tap();
+    selScene = b.dataset.scene;
+    $('#fbScenes').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', x.dataset.scene === selScene));
   });
   $('#fbText').addEventListener('input', () => {
     const el = $('#fbCnt');
     if (el) el.textContent = String($('#fbText').value.length);
   });
   on('#bFbPick', () => { const f = $('#fbFile'); if (f) f.click(); });
+  on('#bFbSnap', () => {
+    const cv = $('#game');
+    if (!cv || !cv.width || !cv.height) { toast('プレイ盤面がまだ表示されていません'); return; }
+    try {
+      const res = compressSourceToJpeg(cv, cv.width, cv.height);
+      res.info += ' (盤面自動撮影)';
+      showAttachedPreview(res, 'プレイ盤面を自動撮影');
+      toast('🎮 いまのプレイ盤面を自動撮影したよ！');
+    } catch (err) {
+      toast('⚠️ ' + (err && err.message ? err.message : '撮影できませんでした'), 3000);
+    }
+  });
   on('#bFbDel', () => { clearAttachment(); toast('画像をはずしたよ'); });
   $('#fbFile').addEventListener('change', async e => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const btn = $('#bFbPick');
-    if (btn) btn.textContent = '📷 画像を自動で小さく変換中…';
+    if (btn) btn.textContent = '📷 圧縮中…';
     try {
       const res = await compressFeedbackImage(file);
-      attachedImg = res;
-      const im = $('#fbPrevImg'), inf = $('#fbPrevInfo'), pv = $('#fbPrev');
-      if (im) im.src = res.dataUrl;
-      if (inf) inf.textContent = res.info + '（送信用に自動圧縮）';
-      if (pv) pv.classList.add('on');
-      if (btn) btn.textContent = '📷 別のスクショ・画像に変更する';
+      showAttachedPreview(res, 'スクショ添付済み');
       toast('📷 スクショを添付したよ！');
     } catch (err) {
       clearAttachment();
@@ -3516,7 +3730,22 @@ layout();
     if (sending) return;
     const ta = $('#fbText'), ni = $('#fbNick'), btn = $('#bFbSend');
     const msg = (ta ? ta.value : '').trim();
-    if (msg.length < 2) { toast('内容を2文字以上で書いてね！'); if (ta) ta.focus(); return; }
+    const symptoms = selCat === 'bug'
+      ? BUG_SYMPTOMS.filter(([k]) => selSyms.has(k)).map(([, lbl]) => lbl)
+      : [];
+    const sceneLabel = selCat === 'bug'
+      ? ((BUG_SCENES.find(([k]) => k === selScene) || BUG_SCENES[0])[1])
+      : '';
+    if (selCat === 'bug') {
+      if (!symptoms.length && msg.length < 2) {
+        toast('症状を1つタップするか、内容を2文字以上で書いてね！');
+        return;
+      }
+    } else if (msg.length < 2) {
+      toast('内容を2文字以上で書いてね！');
+      if (ta) ta.focus();
+      return;
+    }
     const nick = (ni ? ni.value : '').trim();
     try { if (nick) localStorage.setItem(FB_NICK_KEY, nick); } catch (e) {}
     sending = true;
@@ -3530,8 +3759,11 @@ layout();
         nick,
         version: window.AF_APP_VER || '',
         progress,
-        device: detectDevice()
+        device: detectDevice(),
+        diag: collectDiagnostics()
       };
+      if (symptoms.length) payload.symptoms = symptoms;
+      if (sceneLabel) payload.scene = sceneLabel;
       if (attachedImg) {
         payload.image = attachedImg.dataUrl;
         payload.imageInfo = attachedImg.info;
@@ -3547,10 +3779,11 @@ layout();
         return;
       }
 
-      // お礼キャンペーンの付与判定（送信成功時のみ・6文字以上・1日1回・上限5回）
+      // お礼キャンペーンの付与判定（送信成功時のみ・6文字以上 or 不具合の症状選択＋スクショ/ひとこと・1日1回・上限5回）
       const cs = campStatus();
+      const qualifies = msg.length >= FB_CAMPAIGN.minChars || (selCat === 'bug' && symptoms.length > 0 && (hasImg || msg.length >= 2));
       let rewarded = null;
-      if (cs.eligible && msg.length >= FB_CAMPAIGN.minChars) {
+      if (cs.eligible && qualifies) {
         rewarded = {
           c: (FB_CAMPAIGN.base.c || 0) + (hasImg ? (FB_CAMPAIGN.imgBonus.c || 0) : 0),
           t: FB_CAMPAIGN.base.t || 0,
@@ -3587,17 +3820,20 @@ layout();
         toast('🎁 お礼ゲット！ ' + rTxt, 4200);
       } else {
         Sound.albumIn();
-        if (cs.eligible && msg.length < FB_CAMPAIGN.minChars) {
-          toast('🎉 届いたよ！ありがとう✨（お礼は' + FB_CAMPAIGN.minChars + '文字以上の投稿で受け取れるよ）', 4000);
+        if (cs.eligible && !qualifies) {
+          toast('🎉 届いたよ！ありがとう✨（お礼は' + FB_CAMPAIGN.minChars + '文字以上の記入、または不具合＋スクショ添付で受け取れるよ）', 4200);
         } else {
           toast('🎉 届いたよ！確認して今後の改善に活かすね✨', 3800);
         }
       }
 
-      saveSent({ cat: selCat, msg, hasImg, gift: !!rewarded, at: Date.now() });
+      const histMsg = msg || (symptoms.join('／') + (sceneLabel ? '（' + sceneLabel + '）' : ''));
+      saveSent({ cat: selCat, msg: histMsg, hasImg, gift: !!rewarded, at: Date.now() });
       if (ta) ta.value = '';
       if ($('#fbCnt')) $('#fbCnt').textContent = '0';
+      selSyms.clear();
       clearAttachment();
+      syncBugPanelUI();
       refreshFbCampaignUI();
       renderHist();
     } catch (e) {

@@ -325,15 +325,23 @@ async function handleFeedback(request, env, cors) {
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const catKey = FEEDBACK_CATS[body.category] ? body.category : 'idea';
   const catLabel = FEEDBACK_CATS[catKey];
+  const cleanLine = (v, max) => String(v || '').trim().replace(/[\r\n]+/g, ' ').slice(0, max);
+
+  const symptoms = Array.isArray(body.symptoms)
+    ? body.symptoms.map(s => cleanLine(s, 36)).filter(Boolean).slice(0, 6)
+    : [];
+  const scene = cleanLine(body.scene, 40);
+
   const message = String(body.message || '').trim().replace(/\r\n/g, '\n').slice(0, 500);
-  if (message.length < 2) {
+  const canSkipMsg = catKey === 'bug' && symptoms.length > 0;
+  if (!canSkipMsg && message.length < 2) {
     return jsonRes({ ok: false, error: '内容を入力してね（2文字以上）' }, 400, cors);
   }
-  if (hasNgWord(message)) {
+  if (message && hasNgWord(message)) {
     return jsonRes({ ok: false, error: '使えない言葉やURL・メールアドレスが入っています' }, 400, cors);
   }
 
-  let nick = String(body.nick || '').trim().replace(/[\r\n]/g, '').slice(0, 16);
+  let nick = cleanLine(body.nick, 16);
   if (!nick || nick === '名無しのありんこ' || nick === '名無し') {
     nick = await makeAnonName(ip, body.clientId);
   } else if (hasNgWord(nick)) {
@@ -346,9 +354,9 @@ async function handleFeedback(request, env, cors) {
     return jsonRes({ ok: false, error: '連続送信制限：少し待ってから送ってね（60秒）' }, 429, cors);
   }
 
-  const appVer = String(body.version || '').trim().replace(/[\r\n]/g, '').slice(0, 24) || 'unknown';
-  const device = String(body.device || '').trim().replace(/[\r\n]/g, '').slice(0, 80) || 'unknown';
-  const progress = String(body.progress || '').trim().replace(/[\r\n]/g, '').slice(0, 60) || '-';
+  const appVer = cleanLine(body.version, 24) || 'unknown';
+  const device = cleanLine(body.device, 120) || 'unknown';
+  const progress = cleanLine(body.progress, 80) || '-';
 
   let imageData = '';
   let imageInfo = '';
@@ -361,21 +369,56 @@ async function handleFeedback(request, env, cors) {
       return jsonRes({ ok: false, error: '画像サイズが大きすぎます（自動で圧縮されますが別の画像でお試しください）' }, 400, cors);
     }
     imageData = rawImg;
-    imageInfo = String(body.imageInfo || '').trim().replace(/[\r\n]/g, '').slice(0, 40) || Math.round(rawImg.length * 0.75 / 1024) + 'KB';
+    imageInfo = cleanLine(body.imageInfo, 48) || Math.round(rawImg.length * 0.75 / 1024) + 'KB';
   }
 
-  const firstLine = message.split('\n')[0].trim().slice(0, 32);
-  const title = `[${catKey === 'bug' ? '不具合' : '要望'}][${catLabel.replace(/^[^\s]+\s*/, '')}] ${firstLine}${message.length > 32 ? '…' : ''}`;
+  // 自動収集された診断情報（任意・個人情報なし）
+  let diagSection = '';
+  if (body.diag && typeof body.diag === 'object') {
+    const d = body.diag;
+    const rows = [];
+    const addRow = (k, v, max = 140) => {
+      const s = cleanLine(v, max);
+      if (s) rows.push(`- ${k}: ${s}`);
+    };
+    addRow('OS / ブラウザ', d.env, 140);
+    addRow('機種ヒント', d.model, 60);
+    addRow('画面・表示モード', d.display, 100);
+    addRow('端末性能・通信', d.hw, 100);
+    addRow('描画パフォーマンス', d.perf, 100);
+    addRow('直前の盤面・状態', d.stage, 160);
+    addRow('サウンド・設定', d.audio, 100);
+    addRow('読込済みJS / 保存領域', d.health, 120);
+    addRow('直近の画面遷移', d.trail, 220);
+    const errs = Array.isArray(d.errors) ? d.errors.map(e => cleanLine(e, 180)).filter(Boolean).slice(0, 6) : [];
+    rows.push(`- JSエラー記録: ${errs.length ? errs.length + '件' : 'なし'}`);
+    if (rows.length) {
+      diagSection =
+        '\n<details>\n<summary>🔍 自動収集した診断情報（環境・盤面・FPS・エラー履歴）</summary>\n\n' +
+        rows.join('\n') + '\n' +
+        (errs.length ? '\n```text\n' + errs.join('\n') + '\n```\n' : '') +
+        '\n</details>\n';
+    }
+  }
+
+  const firstLine = message ? message.split('\n')[0].trim().slice(0, 32) : '';
+  const symTag = symptoms.length ? symptoms[0].replace(/^[^\s]+\s*/, '').slice(0, 16) : catLabel.replace(/^[^\s]+\s*/, '');
+  const titleBody = firstLine ? `${firstLine}${message.length > 32 ? '…' : ''}` : (scene ? scene.replace(/^[^\s]+\s*/, '') : '状況報告');
+  const title = `[${catKey === 'bug' ? '不具合' : '要望'}][${symTag}] ${titleBody}`;
+
   const issueBody =
     '### 💌 ユーザーからの要望・不具合連絡\n' +
     `- カテゴリ: ${catLabel}\n` +
+    (symptoms.length ? `- 症状: ${symptoms.join(' / ')}\n` : '') +
+    (scene ? `- 発生場所: ${scene}\n` : '') +
     `- 投稿者: ${nick}\n` +
     `- アプリ版: ${appVer}\n` +
     `- 進行度: ${progress}\n` +
     `- 端末情報: ${device}\n` +
     (imageData ? `- スクショ添付: あり（${imageInfo}）※ \`node scripts/extract_feedback_img.mjs <Issue番号>\` で画像表示可\n` : '') +
     '\n#### 内容\n' +
-    message + '\n' +
+    (message || '（クイック選択・自動診断情報のみでの報告）') + '\n' +
+    diagSection +
     (imageData ? `\n<!-- FEEDBACK_IMG:${imageData} -->\n` : '');
 
   const labels = catKey === 'bug' ? ['feedback', 'bug'] : ['feedback'];
