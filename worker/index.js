@@ -23,6 +23,11 @@ const NG_WORDS = [
 const MEM_RL = new Map();
 const MEM_BURST = new Map();
 const MEM_RL_MAX = 4000;
+let STATS_CACHE = { stats: null, exp: 0 };
+let STAGE_HASH_CACHE = { set: null, exp: 0 };
+const STAGE_HASH_TTL_MS = 5 * 60 * 1000;
+const STATS_MEM_TTL_MS = 15 * 1000;
+const STATS_KV_TTL_SEC = 60;
 
 function sweepMap(map, now) {
   if (map.size < MEM_RL_MAX) return;
@@ -96,35 +101,44 @@ function safeDict(raw) {
 }
 
 function hasNgWord(str) {
-  const s = String(str || '');
-  if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|[@＠]/i.test(s)) return true;
+  const raw = String(str || '');
+  const s = raw.normalize('NFKC');
+  if (/https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,12}(?=[/?#:\s\u3000)）\]」】]|$)|[@＠]/i.test(s)) return true;
   const norm = s.toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
   return NG_WORDS.some(w => norm.includes(w));
 }
 
 function cleanMdLine(v, max) {
-  return String(v || '')
+  let s = String(v || '')
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
     .replace(/[\r\n]+/g, ' ')
-    .replace(/<!--|-->/g, '')
-    .replace(/<\/?details\b[^>]*>/gi, '')
     .replace(/```+/g, "'''")
     .replace(/@(?=[A-Za-z0-9_-])/g, '＠')
-    .replace(/[<>`]/g, '')
-    .trim()
-    .slice(0, max);
+    .replace(/\]\s*\(/g, '] (')
+    .replace(/[<>`\[\]]/g, '');
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/<!--|-->|<\/?details\b[^>]*>/gi, '');
+  } while (s !== prev);
+  return s.trim().slice(0, max);
 }
 
 function cleanMdBlock(v, max) {
-  return String(v || '')
+  let s = String(v || '')
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
     .replace(/\r\n?/g, '\n')
-    .replace(/<!--|-->/g, '')
-    .replace(/<\/?details\b[^>]*>/gi, '')
     .replace(/```+/g, "'''")
     .replace(/@(?=[A-Za-z0-9_-])/g, '＠')
-    .trim()
-    .slice(0, max);
+    .replace(/\]\s*\(/g, '] (')
+    .replace(/</g, '＜')
+    .replace(/>/g, '＞');
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/<!--|-->|<\/?details\b[^>]*>/gi, '');
+  } while (s !== prev);
+  return s.trim().slice(0, max);
 }
 
 function clampInt(val, min, max, fallback) {
@@ -171,7 +185,12 @@ function corsHeaders(request, env) {
 function jsonRes(data, status, headers) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers }
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-store',
+      ...headers
+    }
   });
 }
 
@@ -277,9 +296,161 @@ async function makeAnonName(env, ip, clientAnon) {
   return a + n + '#' + num;
 }
 
+function fromB64UrlBytes(str) {
+  let s = String(str || '').trim().replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function inflateRawBytes(bytes, maxBytes = 65536) {
+  const ds = new DecompressionStream('deflate-raw');
+  const w = ds.writable.getWriter();
+  w.write(bytes).catch(() => {});
+  w.close().catch(() => {});
+  const reader = ds.readable.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        throw new Error('Decompressed payload too large');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+  return out;
+}
+
+function calcStageContentHash(grid, w, h) {
+  let h1 = 2166136261 >>> 0;
+  const mix = v => { h1 ^= (v & 255); h1 = Math.imul(h1, 16777619) >>> 0; };
+  mix(w); mix(h);
+  for (let i = 0; i < grid.length; i++) mix(grid[i] + 2);
+  return ('00000000' + h1.toString(16)).slice(-8);
+}
+
+function checkStageMetaNg(meta) {
+  if (!meta || typeof meta !== 'object') return false;
+  const t = meta.t || (meta.hi || meta.p || meta.c || meta.j || meta.q ? meta : null);
+  if (t && typeof t === 'object') {
+    for (const k of ['hi', 'p', 'c', 'j', 'q']) {
+      if (Array.isArray(t[k]) && t[k].some(s => hasNgWord(String(s || '')))) return true;
+    }
+  }
+  return false;
+}
+
+async function verifyStageToken(token) {
+  try {
+    const bytes = fromB64UrlBytes(token);
+    if (bytes.length < 6) return { ok: false, error: '作品データが短すぎます' };
+    const ver = bytes[0];
+    let W = 0, H = 0, name = '', grid = null, meta = null;
+    if (ver === 1 || ver === 4) {
+      W = bytes[1]; H = bytes[2];
+      const nLen = bytes[3];
+      if (W < 8 || W > 64 || H < 8 || H > 64) return { ok: false, error: '盤面サイズが不正です' };
+      const hdrMin = ver === 4 ? 6 + nLen : 4 + nLen;
+      if (hdrMin >= bytes.length) return { ok: false, error: '作品データが壊れています' };
+      name = new TextDecoder().decode(bytes.slice(4, 4 + nLen));
+      let p = 4 + nLen;
+      if (ver === 4) {
+        const tLen = bytes[4 + nLen] | (bytes[5 + nLen] << 8);
+        const tStart = 6 + nLen, tEnd = tStart + tLen;
+        if (tEnd >= bytes.length) return { ok: false, error: '作品メタデータが壊れています' };
+        if (tLen > 0) meta = JSON.parse(new TextDecoder().decode(bytes.slice(tStart, tEnd)));
+        p = tEnd;
+      }
+      grid = new Int8Array(W * H).fill(-1);
+      let idx = 0;
+      for (; p + 1 < bytes.length && idx < grid.length; p += 2) {
+        const val = bytes[p] - 1, cnt = bytes[p + 1];
+        if (val < -1 || val >= 21 || cnt < 1) return { ok: false, error: '作品データが不正です' };
+        for (let k = 0; k < cnt && idx < grid.length; k++) grid[idx++] = val;
+      }
+      if (idx !== grid.length || p !== bytes.length) return { ok: false, error: '作品データが途中で切れています' };
+    } else if (ver === 2 || ver === 3) {
+      if (typeof DecompressionStream !== 'function') return { ok: false, error: '未対応のデータ形式です' };
+      const raw = await inflateRawBytes(bytes.slice(1));
+      if (raw.length < (ver === 3 ? 6 : 4)) return { ok: false, error: '作品データが壊れています' };
+      W = raw[0]; H = raw[1];
+      const nLen = raw[2];
+      if (W < 8 || W > 64 || H < 8 || H > 64) return { ok: false, error: '盤面サイズが不正です' };
+      let off = 3 + nLen;
+      if (off >= raw.length) return { ok: false, error: '作品データが壊れています' };
+      name = new TextDecoder().decode(raw.slice(3, 3 + nLen));
+      if (ver === 3) {
+        if (5 + nLen >= raw.length) return { ok: false, error: '作品データが壊れています' };
+        const tLen = raw[3 + nLen] | (raw[4 + nLen] << 8);
+        const tStart = 5 + nLen;
+        off = tStart + tLen;
+        if (off >= raw.length) return { ok: false, error: '作品メタデータが壊れています' };
+        if (tLen > 0) meta = JSON.parse(new TextDecoder().decode(raw.slice(tStart, off)));
+      }
+      if (raw.length !== off + W * H) return { ok: false, error: '作品データのサイズが一致しません' };
+      grid = new Int8Array(W * H);
+      for (let i = 0; i < grid.length; i++) {
+        const val = raw[off + i] - 1;
+        if (val < -1 || val >= 21) return { ok: false, error: '作品データが不正です' };
+        grid[i] = val;
+      }
+    } else {
+      return { ok: false, error: '未対応の作品データ形式です' };
+    }
+    let total = 0;
+    for (let k = 0; k < grid.length; k++) if (grid[k] >= 0) total++;
+    if (total < 4) return { ok: false, error: 'キャンディは4マス以上必要です' };
+    if (hasNgWord(name) || checkStageMetaNg(meta)) {
+      return { ok: false, error: '作品名やセリフに使えない言葉やURLが入っています' };
+    }
+    return { ok: true, w: W, h: H, contentHash: calcStageContentHash(grid, W, H) };
+  } catch {
+    return { ok: false, error: '作品データを読み取れませんでした' };
+  }
+}
+
+function verifyBgmToken(token) {
+  try {
+    const bytes = fromB64UrlBytes(token);
+    if (bytes.length < 4 || bytes.length > 16000) return { ok: false, error: 'BGMデータが不正です' };
+    const min = JSON.parse(new TextDecoder().decode(bytes));
+    if (!min || typeof min !== 'object' || !Array.isArray(min.r) || !min.r.length || min.r.length > 8) {
+      return { ok: false, error: 'BGMデータ形式が正しくありません' };
+    }
+    if (hasNgWord(min.n || '')) {
+      return { ok: false, error: '曲名に使えない言葉やURLが入っています' };
+    }
+    for (const rb of min.r) {
+      if (rb && rb.l && hasNgWord(String(rb.l))) {
+        return { ok: false, error: '歌詞に使えない言葉やURLが入っています' };
+      }
+    }
+    return {
+      ok: true,
+      bpm: clampInt(min.b, 70, 170, 116),
+      bars: clampInt(min.r.length, 1, 8, 2)
+    };
+  } catch {
+    return { ok: false, error: 'BGMデータを読み取れませんでした' };
+  }
+}
+
 async function checkDuplicateIssue(env, kind, token, contentHash) {
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?state=open&per_page=100`, {
+    const lbl = kind === 'bgm' ? 'bgm-post' : 'stage-post';
+    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=${lbl}&state=open&per_page=100`, {
       headers: {
         'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
         'Accept': 'application/vnd.github+json',
@@ -319,7 +490,7 @@ async function handleTalkLike(request, env, cors) {
 
   const talk = cleanMdLine(body.talk, 60).replace(/[|\\[\]]/g, '').trim();
   const delta = body.delta === -1 ? -1 : 1;
-  if (!talk || FORBIDDEN_KEYS.has(talk) || hasNgWord(talk)) {
+  if (!talk || talk.length < 2 || FORBIDDEN_KEYS.has(talk) || hasNgWord(talk)) {
     return jsonRes({ ok: false, error: 'Invalid talk' }, 400, cors);
   }
 
@@ -330,11 +501,14 @@ async function handleTalkLike(request, env, cors) {
     }
     await rlSet(env, lkKey, 86400);
   } else {
+    // いいね記録がないIPからの不正減算を拒否
+    if (!(await rlHas(env, lkKey))) {
+      return jsonRes({ ok: true, skipped: true }, 200, cors);
+    }
     const ulKey = 'unlike:' + ip + ':' + talk;
     if (await rlHas(env, ulKey)) {
       return jsonRes({ ok: true, skipped: true }, 200, cors);
     }
-    // いいね記録がないIPからの無制限な減算連打を抑制（60秒クールダウン）
     await rlDel(env, lkKey);
     await rlSet(env, ulKey, 60);
   }
@@ -357,31 +531,41 @@ async function handleTalkLike(request, env, cors) {
       try { counts = safeDict(JSON.parse(m[1])); } catch {}
     }
   }
+  const isNewKey = !Object.prototype.hasOwnProperty.call(counts, talk);
+  if (delta > 0 && isNewKey) {
+    const newTalkCd = 'talk-new:ip:' + ip;
+    if (await rlHas(env, newTalkCd)) {
+      return jsonRes({ ok: true, skipped: true }, 200, cors);
+    }
+    await rlSet(env, newTalkCd, 15);
+  }
   const next = Math.max(0, (Number(counts[talk]) || 0) + delta);
   if (next > 0) counts[talk] = next;
   else delete counts[talk];
 
-  const sorted = Object.entries(counts).filter(([k, c]) => !FORBIDDEN_KEYS.has(k) && Number(c) > 0).sort((a, b) => b[1] - a[1]).slice(0, 200);
+  const sorted = Object.entries(counts).filter(([k, c]) => !FORBIDDEN_KEYS.has(k) && Number(c) > 0).sort((a, b) => b[1] - a[1]).slice(0, 500);
   const compact = Object.fromEntries(sorted);
 
   let md = '### 💬 人気のセリフ ランキング（自動集計）\n';
   md += '<!-- LIKES_JSON:' + JSON.stringify(compact) + ' -->\n\n';
   md += '| 順位 | いいね | セリフ |\n| --- | ---: | --- |\n';
-  sorted.forEach(([t, c], i) => { md += `| ${i + 1} | ${c} | ${cleanMdLine(t, 60).replace(/\|/g, '')} |\n`; });
+  sorted.slice(0, 100).forEach(([t, c], i) => { md += `| ${i + 1} | ${c} | ${cleanMdLine(t, 60).replace(/\|/g, '')} |\n`; });
 
+  let wRes = null;
   if (iss) {
-    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${iss.number}`, {
+    wRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${iss.number}`, {
       method: 'PATCH',
       headers: ghHeaders,
       body: JSON.stringify({ body: md })
     });
   } else if (delta > 0) {
-    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
+    wRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
       method: 'POST',
       headers: ghHeaders,
       body: JSON.stringify({ title: '[集計] 人気のセリフ ランキング', labels: ['talk-likes'], body: md })
     });
   }
+  if (wRes && !wRes.ok) return jsonRes({ ok: false, error: 'GitHub write failed' }, 502, cors);
   return jsonRes({ ok: true, count: next }, 200, cors);
 }
 
@@ -400,7 +584,83 @@ async function readStageStatsIssue(ghHeaders) {
   return { ok: true, iss, stats };
 }
 
-async function handleStageStatsGet(env, cors) {
+async function saveStatsCache(env, stats) {
+  STATS_CACHE = { stats, exp: Date.now() + STATS_MEM_TTL_MS };
+  if (env && env.RATE_LIMIT_KV) {
+    try {
+      await env.RATE_LIMIT_KV.put('cache:stage-stats', JSON.stringify(stats), { expirationTtl: STATS_KV_TTL_SEC });
+    } catch {}
+  }
+}
+
+async function getValidStageHashes(env) {
+  const now = Date.now();
+  if (STAGE_HASH_CACHE.set && STAGE_HASH_CACHE.exp > now) return STAGE_HASH_CACHE.set;
+  if (env && env.RATE_LIMIT_KV) {
+    try {
+      const kvRaw = await env.RATE_LIMIT_KV.get('cache:stage-hashes', 'json');
+      if (Array.isArray(kvRaw)) {
+        const s = new Set(kvRaw);
+        STAGE_HASH_CACHE = { set: s, exp: now + STAGE_HASH_TTL_MS };
+        return s;
+      }
+    } catch {}
+  }
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=stage-post&state=open&per_page=100`, {
+      headers: {
+        'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'antflow-post-worker'
+      }
+    });
+    if (!res.ok) return null;
+    const issues = await res.json();
+    if (!Array.isArray(issues)) return null;
+    const s = new Set();
+    for (const iss of issues) {
+      const hm = String(iss.body || '').match(/^- 内容ID:\s*([A-Za-z0-9_-]+)/m);
+      if (hm) s.add(hm[1]);
+    }
+    STAGE_HASH_CACHE = { set: s, exp: now + STAGE_HASH_TTL_MS };
+    if (env && env.RATE_LIMIT_KV) {
+      try {
+        await env.RATE_LIMIT_KV.put('cache:stage-hashes', JSON.stringify([...s]), { expirationTtl: 300 });
+      } catch {}
+    }
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+async function addValidStageHash(env, hash) {
+  if (!hash) return;
+  if (STAGE_HASH_CACHE.set) STAGE_HASH_CACHE.set.add(hash);
+  if (env && env.RATE_LIMIT_KV) {
+    try { await env.RATE_LIMIT_KV.delete('cache:stage-hashes'); } catch {}
+  }
+}
+
+async function handleStageStatsGet(request, env, cors) {
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (checkBurstLimit(ip)) {
+    return jsonRes({ ok: false, error: 'アクセスが集中しています。少し待ってね' }, 429, cors);
+  }
+  const now = Date.now();
+  if (STATS_CACHE.stats && STATS_CACHE.exp > now) {
+    return jsonRes({ ok: true, stats: STATS_CACHE.stats }, 200, { ...cors, 'Cache-Control': 'public, max-age=15' });
+  }
+  if (env && env.RATE_LIMIT_KV) {
+    try {
+      const kvStats = await env.RATE_LIMIT_KV.get('cache:stage-stats', 'json');
+      if (kvStats && typeof kvStats === 'object') {
+        const clean = safeDict(kvStats);
+        STATS_CACHE = { stats: clean, exp: now + STATS_MEM_TTL_MS };
+        return jsonRes({ ok: true, stats: clean }, 200, { ...cors, 'Cache-Control': 'public, max-age=15' });
+      }
+    } catch {}
+  }
   const ghHeaders = {
     'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
     'Accept': 'application/vnd.github+json',
@@ -408,7 +668,8 @@ async function handleStageStatsGet(env, cors) {
   };
   const { ok, stats } = await readStageStatsIssue(ghHeaders);
   if (!ok) return jsonRes({ ok: false, error: 'GitHub read failed' }, 502, cors);
-  return jsonRes({ ok: true, stats }, 200, { ...cors, 'Cache-Control': 'public, max-age=10' });
+  await saveStatsCache(env, stats);
+  return jsonRes({ ok: true, stats }, 200, { ...cors, 'Cache-Control': 'public, max-age=15' });
 }
 
 async function handleStageStatPost(request, env, cors) {
@@ -430,6 +691,11 @@ async function handleStageStatPost(request, env, cors) {
     return jsonRes({ ok: false, error: 'Invalid event' }, 400, cors);
   }
 
+  const validHashes = await getValidStageHashes(env);
+  if (validHashes && !validHashes.has(hash)) {
+    return jsonRes({ ok: false, error: 'Unknown stage hash' }, 404, cors);
+  }
+
   // クライアント自己申告の clientId ではなく IP ベースでレート制限・重複防止を行う
   const actor = ip;
   if (event === 'play') {
@@ -445,9 +711,11 @@ async function handleStageStatPost(request, env, cors) {
     if (await rlHas(env, lkKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
     await rlSet(env, lkKey, 86400);
   } else if (event === 'unlike') {
+    const lkKey = 'st-like:' + actor + ':' + hash;
+    if (!(await rlHas(env, lkKey))) return jsonRes({ ok: true, skipped: true }, 200, cors);
     const ulKey = 'st-unlike-cd:' + actor + ':' + hash;
     if (await rlHas(env, ulKey)) return jsonRes({ ok: true, skipped: true }, 200, cors);
-    await rlDel(env, 'st-like:' + actor + ':' + hash);
+    await rlDel(env, lkKey);
     await rlSet(env, ulKey, 60);
   } else if (event === 'up' || event === 'down') {
     const vKey = 'st-vote:' + actor + ':' + hash;
@@ -489,7 +757,7 @@ async function handleStageStatPost(request, env, cors) {
     if (isUniquePlay) cur.u += 1;
   } else if (event === 'clear') {
     cur.c += 1;
-    if (Number.isFinite(sec) && sec >= 0.1 && sec <= 36000) {
+    if (Number.isFinite(sec) && sec >= 1.0 && sec <= 36000) {
       const s1 = Math.round(sec * 10) / 10;
       cur.ts = Math.round((cur.ts + s1) * 10) / 10;
       cur.bt = cur.bt > 0 ? Math.round(Math.min(cur.bt, s1) * 10) / 10 : s1;
@@ -508,7 +776,7 @@ async function handleStageStatPost(request, env, cors) {
   const entries = Object.entries(stats)
     .filter(([k]) => !FORBIDDEN_KEYS.has(k) && /^[A-Za-z0-9_-]{6,32}$/.test(k))
     .sort((a, b) => (b[1].p || 0) - (a[1].p || 0))
-    .slice(0, 300);
+    .slice(0, 500);
   const compact = Object.fromEntries(entries);
   let md = '### 📊 投稿ステージ統計（自動集計）\n';
   md += '<!-- STAGE_STATS_JSON:' + JSON.stringify(compact) + ' -->\n\n';
@@ -517,19 +785,22 @@ async function handleStageStatPost(request, env, cors) {
     md += `| ${h} | ${s.u || 0} | ${s.p || 0} | ${s.c || 0} | ${s.lk || 0} | ${s.up || 0} | ${s.dn || 0} | ${s.bt ? s.bt + 's' : '-'} |\n`;
   });
 
+  let wRes;
   if (iss) {
-    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${iss.number}`, {
+    wRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${iss.number}`, {
       method: 'PATCH',
       headers: ghHeaders,
       body: JSON.stringify({ body: md })
     });
   } else {
-    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
+    wRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
       method: 'POST',
       headers: ghHeaders,
       body: JSON.stringify({ title: '[集計] 投稿ステージ統計', labels: ['stage-stats'], body: md })
     });
   }
+  if (!wRes.ok) return jsonRes({ ok: false, error: 'GitHub write failed' }, 502, cors);
+  await saveStatsCache(env, compact);
   return jsonRes({ ok: true, stat: cur }, 200, cors);
 }
 
@@ -638,14 +909,15 @@ async function handleFeedback(request, env, cors) {
   const titlePrefix = catKey === 'bug' ? '不具合' : catKey === 'maker' ? 'つくる' : '要望';
   const title = `[${titlePrefix}][${symTag}] ${titleBody}`;
 
-  const fbToken = env.FEEDBACK_GITHUB_TOKEN || env.GITHUB_TOKEN;
+  const fbToken = env.FEEDBACK_GITHUB_TOKEN;
   const rawFbRepo = String(env.FEEDBACK_REPO || '').trim();
   const fbRepo = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(rawFbRepo)
     ? rawFbRepo
-    : (env.FEEDBACK_GITHUB_TOKEN ? `${REPO_OWNER}/antflow-feedback` : `${REPO_OWNER}/${REPO_NAME}`);
-  const extractHint = fbRepo === `${REPO_OWNER}/${REPO_NAME}`
-    ? '`node scripts/extract_feedback_img.mjs <Issue番号>`'
-    : `\`node scripts/extract_feedback_img.mjs <Issue番号> --repo ${fbRepo}\``;
+    : `${REPO_OWNER}/antflow-feedback`;
+  if (!fbToken || fbRepo === `${REPO_OWNER}/${REPO_NAME}`) {
+    return jsonRes({ ok: false, error: '現在フィードバック受付を一時停止しています' }, 503, cors);
+  }
+  const extractHint = `\`node scripts/extract_feedback_img.mjs <Issue番号> --repo ${fbRepo}\``;
 
   const issueBody =
     '### 💌 ユーザーからの要望・不具合連絡\n' +
@@ -666,24 +938,32 @@ async function handleFeedback(request, env, cors) {
   const isMakerRelated = catKey === 'maker' || !!body.isMaker || /メーカー|みんなの絵|みんなのBGM/.test(scene);
   if (isMakerRelated) labels.push('maker-feedback');
   if (catKey === 'bug' || symptoms.some(s => s.includes('不具合'))) labels.push('bug');
-  const ghRes = await fetch(`https://api.github.com/repos/${fbRepo}/issues`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${fbToken}`,
-      'Accept': 'application/vnd.github+json',
-      'User-Agent': 'antflow-post-worker',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ title, labels, body: issueBody })
-  });
+
+  await rlSet(env, fbKey, RATE_LIMIT_SEC);
+  let ghRes;
+  try {
+    ghRes = await fetch(`https://api.github.com/repos/${fbRepo}/issues`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${fbToken}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'antflow-post-worker',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ title, labels, body: issueBody })
+    });
+  } catch (err) {
+    await rlDel(env, fbKey);
+    return jsonRes({ ok: false, error: '送信に失敗しました' }, 502, cors);
+  }
 
   if (!ghRes.ok) {
+    await rlDel(env, fbKey);
     console.error('GitHub feedback error:', ghRes.status);
     return jsonRes({ ok: false, error: '送信に失敗しました (' + ghRes.status + ')' }, 502, cors);
   }
 
   const created = await ghRes.json();
-  await rlSet(env, fbKey, RATE_LIMIT_SEC);
   return jsonRes({ ok: true, number: created.number, author: nick, hasImage: !!imageData }, 201, cors);
 }
 
@@ -704,7 +984,7 @@ export default {
     }
 
     if (request.method === 'GET' && url.pathname === '/stage-stats') {
-      return handleStageStatsGet(env, cors);
+      return handleStageStatsGet(request, env, cors);
     }
     if (request.method === 'POST' && url.pathname === '/stage-stat') {
       return handleStageStatPost(request, env, cors);
@@ -736,7 +1016,7 @@ export default {
     }
     const author = rawAuthor;
     const baseAuthor = cleanMdLine(body.baseAuthor, 16);
-    const contentHash = /^[A-Za-z0-9_-]{6,32}$/.test(String(body.contentHash || '')) ? String(body.contentHash) : '';
+    const rawContentHash = /^[A-Za-z0-9_-]{6,32}$/.test(String(body.contentHash || '')) ? String(body.contentHash) : '';
     const token = String(body.token || '').trim();
     const meta = body.meta && typeof body.meta === 'object' && !Array.isArray(body.meta) ? body.meta : {};
     const bgmName = meta.bgmName ? cleanMdLine(meta.bgmName, 20) : '';
@@ -750,21 +1030,34 @@ export default {
       return jsonRes({ ok: false, error: '名前・作者名に使えない言葉やURLが入っています' }, 400, cors);
     }
 
+    let verified = null;
+    if (kind === 'stage') {
+      verified = await verifyStageToken(token);
+      if (!verified.ok) return jsonRes({ ok: false, error: verified.error || '作品データが正しくありません' }, 400, cors);
+    } else {
+      verified = verifyBgmToken(token);
+      if (!verified.ok) return jsonRes({ ok: false, error: verified.error || 'BGMデータが正しくありません' }, 400, cors);
+    }
+    const contentHash = (kind === 'stage' && verified.contentHash) ? verified.contentHash : rawContentHash;
+
     const rlErr = await checkRateLimit(env, ip, token);
     if (rlErr) return jsonRes({ ok: false, error: rlErr }, 429, cors);
+    await recordRateLimit(env, ip, token);
 
     const dupErr = await checkDuplicateIssue(env, kind, token, contentHash);
     if (dupErr) return jsonRes({ ok: false, error: dupErr }, 409, cors);
 
     let title = '';
     let issueBody = '';
+    let postLabel = '';
     if (kind === 'stage') {
-      const w = clampInt(meta.w, 8, 64, 16);
-      const h = clampInt(meta.h, 8, 64, 16);
+      const w = verified.w || clampInt(meta.w, 8, 64, 16);
+      const h = verified.h || clampInt(meta.h, 8, 64, 16);
       const talkCount = clampInt(meta.talkCount, 0, 25, 0);
       const allowRemix = !!meta.allowRemix;
       const allowOfficial = !!meta.allowOfficial;
       const playUrl = SITE_URL + '?stage=' + token;
+      postLabel = 'stage-post';
       title = `[作品投稿] ${name} (${w}x${h})`;
       issueBody =
         '### オリジナルステージ投稿\n' +
@@ -779,11 +1072,12 @@ export default {
         (contentHash ? `- 内容ID: ${contentHash}\n` : '') +
         `- プレイURL: ${playUrl}\n`;
     } else {
-      const bpm = clampInt(meta.bpm, 70, 170, 116);
-      const bars = clampInt(meta.bars, 1, 8, 2);
+      const bpm = verified.bpm || clampInt(meta.bpm, 70, 170, 116);
+      const bars = verified.bars || clampInt(meta.bars, 1, 8, 2);
       const allowUse = !!meta.allowUse;
       const allowRemix = !!meta.allowRemix;
       const playUrl = SITE_URL + '?bgm=' + token;
+      postLabel = 'bgm-post';
       title = `[BGM投稿] ${name} (BPM${bpm})`;
       issueBody =
         '### オリジナルBGM投稿\n' +
@@ -797,24 +1091,35 @@ export default {
         `- 試聴・プレイURL: ${playUrl}\n`;
     }
 
-    const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': 'antflow-post-worker',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ title, body: issueBody })
-    });
+    let ghRes;
+    try {
+      ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'antflow-post-worker',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title, labels: [postLabel], body: issueBody })
+      });
+    } catch {
+      await rlDel(env, 'post:ip:' + (ip || 'unknown'));
+      await rlDel(env, 'post:tok:' + token.slice(0, 64));
+      return jsonRes({ ok: false, error: 'GitHub投稿に失敗しました' }, 502, cors);
+    }
 
     if (!ghRes.ok) {
+      await rlDel(env, 'post:ip:' + (ip || 'unknown'));
+      await rlDel(env, 'post:tok:' + token.slice(0, 64));
       console.error('GitHub post error:', ghRes.status);
       return jsonRes({ ok: false, error: 'GitHub投稿に失敗しました (' + ghRes.status + ')' }, 502, cors);
     }
 
     const created = await ghRes.json();
-    await recordRateLimit(env, ip, token);
+    if (kind === 'stage' && contentHash) {
+      await addValidStageHash(env, contentHash);
+    }
 
     return jsonRes({ ok: true, number: created.number, url: created.html_url, author }, 201, cors);
   }

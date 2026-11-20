@@ -12,7 +12,7 @@
   function getWorkerBase() { return getPostApiUrl().replace(/\/post\/?$/, '').replace(/\/$/, ''); }
   const STAGE_LIKES_KEY = 'antflow-stage-likes-v1';
   const STAGE_VOTES_KEY = 'antflow-stage-votes-v1';
-  const stageStatsCache = {};
+  const stageStatsCache = Object.create(null);
   let galSortMode = 'new';
   function loadStageLikes() {
     try { return new Set(JSON.parse(localStorage.getItem(STAGE_LIKES_KEY) || '[]')); } catch (e) { return new Set(); }
@@ -82,7 +82,8 @@
   };
   const POST_COOLDOWN_MS = 60 * 1000; // 連続投稿制限（60秒）
   const REPO_URL = 'https://github.com/hirocast/antflow';
-  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=100';
+  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?labels=stage-post&state=open&per_page=100';
+  const NOTICE_ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?labels=notice&state=open&per_page=20';
   const CLAIMED_KEY = 'antflow-contest-claimed-v1';
   const INBOX_KEY = 'antflow-inbox-v1';
   const CONTEST = {
@@ -157,8 +158,8 @@
     'アダルト', '暴力', '薬物', '大麻', 'fuck', 'shit', 'bitch', 'porn', 'sex', 'nude'
   ];
   function validateStageName(name) {
-    const s = String(name || '');
-    if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|[@＠]/i.test(s)) return 'ステージ名にURLや@は使えません';
+    const s = String(name || '').normalize('NFKC');
+    if (/https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,12}(?=[/?#:\s\u3000)）\]」】]|$)|[@＠]/i.test(s)) return 'ステージ名にURLや@は使えません';
     const norm = s.toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
     for (let i = 0; i < NG_WORDS.length; i++) {
       if (norm.indexOf(NG_WORDS[i]) >= 0) return 'ステージ名に使えない言葉が入っています';
@@ -2520,8 +2521,9 @@
   // 起動時に運営からのお知らせ・コンテスト受賞チェック
   setTimeout(async () => {
     try {
-      const res = await fetch(ISSUES_API);
-      if (res.ok) await checkContestAwards(await res.json());
+      const [stRes, ntRes] = await Promise.all([fetch(ISSUES_API), fetch(NOTICE_ISSUES_API)]);
+      if (ntRes && ntRes.ok) syncNoticeIssues(await ntRes.json());
+      if (stRes && stRes.ok) await checkContestAwards(await stRes.json());
     } catch (e) {}
   }, 1200);
 

@@ -12,15 +12,15 @@
   function getPostApiUrl() { return (window.AF_POST_API || POST_API_URL || '').trim(); }
   const POST_COOLDOWN_MS = 60 * 1000;
   const REPO_URL = 'https://github.com/hirocast/antflow';
-  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?state=open&per_page=30';
+  const ISSUES_API = 'https://api.github.com/repos/hirocast/antflow/issues?labels=bgm-post&state=open&per_page=100';
   const NG_WORDS = [
     '死ね', 'しね', '殺す', 'ころす', 'バカ', 'ばか', 'アホ', 'あほ', 'クズ', 'くず',
     'キモ', 'きも', 'うざ', 'ウザ', 'ちん', 'まん', 'せっくす', 'セックス', 'エロ', 'えろ',
     'アダルト', '暴力', '薬物', '大麻', 'fuck', 'shit', 'bitch', 'porn', 'sex', 'nude'
   ];
   function validateBgmName(name) {
-    const s = String(name || '');
-    if (/https?:\/\/|www\.|\.[a-z]{2,4}(\/|$)|[@＠]/i.test(s)) return '曲名にURLや@は使えません';
+    const s = String(name || '').normalize('NFKC');
+    if (/https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,12}(?=[/?#:\s\u3000)）\]」】]|$)|[@＠]/i.test(s)) return '曲名にURLや@は使えません';
     const norm = s.toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]/g, '');
     for (let i = 0; i < NG_WORDS.length; i++) {
       if (norm.indexOf(NG_WORDS[i]) >= 0) return '曲名に使えない言葉が入っています';

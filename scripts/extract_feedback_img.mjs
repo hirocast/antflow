@@ -27,13 +27,26 @@ if (!num || !/^\d+$/.test(num) || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(rep
 
 const raw = execFileSync('gh', ['issue', 'view', num, '--repo', repo, '--json', 'body'], { encoding: 'utf8' });
 const { body } = JSON.parse(raw);
-const m = String(body || '').match(/<!--\s*FEEDBACK_IMG:(data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+))\s*-->/);
+const m = String(body || '').match(/<!--\s*FEEDBACK_IMG:(data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+))\s*-->\s*$/);
 if (!m) {
   console.error(`Issue #${num} (${repo}) にはスクショが添付されていません`);
   process.exit(2);
 }
 
-const ext = m[2] === 'jpeg' ? 'jpg' : m[2];
+const fmt = m[2];
+const buf = Buffer.from(m[3], 'base64');
+const validMagic =
+  buf.length >= 12 && (
+    ((fmt === 'jpeg' || fmt === 'jpg') && buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) ||
+    (fmt === 'png' && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47 && buf[4] === 0x0D && buf[5] === 0x0A && buf[6] === 0x1A && buf[7] === 0x0A) ||
+    (fmt === 'webp' && buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50)
+  );
+if (!validMagic) {
+  console.error(`Issue #${num} (${repo}) の添付画像データが不正です`);
+  process.exit(3);
+}
+
+const ext = fmt === 'jpeg' ? 'jpg' : fmt;
 const outPath = positional[1] || `/tmp/feedback_${num}.${ext}`;
-fs.writeFileSync(outPath, Buffer.from(m[3], 'base64'));
+fs.writeFileSync(outPath, buf);
 console.log(outPath);

@@ -725,6 +725,7 @@ function calcBingoImpact(before) {
 let lastBingoToast = 0;
 window.isTalkSeen = text => seenTalkSet.has(text);
 window.onTalkShown = text => {
+  if (typeof G !== 'undefined' && G && G.level && G.level.custom) return;
   if (!text || seenTalkSet.has(text)) return;
   seenTalkSet.add(text);
   save.seenTalk.push(text);
