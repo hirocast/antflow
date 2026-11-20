@@ -219,7 +219,8 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .restalk{display:none;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:6px 10px;margin:5px 0;text-align:left;font-size:11px;font-weight:800;color:var(--ink)}
 .restalk.on{display:block}
 .restalk-h{display:flex;justify-content:space-between;align-items:center;gap:6px;color:#c0507a;font-weight:900;margin-bottom:4px}
-.restalk-list{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px}
+.restalk-sub{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:10.5px;font-weight:900;color:#9a5072;margin:5px 0 3px;padding-top:4px;border-top:1.5px dashed #ffd3e2}
+.restalk-list{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px;max-height:112px;overflow:auto;touch-action:pan-y}
 .resvote{display:none;background:#fff7fb;border:2px solid #ffd3e2;border-radius:14px;padding:6px 10px;margin:5px 0;text-align:center;font-size:11px;font-weight:800;color:var(--ink)}
 .resvote.on{display:block}
 .resvote-btns{display:flex;justify-content:center;gap:6px;margin-top:4px}
@@ -1285,23 +1286,36 @@ function showClear() {
     if (newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0 || stAll.length > 0) {
       const liked = loadTalkLikes();
       const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      const chips = newTalks.map(s => {
+      const mkChips = list => list.map(s => {
         const isOn = liked.has(s);
         return '<span class="restalk-chip"><span>「' + esc(s) + '」</span><button type="button" class="restalk-like' + (isOn ? ' on' : '') + '" data-talk="' + esc(s) + '">' + (isOn ? '♥ いいね' : '♡') + '</button></span>';
       }).join('');
+      const stSet = new Set(stAll);
+      const stNew = stAll.length ? newTalks.filter(s => stSet.has(s)) : [];
+      const otherNew = stAll.length ? newTalks.filter(s => !stSet.has(s)) : newTalks;
       const bgParts = [];
       if (imp.newLines > 0) bgParts.push('<span class="hit">🎉 ビンゴ達成 +' + imp.newLines + 'ライン！</span>');
       else if (imp.newReach > 0) bgParts.push('<span class="hit">🔥 リーチ +' + imp.newReach + '！</span>');
       if (imp.newCells > 0) bgParts.push('マス <b>+' + imp.newCells + '</b>（カード' + (imp.curIdx + 1) + ': ' + imp.curFilled + '/25）');
       else if (imp.newLines > 0 || imp.newReach > 0) bgParts.push('カード' + (imp.curIdx + 1) + ': ' + imp.curFilled + '/25');
       const btnHtml = (imp.readyCards > 0 || imp.newCells > 0) ? '<button type="button" class="restalk-btn" data-bingo-go="1">' + (imp.readyCards > 0 ? '🎁 報酬をうけとる' : '🎯 ビンゴを見る') + '</button>' : '';
-      const stTxt = stAll.length ? ('この面 ' + stSeen + '/' + stAll.length + (stSeen === stAll.length ? '🎉' : '') + ' · ') : '';
-      const titleTxt = newTalks.length ? ('💬 新しくみつけたセリフ（' + newTalks.length + 'こ）') : '💬 このステージのセリフ';
       const showBg = newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0;
-      talkBox.innerHTML =
-        '<div class="restalk-h"><span>' + titleTxt + '</span><span>' + stTxt + '累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>' +
-        (chips ? '<div class="restalk-list">' + chips + '</div>' : '') +
-        (showBg ? '<div class="restalk-bg"><span>🎯 ' + (bgParts.length ? bgParts.join(' ／ ') : 'ビンゴ進捗：カード' + (imp.curIdx + 1) + ' ' + imp.curFilled + '/25') + '</span>' + btnHtml + '</div>' : '');
+      let html = '';
+      if (stAll.length > 0) {
+        const stHead = '✨ この面専用' + (stNew.length ? '（新着 +' + stNew.length + 'こ）' : '');
+        const stProg = stSeen + '/' + stAll.length + (stSeen === stAll.length ? ' 🎉コンプ！' : '');
+        html += '<div class="restalk-h"><span>' + stHead + '</span><span>' + stProg + (!otherNew.length ? ' · 累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk : '') + '</span></div>';
+        if (stNew.length) html += '<div class="restalk-list">' + mkChips(stNew) + '</div>';
+      }
+      if (otherNew.length > 0) {
+        const cls = stAll.length > 0 ? 'restalk-sub' : 'restalk-h';
+        html += '<div class="' + cls + '"><span>💬 そのほかの新着（+' + otherNew.length + 'こ）</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>';
+        html += '<div class="restalk-list">' + mkChips(otherNew) + '</div>';
+      } else if (!stAll.length) {
+        html += '<div class="restalk-h"><span>💬 セリフ進捗</span><span>累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk + '</span></div>';
+      }
+      if (showBg) html += '<div class="restalk-bg"><span>🎯 ' + (bgParts.length ? bgParts.join(' ／ ') : 'ビンゴ進捗：カード' + (imp.curIdx + 1) + ' ' + imp.curFilled + '/25') + '</span>' + btnHtml + '</div>';
+      talkBox.innerHTML = html;
       talkBox.classList.add('on');
     } else {
       talkBox.classList.remove('on');
