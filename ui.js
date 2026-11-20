@@ -1281,7 +1281,7 @@ function showClear() {
   const total = lines.reduce((a, l) => a + l[1], 0);
   save.coins += total;
   persist();
-  if (nx) ensureLevel(nx, () => {});
+  if (nx) setTimeout(() => { if (tok === G.clearTok && G.overlay === 'clear') ensureLevel(nx, () => {}); }, 1900);
 
   Sound.fanfare(); haptic(30); Sound.duck(3.2);
   popText($('#clearTitle'), st === 3 ? 'パーフェクト！' : 'クリア！');
@@ -1332,7 +1332,7 @@ function showClear() {
       const showBg = newTalks.length || imp.newCells > 0 || imp.newLines > 0 || imp.newReach > 0;
       let html = '';
       if (stAll.length > 0) {
-        const stHead = '✨ この面専用' + (stNew.length ? '（新着 +' + stNew.length + 'こ）' : '');
+        const stHead = '✨ このステージ専用' + (stNew.length ? '（新着 +' + stNew.length + 'こ）' : '');
         const stProg = stSeen + '/' + stAll.length + (stSeen === stAll.length ? ' 🎉コンプ！' : '');
         html += '<div class="restalk-h"><span>' + stHead + '</span><span>' + stProg + (!otherNew.length ? ' · 累計 ' + seenTalkSet.size + '/' + BINGO_IDX.totalTalk : '') + '</span></div>';
         if (stNew.length) html += '<div class="restalk-list">' + mkChips(stNew) + '</div>';
@@ -1352,9 +1352,17 @@ function showClear() {
       talkBox.innerHTML = '';
     }
   }
-  const cv = $('#revealCv'), S = Math.round(Math.min(innerWidth * 0.36, innerHeight * 0.21, 144));
-  cv.style.width = cv.style.height = S + 'px'; cv.width = cv.height = Math.round(S * dpr);
-  G.reveal = { t: 0, art: isCustom ? G.level.art : getArt(id), g: cv.getContext('2d'), S };
+  const cv = $('#revealCv'), S = Math.round(Math.min(innerWidth * 0.36, innerHeight * 0.21, 144)), pw = Math.round(S * dpr);
+  cv.style.width = cv.style.height = S + 'px'; cv.width = cv.height = pw;
+  const rArt = isCustom ? G.level.art : getArt(id), rW = rArt.W, rc = (S - 20) / rW, rx0 = 10, rcx = (rW - 1) / 2, rmd = Math.hypot(rcx, rcx) || 1;
+  const doneCv = document.createElement('canvas'); doneCv.width = doneCv.height = pw;
+  const doneG = doneCv.getContext('2d'); doneG.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const rCells = [];
+  for (let y = 0; y < rW; y++) for (let x = 0; x < rW; x++) {
+    const v = rArt.grid[y * rW + x];
+    if (v >= 0) rCells.push({ v, px: rx0 + (x + 0.5) * rc, py: rx0 + (y + 0.5) * rc, d: Math.hypot(x - rcx, y - rcx) / rmd * 0.8 });
+  }
+  G.reveal = { t: 0, g: cv.getContext('2d'), S, pw, c: rc, doneCv, doneG, cells: rCells, settled: false };
   const se = $('#clearStars');
   se.innerHTML = '';
   for (let i = 0; i < 3; i++) {
@@ -1420,21 +1428,39 @@ function showClear() {
   }, dd * 1000));
 }
 function drawReveal(dt) {
-  const R = G.reveal, g = R.g, S = R.S, W = R.art.W;
+  const R = G.reveal, g = R.g, S = R.S, cells = R.cells, c = R.c, doneG = R.doneG;
   R.t += dt;
-  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, S, S);
-  const c = (S - 20) / W, x0 = 10, cx = (W - 1) / 2, md = Math.hypot(cx, cx) || 1;
-  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
-    const v = R.art.grid[y * W + x];
-    if (v < 0) continue;
-    const k = clamp((R.t - Math.hypot(x - cx, y - cx) / md * 0.8) / 0.3, 0, 1);
-    if (k <= 0) continue;
-    const s = c * 0.98 * easeOutBack(k), px = x0 + (x + 0.5) * c, py = x0 + (y + 0.5) * c;
-    g.fillStyle = SHADE[v].d; g.fillRect(px - s / 2, py - s / 2, s, s);
-    g.fillStyle = HEX[v]; g.fillRect(px - s / 2, py - s / 2, s, s * 0.84);
+  if (cells.length) {
+    for (let i = cells.length - 1; i >= 0; i--) {
+      const cell = cells[i], k = (R.t - cell.d) / 0.3;
+      if (k >= 1) {
+        const s = c * 0.98, half = s / 2;
+        doneG.fillStyle = SHADE[cell.v].d; doneG.fillRect(cell.px - half, cell.py - half, s, s);
+        doneG.fillStyle = HEX[cell.v]; doneG.fillRect(cell.px - half, cell.py - half, s, s * 0.84);
+        const last = cells.pop();
+        if (i < cells.length) cells[i] = last;
+      }
+    }
   }
-  if (R.t > 1.1) {
-    const sx = ((R.t - 1.1) % 2.2) / 1.2 * (S + 80) - 40;
+  const phase = R.t > 1.1 ? (R.t - 1.1) % 2.2 : -1;
+  const shimmerOn = phase >= 0 && phase <= 1.2;
+  if (!cells.length && !shimmerOn && R.settled) return;
+  R.settled = !cells.length && !shimmerOn;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, R.pw, R.pw);
+  g.drawImage(R.doneCv, 0, 0);
+  if (cells.length) {
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i], k = (R.t - cell.d) / 0.3;
+      if (k <= 0) continue;
+      const s = c * 0.98 * easeOutBack(k), half = s / 2;
+      g.fillStyle = SHADE[cell.v].d; g.fillRect(cell.px - half, cell.py - half, s, s);
+      g.fillStyle = HEX[cell.v]; g.fillRect(cell.px - half, cell.py - half, s, s * 0.84);
+    }
+  }
+  if (shimmerOn) {
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const sx = phase / 1.2 * (S + 80) - 40;
     const gr = g.createLinearGradient(sx - 30, 0, sx + 30, 0);
     gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, S, S);

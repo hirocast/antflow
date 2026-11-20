@@ -1953,15 +1953,21 @@ const Fx = {
     if (!this.p.length) { this.had = false; this.setVis(false); return; }
     this.had = true;
     this.setVis(true);
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    for (const p of this.p) {
-      g.globalAlpha = Math.min(1, (p.m - p.l) * 2.5); g.fillStyle = p.c;
-      g.save(); g.translate(p.x, p.y); g.rotate(p.r);
-      if (p.k === 'star') { starPath(g, 0, 0, p.s, p.s * 0.45, 5); g.fill(); }
-      else if (p.k === 'dot') { ell(g, 0, 0, p.s * 0.45, p.s * 0.45); g.fill(); }
-      else g.fillRect(-p.s / 2, -p.s * 0.3, p.s, p.s * 0.6);
-      g.restore();
+    for (let i = 0; i < this.p.length; i++) {
+      const p = this.p[i];
+      g.globalAlpha = Math.min(1, (p.m - p.l) * 2.5);
+      g.fillStyle = p.c;
+      if (p.k === 'dot') {
+        g.setTransform(dpr, 0, 0, dpr, p.x * dpr, p.y * dpr);
+        ell(g, 0, 0, p.s * 0.45, p.s * 0.45); g.fill();
+      } else {
+        const cs = Math.cos(p.r) * dpr, sn = Math.sin(p.r) * dpr;
+        g.setTransform(cs, sn, -sn, cs, p.x * dpr, p.y * dpr);
+        if (p.k === 'star') { starPath(g, 0, 0, p.s, p.s * 0.45, 5); g.fill(); }
+        else g.fillRect(-p.s / 2, -p.s * 0.3, p.s, p.s * 0.6);
+      }
     }
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
   }
 };
