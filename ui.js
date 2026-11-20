@@ -185,8 +185,8 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .dot{position:absolute;top:-5px;right:-5px;width:14px;height:14px;border-radius:50%;background:#ff4d6d;border:2px solid #fff;display:none}
 .dot.on{display:block;animation:bump .7s ease infinite alternate}
 .bg-sum{font-size:11px;font-weight:800;margin:2px 0 6px;color:var(--ink)}
-.bg-tabs{display:flex;gap:5px;overflow-x:auto;padding:4px 2px 6px;margin:0 -2px;touch-action:pan-x;-webkit-overflow-scrolling:touch}
-.bg-tab{position:relative;flex:0 0 auto;min-width:36px;height:32px;border:2px solid #fff;border-radius:12px;background:#ffeef4;color:var(--ink);font:900 12px var(--rf);cursor:pointer;box-shadow:0 2px 0 #e6bfd0;padding:0 8px}
+.bg-tabs{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;padding:4px 0 6px}
+.bg-tab{position:relative;min-width:0;height:28px;border:2px solid #fff;border-radius:9px;background:#ffeef4;color:var(--ink);font:900 11px var(--rf);cursor:pointer;box-shadow:0 2px 0 #e6bfd0;padding:0}
 .bg-tab.on{background:linear-gradient(#ff9fbf,#ff6f9e);color:#fff;box-shadow:0 2px 0 #d64575}
 .bg-tab.done{background:linear-gradient(#fff6cc,#ffe074);border-color:#fff}
 .bg-tab.on.done{background:linear-gradient(#ffb74d,#ff8f00);color:#fff}
@@ -207,7 +207,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .bg-c em{position:absolute;top:1px;right:2px;font-style:normal;font-size:9px}
 .bg-det{background:#fff;border:2px solid #cfe6ff;border-radius:12px;padding:6px 10px;margin:6px 0;text-align:left;font-size:11px;font-weight:800;min-height:38px}
 .bg-det .abar{margin:4px 0 0;height:7px}
-#bBingoClaim{margin-top:4px;animation:bump .75s ease infinite alternate}
+#bBingoClaim{margin-top:4px;height:auto;min-height:48px;padding:8px 10px;font-size:15px;line-height:1.25;animation:bump .75s ease infinite alternate}
 #ov-clear .card{padding:12px 14px}
 #ov-clear .ctitle{font-size:28px;margin:0}
 #ov-clear .fine{font-size:11px;margin:0}
