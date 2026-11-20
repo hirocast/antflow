@@ -2929,7 +2929,7 @@ on('#bJamRewind', () => {
   });
 });
 const SEEN_VER_KEY = 'antflow-seen-ver';
-const appUpd = { checked: false, lastCheck: 0, hasUpdate: false, data: null, openHist: false, justUpdated: false, busy: false };
+const appUpd = { checked: false, lastCheck: 0, hasUpdate: false, data: null, openHist: false, showAllHist: false, justUpdated: false, busy: false };
 function escUpd(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -2975,7 +2975,7 @@ function syncUpdatesToInbox(data) {
     return;
   }
   const hist = Array.isArray(data.history) && data.history.length
-    ? data.history.slice(0, 10)
+    ? data.history.slice(0, 30)
     : [{ version: data.version, date: data.date, title: data.headline || '最新アップデート', notes: data.notes || [] }];
   // 古い順に unshift して、おてがみ箱の上から新しい順に並べる（最新1件のみ未読、過去履歴は既読アーカイブ）
   for (let i = hist.length - 1; i >= 0; i--) {
@@ -3034,12 +3034,17 @@ function renderUpdateBox() {
       if (notes.length) html += '<ul class="upd-ul">' + notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>';
     } else {
       const hist = Array.isArray(d.history) && d.history.length ? d.history : [{ date: shortDate, title: d.headline || '最新アップデート', notes: d.notes || [] }];
-      html += '<div class="upd-hl">🚀 どんどん進化中！最近のアップデート</div>';
-      html += hist.slice(0, 5).map(h =>
+      const shown = appUpd.showAllHist ? hist : hist.slice(0, 5);
+      html += '<div class="upd-hl">🚀 どんどん進化中！' + (appUpd.showAllHist ? 'すべてのアップデート履歴' : '最近のアップデート') + '</div>';
+      html += shown.map(h =>
         '<div class="upd-hitem"><b>' + (h.date ? '[' + escUpd(h.date) + '] ' : '') + escUpd(h.title || '') + '</b>' +
         (Array.isArray(h.notes) && h.notes.length ? '<ul class="upd-ul">' + h.notes.map(n => '<li>' + escUpd(n) + '</li>').join('') + '</ul>' : '') +
         '</div>'
       ).join('');
+      if (hist.length > 5) {
+        html += '<div style="margin-top:6px;text-align:center"><button type="button" class="upd-hist-btn" data-upd="more">' +
+          (appUpd.showAllHist ? '▲ 最新の5件だけ表示' : '📜 古い履歴もすべて見る（あと' + (hist.length - 5) + '件）') + '</button></div>';
+      }
       html += '<div class="upd-sub" style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span>💌 おてがみ箱にも残るよ</span><button type="button" class="upd-hist-btn" data-upd="recheck">🔄 更新を確認</button></div>';
     }
     html += '</div>';
@@ -3078,6 +3083,8 @@ if (homeUpdEl) {
   homeUpdEl.addEventListener('click', async e => {
     const histBtn = e.target.closest('[data-upd="hist"]');
     if (histBtn) { Sound.tap(); appUpd.openHist = !appUpd.openHist; renderUpdateBox(); return; }
+    const moreBtn = e.target.closest('[data-upd="more"]');
+    if (moreBtn) { Sound.tap(); appUpd.showAllHist = !appUpd.showAllHist; renderUpdateBox(); return; }
     const okBtn = e.target.closest('[data-upd="ok"]');
     if (okBtn) {
       Sound.tap();
