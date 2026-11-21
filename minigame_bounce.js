@@ -3,8 +3,8 @@
   'use strict';
 
   const W = 420, H = 680;
-  const R = 5.3, LEFT = 10, RIGHT = W - 10, TOP = 16;
-  const PAD_Y = 576, PAD_H = 12;
+  const R = 5.3, LEFT = 10, RIGHT = W - 10, TOP = 10;
+  const PAD_Y = 506, PAD_H = 12;
   const STEP = 1 / 120, EPS = 1e-7, SEPARATION = 0.03;
   const CLEAR_POINTS = 500, MAX_BALLS = 7, MAX_CELLS = 180;
   const FALLBACK_COLORS = [
@@ -173,9 +173,9 @@
       if (occupied <= MAX_CELLS) break;
     }
 
-    const size = Math.min(346 / cols, 264 / rows, 32);
+    const size = Math.min(346 / cols, 236 / rows, 30);
     const x = (W - cols * size) / 2;
-    const y = 44 + (264 - rows * size) * 0.3;
+    const y = 26 + (236 - rows * size) * 0.25;
     const inset = Math.min(0.65, size * 0.04);
     const lookup = new Array(pixels.length);
     const cells = [];
@@ -909,12 +909,12 @@
 
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#1b2b45';
-      ctx.fillRect(LEFT + 1, PAD_Y + 30, RIGHT - LEFT - 2, H - PAD_Y - 30);
+      ctx.fillRect(LEFT + 1, PAD_Y + 28, RIGHT - LEFT - 2, H - PAD_Y - 28);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = '13px system-ui,sans-serif';
       ctx.fillStyle = '#b6cce7';
-      ctx.fillText('← このあたりを左右にスライド →', W / 2, H - 34);
+      ctx.fillText('← このあたりを左右にスライド →', W / 2, PAD_Y + 28 + (H - PAD_Y - 28) * 0.45);
 
       ctx.fillStyle = clock < wideUntil ? '#a8ed9c' : '#a6e8ff';
       ctx.fillRect(paddle.x - paddle.w / 2, PAD_Y, paddle.w, PAD_H);
@@ -952,7 +952,7 @@
 
       ctx.globalAlpha = 1;
       if (phase === 'roulette' && roulette) {
-        const boxX = 36, boxY = 348, boxW = W - 72, boxH = 148;
+        const boxX = 36, boxY = 308, boxW = W - 72, boxH = 148;
         ctx.fillStyle = 'rgba(8,16,34,0.92)';
         ctx.fillRect(boxX, boxY, boxW, boxH);
         ctx.strokeStyle = '#6c8ec4';
@@ -995,13 +995,13 @@
         ctx.fillText('タップ / Space でスキップ', W / 2, boxY + boxH - 18);
       } else if (phase === 'clear') {
         ctx.fillStyle = 'rgba(6,14,30,.9)';
-        ctx.fillRect(40, 365, W - 80, 97);
+        ctx.fillRect(40, 326, W - 80, 97);
         ctx.fillStyle = '#ffe399';
         ctx.font = 'bold 32px system-ui,sans-serif';
-        ctx.fillText('クリア！', W / 2, 397);
+        ctx.fillText('クリア！', W / 2, 358);
         ctx.fillStyle = '#edf5ff';
         ctx.font = 'bold 16px system-ui,sans-serif';
-        ctx.fillText(`+${CLEAR_POINTS}点`, W / 2, 435);
+        ctx.fillText(`+${CLEAR_POINTS}点`, W / 2, 396);
       }
       ctx.restore();
     }
