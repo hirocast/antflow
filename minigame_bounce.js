@@ -176,10 +176,12 @@
     const inset = Math.min(0.65, size * 0.04);
     const lookup = new Array(pixels.length);
     const cells = [];
+    const colorCounts = new Uint32Array(21);
     pixels.forEach((color, i) => {
       if (color < 0) return;
+      colorCounts[color]++;
       const cell = {
-        i, color, painted: false, at: -1,
+        i, color, broken: false, skipped: false, at: -1,
         x: x + (i % cols) * size + inset,
         y: y + Math.floor(i / cols) * size + inset,
         w: size - 2 * inset, h: size - 2 * inset
@@ -187,9 +189,13 @@
       lookup[i] = cell;
       cells.push(cell);
     });
+    const colorStats = [];
+    for (let c = 0; c < 21; c++) {
+      if (colorCounts[c] > 0) colorStats.push({ color: c, count: colorCounts[c] });
+    }
     return {
       id, name: String(source.name || name || `お題 ${id}`).slice(0, 100),
-      cols, rows, size, x, y, lookup, cells, total: occupied, left: occupied
+      cols, rows, size, x, y, lookup, cells, colorStats, total: occupied, left: occupied
     };
   }
 
@@ -313,7 +319,7 @@
 
     let phase = 'intro', resumePhase = 'play', closed = false, started = false;
     let settlement = null, best = saveData ? integer(saveData.minigameBounceHighScore) : 0;
-    let stage = null, stageNo = 0, bag = [], completed = [];
+    let stage = null, stageNo = 0, bag = [], completed = [], roulette = null;
     const invalid = new Set();
     const validArtCount = Number.isSafeInteger(artList.length) ? artList.length : 0;
     let score = 0, clock = 0, combo = 0, lastHit = -Infinity;
@@ -411,16 +417,89 @@
       return buildStage(fallbackArt(), 0, 'ハート');
     }
 
+    function planRoulette(st) {
+      const stats = st.colorStats.slice();
+      if (stats.length <= 1) return null;
+      const maxPick = Math.min(3, stats.length - 1);
+      const want = 1 + Math.floor(Math.random() * maxPick);
+      const minKeep = Math.min(st.cells.length - 1, Math.max(8, Math.ceil(st.cells.length * 0.22)));
+      shuffle(stats);
+      let remaining = st.cells.length;
+      const targets = [];
+      for (const entry of stats) {
+        if (targets.length >= want) break;
+        if (remaining - entry.count >= minKeep) {
+          targets.push(entry.color);
+          remaining -= entry.count;
+        }
+      }
+      if (!targets.length) {
+        stats.sort((a, b) => a.count - b.count);
+        if (st.cells.length - stats[0].count >= 4) targets.push(stats[0].color);
+      }
+      if (!targets.length) return null;
+      const baseStop = reduceMotion ? 0.14 : 0.52;
+      const stepStop = reduceMotion ? 0.09 : 0.28;
+      return {
+        candidates: st.colorStats.map(u => u.color),
+        targets,
+        elapsed: 0,
+        stopTimes: targets.map((_, idx) => baseStop + idx * stepStop),
+        stopped: targets.map(() => false),
+        applied: false,
+        finishWait: reduceMotion ? 0.14 : 0.48
+      };
+    }
+
+    function applyRouletteRemoval() {
+      if (!stage || !roulette || roulette.applied) return;
+      roulette.applied = true;
+      roulette.stopped.fill(true);
+      const removeSet = new Set(roulette.targets);
+      let kept = 0;
+      for (const cell of stage.cells) {
+        if (removeSet.has(cell.color)) {
+          cell.skipped = true;
+          cell.at = clock;
+          burst(cell.x + cell.w / 2, cell.y + cell.h / 2, color(cell.color), 3, 85);
+        } else {
+          kept++;
+        }
+      }
+      stage.total = kept;
+      stage.left = kept;
+      sound('starPing');
+      message(`${roulette.targets.length}色が抜けた！`);
+      announce(`ルーレットの結果、${roulette.targets.length}色が抜けました。残り${kept}ブロック。`);
+    }
+
+    function skipRoulette() {
+      if (phase !== 'roulette' || !roulette) return;
+      if (!roulette.applied) applyRouletteRemoval();
+      roulette = null;
+      phase = 'play';
+      serve(0.35);
+      hud();
+      draw();
+    }
+
     function nextStage() {
       stage = chooseStage();
       stageNo++;
       combo = 0; lastHit = -Infinity;
       dryHits = 0; lastDrop = clock;
       items = [];
+      balls = [];
       notice = ''; noticeUntil = 0;
-      phase = 'play';
-      serve(0.65);
-      announce(`お題 ${stage.name}`);
+      roulette = planRoulette(stage);
+      if (roulette) {
+        phase = 'roulette';
+        announce(`お題 ${stage.name}。抜ける色のルーレットを開始します。`);
+      } else {
+        phase = 'play';
+        serve(0.65);
+        announce(`お題 ${stage.name}`);
+      }
     }
 
     function speed() { return Math.min(495, 338 + (stageNo - 1) * 13); }
@@ -486,7 +565,9 @@
     function snapshot() {
       return {
         name: stage.name, cols: stage.cols, rows: stage.rows,
-        pixels: stage.cells.map(c => ({ i: c.i, color: c.color, painted: c.painted })),
+        pixels: stage.cells.map(c => ({
+          i: c.i, color: c.color, broken: c.broken, skipped: c.skipped
+        })),
         done: stage.total - stage.left, total: stage.total
       };
     }
@@ -498,23 +579,23 @@
       completed.push(snapshot());
       balls = [];
       items = [];
-      for (let i = 0; i < stage.cells.length; i += Math.max(1, Math.ceil(stage.total / 45))) {
+      for (let i = 0; i < stage.cells.length; i += Math.max(1, Math.ceil(stage.cells.length / 45))) {
         const c = stage.cells[i];
         burst(c.x + c.w / 2, c.y + c.h / 2, color(c.color), 4, 235);
       }
       sound('fanfare');
-      announce(`${stage.name}が完成。${CLEAR_POINTS}点を獲得。`);
+      announce(`${stage.name}をクリア。${CLEAR_POINTS}点を獲得。`);
     }
 
     function paint(cell) {
-      if (phase !== 'play' || cell.painted) return;
-      cell.painted = true;
+      if (phase !== 'play' || cell.broken || cell.skipped) return;
+      cell.broken = true;
       cell.at = clock;
       stage.left--;
       combo = clock - lastHit <= 2.4 ? combo + 1 : 1;
       lastHit = clock;
       score += 10 * multiplier();
-      burst(cell.x + cell.w / 2, cell.y + cell.h / 2, color(cell.color), 4);
+      burst(cell.x + cell.w / 2, cell.y + cell.h / 2, color(cell.color), 5);
       sound('pop', 44);
       if (!stage.left) complete();
       else drop(cell);
@@ -590,7 +671,7 @@
         for (let row = r0; row <= r1; row++) {
           for (let col = c0; col <= c1; col++) {
             const cell = stage.lookup[row * stage.cols + col];
-            if (!cell || cell.painted) continue;
+            if (!cell || cell.broken || cell.skipped) continue;
             const hit = sweep(x, y, vx, vy, cell, duration);
             if (!hit) continue;
             if (piercing) pierced.push({ time: hit.time, cell });
@@ -722,18 +803,21 @@
       setText(timeEl, `${completed.length}枚`);
       setText(bestEl, Math.max(best, score).toLocaleString());
       timeEl.classList.remove('bn-low');
-      const ratio = stage ? 100 * (stage.total - stage.left) / stage.total : 0;
+      const ratio = stage && stage.total > 0 ? 100 * (stage.total - stage.left) / stage.total : 0;
       const width = `${ratio.toFixed(1)}%`;
       if (fill.style.width !== width) fill.style.width = width;
       setText(artEl, stage
-        ? `お題 ${stageNo}：${stage.name}　${stage.total - stage.left}/${stage.total}`
-        : 'ボールを当てて、絵を塗ろう');
-      const playable = phase === 'play' || phase === 'clear' || phase === 'paused';
+        ? (phase === 'roulette'
+          ? `お題 ${stageNo}：${stage.name}　抜ける色を抽選中…`
+          : `お題 ${stageNo}：${stage.name}　残り ${stage.left}/${stage.total}`)
+        : 'ボールを当てて、ぬりえブロックを崩そう');
+      const playable = phase === 'play' || phase === 'clear' || phase === 'roulette' || phase === 'paused';
       pauseBtn.disabled = !playable;
       setText(pauseBtn, phase === 'paused' ? '再開' : '一時停止');
       const status = [];
       if (phase === 'paused' || phase === 'confirm') status.push('一時停止中');
-      if (phase === 'clear') status.push(`完成！ +${CLEAR_POINTS}点`);
+      if (phase === 'clear') status.push(`クリア！ +${CLEAR_POINTS}点`);
+      if (phase === 'roulette') status.push('抜ける色ルーレット中（タップ/Spaceでスキップ）');
       if (phase === 'play') {
         if (clock < noticeUntil) status.push(notice);
         if (combo >= 2) status.push(`${combo}連続 ×${multiplier()}`);
@@ -768,16 +852,38 @@
       ctx.stroke();
 
       if (stage) {
-        const showLast = stage.left > 0 && stage.left <= 8;
+        const showLast = phase === 'play' && stage.left > 0 && stage.left <= 8;
         for (const c of stage.cells) {
-          ctx.fillStyle = c.painted ? color(c.color) : '#9db7dc';
-          ctx.globalAlpha = c.painted ? 1 : showLast ? 0.56 : 0.24;
+          if (c.broken) {
+            if (!reduceMotion && clock - c.at < 0.14) {
+              const t = (clock - c.at) / 0.14;
+              const s = 1 - t * 0.55;
+              const dw = c.w * s, dh = c.h * s;
+              ctx.globalAlpha = 0.75 * (1 - t);
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(c.x + (c.w - dw) / 2, c.y + (c.h - dh) / 2, dw, dh);
+            }
+            continue;
+          }
+          if (c.skipped) {
+            if (!reduceMotion && clock - c.at < 0.28) {
+              const t = (clock - c.at) / 0.28;
+              const s = 1 - t * 0.7;
+              const dw = c.w * s, dh = c.h * s;
+              ctx.globalAlpha = 0.85 * (1 - t);
+              ctx.fillStyle = color(c.color);
+              ctx.fillRect(c.x + (c.w - dw) / 2, c.y + (c.h - dh) / 2, dw, dh);
+            }
+            continue;
+          }
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = color(c.color);
           ctx.fillRect(c.x, c.y, c.w, c.h);
-          if (c.painted && !reduceMotion && phase === 'play' && clock - c.at < 0.19) {
-            ctx.fillStyle = '#ffffff';
-            ctx.globalAlpha = 0.64 * (1 - (clock - c.at) / 0.19);
-            ctx.fillRect(c.x, c.y, c.w, c.h);
-          } else if (!c.painted && showLast) {
+          ctx.fillStyle = 'rgba(255,255,255,0.22)';
+          ctx.fillRect(c.x, c.y, c.w, Math.max(1, c.h * 0.18));
+          ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+          ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
+          if (showLast) {
             ctx.globalAlpha = reduceMotion ? 0.95 : 0.73 + 0.25 * Math.sin(clock * 6);
             ctx.strokeStyle = '#ffe699';
             ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
@@ -829,12 +935,54 @@
       }
 
       ctx.globalAlpha = 1;
-      if (phase === 'clear') {
+      if (phase === 'roulette' && roulette) {
+        const boxX = 36, boxY = 348, boxW = W - 72, boxH = 148;
+        ctx.fillStyle = 'rgba(8,16,34,0.92)';
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+        ctx.strokeStyle = '#6c8ec4';
+        ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
+
+        ctx.fillStyle = roulette.applied ? '#ffe399' : '#a6e8ff';
+        ctx.font = 'bold 18px system-ui,sans-serif';
+        ctx.fillText(
+          roulette.applied ? `${roulette.targets.length}色が抜けた！` : '抜ける色ルーレット！',
+          W / 2, boxY + 26
+        );
+
+        const count = roulette.targets.length;
+        const slotSize = 48, gap = 16;
+        const startX = W / 2 - (count * slotSize + (count - 1) * gap) / 2;
+        const slotY = boxY + 52;
+        for (let i = 0; i < count; i++) {
+          const sx = startX + i * (slotSize + gap);
+          const done = roulette.stopped[i];
+          const cIdx = done
+            ? roulette.targets[i]
+            : roulette.candidates[Math.floor(roulette.elapsed * 18 + i * 3) % roulette.candidates.length];
+          ctx.fillStyle = color(cIdx);
+          ctx.fillRect(sx, slotY, slotSize, slotSize);
+          ctx.lineWidth = done ? 3 : 2;
+          ctx.strokeStyle = done ? '#ffe399' : '#85a3d1';
+          ctx.strokeRect(sx, slotY, slotSize, slotSize);
+          ctx.lineWidth = 1;
+          if (done) {
+            ctx.fillStyle = 'rgba(8,16,34,0.55)';
+            ctx.fillRect(sx + 6, slotY + slotSize - 18, slotSize - 12, 14);
+            ctx.fillStyle = '#ffe399';
+            ctx.font = 'bold 11px system-ui,sans-serif';
+            ctx.fillText('抜け', sx + slotSize / 2, slotY + slotSize - 11);
+          }
+        }
+
+        ctx.fillStyle = '#b9cde8';
+        ctx.font = '12px system-ui,sans-serif';
+        ctx.fillText('タップ / Space でスキップ', W / 2, boxY + boxH - 18);
+      } else if (phase === 'clear') {
         ctx.fillStyle = 'rgba(6,14,30,.9)';
         ctx.fillRect(40, 365, W - 80, 97);
         ctx.fillStyle = '#ffe399';
         ctx.font = 'bold 32px system-ui,sans-serif';
-        ctx.fillText('完成！', W / 2, 397);
+        ctx.fillText('クリア！', W / 2, 397);
         ctx.fillStyle = '#edf5ff';
         ctx.font = 'bold 16px system-ui,sans-serif';
         ctx.fillText(`+${CLEAR_POINTS}点`, W / 2, 435);
@@ -844,9 +992,29 @@
 
     function frame(now) {
       frameId = 0;
-      if (closed || (phase !== 'play' && phase !== 'clear')) return;
+      if (closed || (phase !== 'play' && phase !== 'clear' && phase !== 'roulette')) return;
       let elapsed = lastFrame === null ? 0 : Math.max(0, (now - lastFrame) / 1000);
       lastFrame = now;
+
+      if (phase === 'roulette' && roulette) {
+        clock += elapsed;
+        roulette.elapsed += elapsed;
+        for (let i = 0; i < roulette.targets.length; i++) {
+          if (!roulette.stopped[i] && roulette.elapsed >= roulette.stopTimes[i]) {
+            roulette.stopped[i] = true;
+            sound('tap', 40);
+          }
+        }
+        if (!roulette.applied && roulette.stopped.every(Boolean)) {
+          applyRouletteRemoval();
+        }
+        const doneAt = roulette.stopTimes[roulette.stopTimes.length - 1] + roulette.finishWait;
+        if (roulette.elapsed >= doneAt) {
+          roulette = null;
+          phase = 'play';
+          serve(0.5);
+        }
+      }
 
       if (phase === 'clear') {
         clearLeft -= elapsed;
@@ -870,7 +1038,7 @@
     }
 
     function schedule() {
-      if (!frameId && !closed && (phase === 'play' || phase === 'clear')) {
+      if (!frameId && !closed && (phase === 'play' || phase === 'clear' || phase === 'roulette')) {
         frameId = window.requestAnimationFrame(frame);
       }
     }
@@ -920,12 +1088,12 @@
         const x = Math.floor((72 - entry.cols * unit) / 2);
         const y = Math.floor((72 - entry.rows * unit) / 2);
         for (const p of entry.pixels) {
-          g.fillStyle = p.painted ? color(p.color) : '#3e5273';
+          g.fillStyle = (!partial || (!p.broken && !p.skipped)) ? color(p.color) : '#1a2842';
           g.fillRect(x + (p.i % entry.cols) * unit,
             y + Math.floor(p.i / entry.cols) * unit, unit, unit);
         }
       }
-      const pct = Math.floor(100 * entry.done / entry.total);
+      const pct = entry.total > 0 ? Math.floor(100 * entry.done / entry.total) : 0;
       fig.append(thumb, element('figcaption', '', partial ? `${entry.name}（途中 ${pct}%）` : entry.name));
       return fig;
     }
@@ -941,7 +1109,7 @@
       const content = [
         element('div', 'bn-result', `${score.toLocaleString()} 点`),
         element('p', '', `${result.record ? 'ハイスコア更新！ ' : ''}ベスト：${best.toLocaleString()} 点`),
-        element('p', '', `完成：${completed.length}枚 ／ コイン報酬：+${result.reward}`)
+        element('p', '', `クリア：${completed.length}枚 ／ コイン報酬：+${result.reward}`)
       ];
       const gallery = element('div', 'bn-gallery');
       for (const entry of completed) gallery.appendChild(thumbnail(entry, false));
@@ -968,6 +1136,7 @@
       score = 0; clock = 0; stageNo = 0;
       wideUntil = 0; pierceUntil = 0; clearLeft = 0;
       stage = null; bag = []; invalid.clear(); completed = []; particles = [];
+      roulette = null;
       paddle.x = paddle.target = W / 2; paddle.w = 84;
       nextStage();
       hideCard();
@@ -978,7 +1147,7 @@
     }
 
     function pause(reason) {
-      if (phase !== 'play' && phase !== 'clear') return;
+      if (phase !== 'play' && phase !== 'clear' && phase !== 'roulette') return;
       resumePhase = phase;
       phase = 'paused';
       stopFrame();
@@ -1006,7 +1175,7 @@
         destroy();
         return;
       }
-      if (phase === 'play' || phase === 'clear') resumePhase = phase;
+      if (phase === 'play' || phase === 'clear' || phase === 'roulette') resumePhase = phase;
       phase = 'confirm';
       stopFrame();
       clearControls();
@@ -1035,6 +1204,11 @@
     }
 
     function pointerDown(e) {
+      if (phase === 'roulette' && (e.pointerType !== 'mouse' || e.button === 0)) {
+        e.preventDefault();
+        skipRoulette();
+        return;
+      }
       if (phase !== 'play' || drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
       e.preventDefault();
       drag = { id: e.pointerId, lastX: e.clientX, startX: e.clientX, moved: false };
@@ -1077,18 +1251,21 @@
         e.preventDefault();
         e.stopPropagation();
         if (e.repeat) return;
-        if (phase === 'play' || phase === 'clear') pause();
+        if (phase === 'play' || phase === 'clear' || phase === 'roulette') pause();
         else if (phase === 'paused' || phase === 'confirm') resume();
         else requestClose();
       } else if (phase === 'play' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
         keys[e.key === 'ArrowLeft' ? 'left' : 'right'] = true;
         e.preventDefault();
         e.stopPropagation();
-      } else if (phase === 'play' && e.code === 'Space' &&
+      } else if ((phase === 'play' || phase === 'roulette') && e.code === 'Space' &&
           !(e.target && e.target.closest && e.target.closest('button'))) {
         e.preventDefault();
         e.stopPropagation();
-        if (!e.repeat) launch();
+        if (!e.repeat) {
+          if (phase === 'roulette') skipRoulette();
+          else launch();
+        }
       }
     }
 
@@ -1156,8 +1333,9 @@
     } else {
       const rules = element('ul');
       [
-        '未塗りのマスに当てると着色。塗ったマスは通り抜けます。',
-        `時間制限はありません。全マスを塗ると+${CLEAR_POINTS}点で次のお題へ！`,
+        '最初から表示されたぬりえブロックにボールを当てて崩そう！',
+        '開始時のルーレットで1〜3色が抜けて、毎回ちがう形になります。',
+        `時間制限はありません。全ブロックを崩すと+${CLEAR_POINTS}点で次のお題へ！`,
         'ボールをすべて落とすとゲームオーバーです。',
         'バーの下で左右にドラッグ。PCは矢印キー、発射はタップまたはSpace。',
         'コイン報酬はスコア÷100の小数点以下切り捨てです。'
