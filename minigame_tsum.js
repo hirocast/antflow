@@ -130,8 +130,10 @@
         background:#fff; border:1.5px solid #e4c7a0; font-size:12px; line-height:1.4;
       }
       .afits-skill {
-        position:relative; overflow:hidden; display:inline-flex; align-items:center; gap:5px;
-        background:#fffdf6; border:2px solid #e4c7a0;
+        position:absolute; left:8px; bottom:8px; z-index:2;
+        overflow:hidden; display:inline-flex; align-items:center; gap:5px;
+        background:#fffdf6ee; border:2px solid #e4c7a0; border-radius:999px;
+        box-shadow:0 3px 10px #47312033;
       }
       .afits-skill .afits-sk-fill {
         position:absolute; inset:0 auto 0 0; width:0%;
@@ -312,10 +314,6 @@
         <header class="afits-top">
           <h2 id="afits-title">ありんこチェイン</h2>
           <div class="afits-actions">
-            <button type="button" class="afits-skill" data-ui="skill" disabled>
-              <i class="afits-sk-fill" data-ui="skillFill"></i>
-              <span data-ui="skillLabel">${activeSkin.skin.e} スキル 0%</span>
-            </button>
             <button type="button" data-ui="shuffle" disabled>シャッフル</button>
             <button type="button" data-ui="close" aria-label="ゲームを閉じる">×</button>
           </div>
@@ -334,6 +332,10 @@
         </div>
         <div class="afits-stage">
           <canvas aria-label="パズルの盤面"></canvas>
+          <button type="button" class="afits-skill" data-ui="skill" disabled>
+            <i class="afits-sk-fill" data-ui="skillFill"></i>
+            <span data-ui="skillLabel">${activeSkin.skin.e} スキル 0%</span>
+          </button>
           <div class="afits-banner" data-ui="banner" aria-hidden="true"></div>
         </div>
         <p class="afits-hint">同じ絵を3つ以上なぞって離そう。7つ以上でボム！</p>
