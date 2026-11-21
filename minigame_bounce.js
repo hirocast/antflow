@@ -14,9 +14,11 @@
     '#616161', '#1de9b6', '#f48fb1', '#a1887f', '#90caf9', '#fff59d'
   ];
   const ITEMS = [
-    { id: 'multi',  mark: '+2球', name: 'マルチボール', color: '#7ddcff', weight: 47 },
-    { id: 'wide',   mark: '幅',   name: 'ワイドバー',   color: '#a8ed9c', weight: 35 },
-    { id: 'bonus',  mark: '+100', name: 'ボーナス +100点', color: '#ffb7e1', weight: 18 }
+    { id: 'multi',  mark: '+2球', name: 'マルチボール',     color: '#7ddcff', weight: 35 },
+    { id: 'wide',   mark: '幅',   name: 'ワイドバー',       color: '#a8ed9c', weight: 27 },
+    { id: 'bomb',   mark: '爆',   name: 'ボム弾（周囲破壊）', color: '#ff9e6d', weight: 16 },
+    { id: 'shield', mark: '盾',   name: 'バリア（1回防御）',  color: '#b8a6ff', weight: 12 },
+    { id: 'bonus',  mark: '+100', name: 'ボーナス +100点',  color: '#ffb7e1', weight: 10 }
   ];
 
   const CSS = `
@@ -335,10 +337,11 @@
     const invalid = new Set();
     const validArtCount = Number.isSafeInteger(artList.length) ? artList.length : 0;
     let score = 0, clock = 0, combo = 0, lastHit = -Infinity;
-    let wideUntil = 0, clearLeft = 0, serveLeft = 0;
+    let colorChain = 0, lastColor = -1, bombReady = false, shields = 0;
+    let wideUntil = 0, clearLeft = 0, serveLeft = 0, dryBounces = 0, stageMisses = 0, lastClearBonus = 0;
     let notice = '', noticeUntil = 0, dryHits = 0, lastDrop = -Infinity;
-    let balls = [], items = [], particles = [];
-    const paddle = { x: W / 2, target: W / 2, w: 84 };
+    let balls = [], items = [], particles = [], rings = [], popups = [];
+    const paddle = { x: W / 2, target: W / 2, w: 84, vx: 0, bump: 0 };
     const keys = { left: false, right: false };
     const view = { w: 1, h: 1, scale: 1, x: 0, y: 0, dpr: 1 };
     let drag = null, frameId = 0, lastFrame = null, accumulator = 0;
@@ -516,6 +519,8 @@
       stage = chooseStage();
       stageNo++;
       combo = 0; lastHit = -Infinity;
+      colorChain = 0; lastColor = -1;
+      dryBounces = 0; stageMisses = 0; lastClearBonus = 0;
       dryHits = 0; lastDrop = clock;
       items = [];
       balls = [];
@@ -577,10 +582,20 @@
       }
     }
 
+    function addRing(x, y, c, maxR = 26) {
+      if (reduceMotion || rings.length >= 24) return;
+      rings.push({ x, y, color: c, r: 4, maxR, life: 0.28, max: 0.28 });
+    }
+
+    function addPopup(x, y, text, c = '#edf5ff') {
+      if (reduceMotion || popups.length >= 24) return;
+      popups.push({ x: clamp(x, 36, W - 36), y, text, color: c, life: 0.72, max: 0.72 });
+    }
+
     function drop(cell) {
       dryHits++;
       if (items.length >= 4 || clock - lastDrop < 0.25 ||
-          (dryHits < 13 && Math.random() >= 0.10)) return;
+          (dryHits < 13 && Math.random() >= 0.11)) return;
       let roll = Math.random() * 100;
       let def = ITEMS[ITEMS.length - 1];
       for (const item of ITEMS) {
@@ -604,8 +619,9 @@
 
     function complete() {
       phase = 'clear';
-      clearLeft = reduceMotion ? 0.7 : 1.25;
-      score += CLEAR_POINTS;
+      clearLeft = reduceMotion ? 0.85 : 1.5;
+      lastClearBonus = stageMisses === 0 ? 150 : 0;
+      score += CLEAR_POINTS + lastClearBonus;
       completed.push(snapshot());
       balls = [];
       items = [];
@@ -614,21 +630,57 @@
         burst(c.x + c.w / 2, c.y + c.h / 2, color(c.color), 4, 235);
       }
       sound('fanfare');
-      announce(`${stage.name}をクリア。${CLEAR_POINTS}点を獲得。`);
+      announce(`${stage.name}をクリア。${CLEAR_POINTS + lastClearBonus}点を獲得。`);
     }
 
-    function paint(cell) {
+    function paint(cell, fromBomb = false) {
       if (phase !== 'play' || cell.broken || cell.skipped) return;
       cell.broken = true;
       cell.at = clock;
       stage.left--;
+      dryBounces = 0;
       combo = clock - lastHit <= 2.4 ? combo + 1 : 1;
       lastHit = clock;
-      score += 10 * multiplier();
-      burst(cell.x + cell.w / 2, cell.y + cell.h / 2, color(cell.color), 5);
-      sound('pop', 44);
+      if (!fromBomb) {
+        if (cell.color === lastColor) colorChain++;
+        else { lastColor = cell.color; colorChain = 1; }
+      }
+      const chainBonus = !fromBomb && colorChain >= 2 ? 5 * Math.min(8, colorChain - 1) : 0;
+      const pts = 10 * multiplier() + chainBonus;
+      score += pts;
+      const cx = cell.x + cell.w / 2, cy = cell.y + cell.h / 2;
+      burst(cx, cy, color(cell.color), fromBomb ? 4 : 5);
+      if (!fromBomb) {
+        addRing(cx, cy, color(cell.color), 22);
+        addPopup(
+          cx, cy - 4,
+          colorChain >= 2 ? `+${pts} 同色×${colorChain}` : `+${pts}`,
+          colorChain >= 2 ? '#ffe399' : '#edf5ff'
+        );
+        sound('pop', 44);
+      }
+      if (!fromBomb && bombReady) {
+        bombReady = false;
+        const r = Math.floor(cell.i / stage.cols);
+        const col = cell.i % stage.cols;
+        addRing(cx, cy, '#ff9e6d', 54);
+        addPopup(cx, cy - 16, 'BOOM!', '#ff9e6d');
+        sound('boom', 60);
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (!dr && !dc) continue;
+            const nr = r + dr, nc = col + dc;
+            if (nr < 0 || nr >= stage.rows || nc < 0 || nc >= stage.cols) continue;
+            const neighbor = stage.lookup[nr * stage.cols + nc];
+            if (neighbor && !neighbor.broken && !neighbor.skipped) {
+              paint(neighbor, true);
+              if (phase !== 'play') return;
+            }
+          }
+        }
+      }
       if (!stage.left) complete();
-      else drop(cell);
+      else if (!fromBomb) drop(cell);
     }
 
     function collect(item) {
@@ -636,6 +688,20 @@
       let label = def.name;
       if (def.id === 'wide') {
         wideUntil = Math.min(clock + 16, Math.max(clock, wideUntil) + 8);
+      } else if (def.id === 'bomb') {
+        if (bombReady) {
+          score += 50;
+          label = 'ボム準備済：+50点';
+        } else {
+          bombReady = true;
+        }
+      } else if (def.id === 'shield') {
+        if (shields >= 2) {
+          score += 50;
+          label = 'バリア上限：+50点';
+        } else {
+          shields++;
+        }
       } else if (def.id === 'bonus') {
         score += 100;
       } else if (balls.length >= MAX_BALLS) {
@@ -660,6 +726,8 @@
         }
       }
       burst(item.x, item.y, def.color, 12, 150);
+      addRing(item.x, item.y, def.color, 30);
+      addPopup(item.x, item.y - 10, label, def.color);
       message(label);
       sound('starPing');
     }
@@ -680,6 +748,7 @@
         if (vy < -EPS) consider((TOP + R - y) / vy, 'wall', 0, 1);
         if (vy > EPS) {
           consider((H + R - y) / vy, 'lost');
+          if (shields > 0) consider((PAD_Y + 24 - R - y) / vy, 'shield');
           const toPad = (PAD_Y - R - y) / vy;
           if (toPad >= -EPS && toPad <= remaining + EPS &&
               Math.abs(x + vx * toPad - paddle.x) <= paddle.w / 2 + R) {
@@ -711,12 +780,40 @@
         if (!collision) break;
         if (collision.type === 'lost') return false;
 
-        if (collision.type === 'paddle') {
+        if (collision.type === 'shield') {
+          shields = Math.max(0, shields - 1);
+          ball.y = PAD_Y + 24 - R - SEPARATION;
+          ball.vy = -Math.abs(ball.vy);
+          normalize(ball);
+          addRing(ball.x, PAD_Y + 24, '#b8a6ff', 36);
+          addPopup(ball.x, PAD_Y + 12, 'バリア防御！', '#d9ccff');
+          message(shields ? `バリア発動（残り${shields}）` : 'バリア発動！');
+          sound('starPing', 80);
+        } else if (collision.type === 'paddle') {
+          dryBounces++;
           const offset = clamp((ball.x - paddle.x) / (paddle.w / 2), -1, 1);
-          const angle = offset * 1.08;
+          const spin = clamp(paddle.vx / 480, -0.32, 0.32);
+          let angle = clamp(offset * 1.06 + spin, -1.16, 1.16);
+          if (stage && stage.left <= 6 && dryBounces >= 8) {
+            let nearest = null, bestDist = Infinity;
+            for (const c of stage.cells) {
+              if (c.broken || c.skipped) continue;
+              const d = Math.hypot(c.x + c.w / 2 - ball.x, c.y + c.h / 2 - ball.y);
+              if (d < bestDist) { bestDist = d; nearest = c; }
+            }
+            if (nearest) {
+              const aim = clamp(
+                Math.atan2(nearest.x + nearest.w / 2 - ball.x, ball.y - (nearest.y + nearest.h / 2)),
+                -1.14, 1.14
+              );
+              angle = angle * 0.6 + aim * 0.4;
+            }
+          }
           ball.y = PAD_Y - R - SEPARATION;
           ball.vx = Math.sin(angle) * speed();
           ball.vy = -Math.cos(angle) * speed();
+          paddle.bump = 1;
+          addRing(ball.x, PAD_Y, '#a6e8ff', 22);
           sound('tap', 80);
         } else {
           if (collision.cell) {
@@ -745,13 +842,16 @@
 
     function simulate(dt) {
       clock += dt;
-      if (clock - lastHit > 2.4) combo = 0;
+      if (clock - lastHit > 2.4) { combo = 0; colorChain = 0; lastColor = -1; }
       const targetWidth = clock < wideUntil ? 130 : 84;
       paddle.w += (targetWidth - paddle.w) * Math.min(1, dt * 14);
       const lo = LEFT + paddle.w / 2, hi = RIGHT - paddle.w / 2;
+      const prevX = paddle.x;
       paddle.target += (Number(keys.right) - Number(keys.left)) * 490 * dt;
       paddle.target = clamp(paddle.target, lo, hi);
       paddle.x = clamp(paddle.x + (paddle.target - paddle.x) * Math.min(1, dt * 38), lo, hi);
+      paddle.vx = (paddle.x - prevX) / dt;
+      paddle.bump = Math.max(0, paddle.bump - dt * 8);
 
       for (let i = items.length - 1; i >= 0; i--) {
         const item = items[i];
@@ -774,10 +874,13 @@
         if (ball.waiting) continue;
         const alive = advance(ball, dt);
         if (phase !== 'play') return;
-        if (!alive) balls.splice(i, 1);
+        if (!alive) {
+          balls.splice(i, 1);
+          stageMisses++;
+        }
       }
       if (!balls.length) {
-        combo = 0; lastHit = -Infinity;
+        combo = 0; colorChain = 0; lastColor = -1; lastHit = -Infinity;
         sound('deny');
         finish('ゲームオーバー！');
         return;
@@ -795,6 +898,17 @@
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.vy += 270 * dt;
+      }
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i];
+        r.life -= dt;
+        if (r.life <= 0) rings.splice(i, 1);
+      }
+      for (let i = popups.length - 1; i >= 0; i--) {
+        const p = popups[i];
+        p.life -= dt;
+        if (p.life <= 0) { popups.splice(i, 1); continue; }
+        p.y -= 26 * dt;
       }
     }
 
@@ -833,11 +947,14 @@
       setText(pauseBtn, phase === 'paused' ? '再開' : '一時停止');
       const status = [];
       if (phase === 'paused' || phase === 'confirm') status.push('一時停止中');
-      if (phase === 'clear') status.push(`クリア！ +${CLEAR_POINTS}点`);
+      if (phase === 'clear') status.push(`クリア！ +${CLEAR_POINTS + lastClearBonus}点`);
       if (phase === 'roulette') status.push('抜ける色ルーレット中（タップ/Spaceでスキップ）');
       if (phase === 'play') {
         if (clock < noticeUntil) status.push(notice);
         if (combo >= 2) status.push(`${combo}連続 ×${multiplier()}`);
+        if (colorChain >= 2) status.push(`同色×${colorChain}`);
+        if (bombReady) status.push('ボム弾準備');
+        if (shields > 0) status.push(`バリア×${shields}`);
         if (clock < wideUntil) status.push(`ワイド ${Math.ceil(wideUntil - clock)}秒`);
       }
       setText(footer, status.join(' ・ ') || '左右にドラッグ ／ PC：← →・Spaceで発射');
@@ -859,6 +976,16 @@
 
       ctx.fillStyle = '#14213a';
       ctx.fillRect(LEFT, TOP, RIGHT - LEFT, H - TOP);
+      ctx.strokeStyle = 'rgba(130,165,220,0.06)';
+      ctx.beginPath();
+      for (let gx = LEFT + 24; gx < RIGHT; gx += 24) {
+        ctx.moveTo(gx, TOP); ctx.lineTo(gx, PAD_Y + 26);
+      }
+      for (let gy = TOP + 24; gy < PAD_Y + 26; gy += 24) {
+        ctx.moveTo(LEFT, gy); ctx.lineTo(RIGHT, gy);
+      }
+      ctx.stroke();
+
       ctx.strokeStyle = '#364968';
       ctx.beginPath();
       ctx.moveTo(LEFT, H - 15);
@@ -869,8 +996,9 @@
 
       if (stage) {
         const showLast = phase === 'play' && stage.left > 0 && stage.left <= 8;
+        const revealAll = phase === 'clear';
         for (const c of stage.cells) {
-          if (c.broken) {
+          if (!revealAll && c.broken) {
             if (!reduceMotion && clock - c.at < 0.14) {
               const t = (clock - c.at) / 0.14;
               const s = 1 - t * 0.55;
@@ -881,7 +1009,7 @@
             }
             continue;
           }
-          if (c.skipped) {
+          if (!revealAll && c.skipped) {
             if (!reduceMotion && clock - c.at < 0.28) {
               const t = (clock - c.at) / 0.28;
               const s = 1 - t * 0.7;
@@ -892,7 +1020,7 @@
             }
             continue;
           }
-          ctx.globalAlpha = 1;
+          ctx.globalAlpha = revealAll ? 0.96 : 1;
           ctx.fillStyle = color(c.color);
           ctx.fillRect(c.x, c.y, c.w, c.h);
           ctx.fillStyle = 'rgba(255,255,255,0.22)';
@@ -916,10 +1044,24 @@
       ctx.fillStyle = '#b6cce7';
       ctx.fillText('← このあたりを左右にスライド →', W / 2, PAD_Y + 28 + (H - PAD_Y - 28) * 0.45);
 
+      if (shields > 0) {
+        const sy = PAD_Y + 24;
+        ctx.save();
+        ctx.strokeStyle = '#b8a6ff';
+        ctx.lineWidth = shields >= 2 ? 4 : 2.5;
+        ctx.globalAlpha = 0.75 + 0.2 * Math.sin(clock * 5);
+        ctx.beginPath();
+        ctx.moveTo(LEFT + 2, sy);
+        ctx.lineTo(RIGHT - 2, sy);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      const py = PAD_Y + paddle.bump * 2.5;
       ctx.fillStyle = clock < wideUntil ? '#a8ed9c' : '#a6e8ff';
-      ctx.fillRect(paddle.x - paddle.w / 2, PAD_Y, paddle.w, PAD_H);
+      ctx.fillRect(paddle.x - paddle.w / 2, py, paddle.w, PAD_H);
       ctx.fillStyle = '#f0fbff';
-      ctx.fillRect(paddle.x - paddle.w / 2 + 4, PAD_Y + 2, paddle.w - 8, 2);
+      ctx.fillRect(paddle.x - paddle.w / 2 + 4, py + 2, paddle.w - 8, 2);
 
       ctx.font = 'bold 12px system-ui,sans-serif';
       for (const item of items) {
@@ -930,24 +1072,53 @@
       }
 
       for (const ball of balls) {
-        ctx.fillStyle = '#f7fcff';
+        const ballColor = bombReady ? '#ff9e6d' : '#f7fcff';
+        ctx.fillStyle = ballColor;
         for (let i = 0; i < ball.trail.length; i++) {
           const p = ball.trail[i];
-          ctx.globalAlpha = 0.2 * (i + 1) / ball.trail.length;
+          ctx.globalAlpha = 0.24 * (i + 1) / ball.trail.length;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, R * 0.7, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, R * 0.72, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.globalAlpha = 1;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, R, 0, Math.PI * 2);
         ctx.fill();
+        if (bombReady) {
+          ctx.strokeStyle = '#ffd178';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(ball.x, ball.y, R + 2.5 + Math.sin(clock * 12) * 1, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.lineWidth = 1;
+        }
+      }
+
+      for (const r of rings) {
+        const t = 1 - r.life / r.max;
+        ctx.globalAlpha = 0.75 * (1 - t);
+        ctx.strokeStyle = r.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.r + (r.maxR - r.r) * t, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 1;
       }
 
       for (const p of particles) {
         ctx.globalAlpha = p.life / p.max;
         ctx.fillStyle = p.color;
         ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      }
+
+      ctx.font = 'bold 12px system-ui,sans-serif';
+      for (const p of popups) {
+        ctx.globalAlpha = Math.min(1, (p.life / p.max) * 1.4);
+        ctx.fillStyle = 'rgba(8,16,34,0.65)';
+        ctx.fillText(p.text, p.x + 1, p.y + 1);
+        ctx.fillStyle = p.color;
+        ctx.fillText(p.text, p.x, p.y);
       }
 
       ctx.globalAlpha = 1;
@@ -995,13 +1166,16 @@
         ctx.fillText('タップ / Space でスキップ', W / 2, boxY + boxH - 18);
       } else if (phase === 'clear') {
         ctx.fillStyle = 'rgba(6,14,30,.9)';
-        ctx.fillRect(40, 326, W - 80, 97);
+        ctx.fillRect(40, 326, W - 80, 102);
         ctx.fillStyle = '#ffe399';
-        ctx.font = 'bold 32px system-ui,sans-serif';
-        ctx.fillText('クリア！', W / 2, 358);
+        ctx.font = 'bold 30px system-ui,sans-serif';
+        ctx.fillText('クリア！', W / 2, 356);
         ctx.fillStyle = '#edf5ff';
         ctx.font = 'bold 16px system-ui,sans-serif';
-        ctx.fillText(`+${CLEAR_POINTS}点`, W / 2, 396);
+        ctx.fillText(
+          lastClearBonus > 0 ? `+${CLEAR_POINTS}点 ＋ ノーミス +${lastClearBonus}点` : `+${CLEAR_POINTS}点`,
+          W / 2, 396
+        );
       }
       ctx.restore();
     }
@@ -1150,10 +1324,11 @@
       clearControls();
       started = true; settlement = null;
       score = 0; clock = 0; stageNo = 0;
-      wideUntil = 0; clearLeft = 0;
-      stage = null; bag = []; invalid.clear(); completed = []; particles = [];
+      wideUntil = 0; clearLeft = 0; bombReady = false; shields = 0;
+      stage = null; bag = []; invalid.clear(); completed = [];
+      particles = []; rings = []; popups = [];
       roulette = null;
-      paddle.x = paddle.target = W / 2; paddle.w = 84;
+      paddle.x = paddle.target = W / 2; paddle.w = 84; paddle.vx = 0; paddle.bump = 0;
       nextStage();
       hideCard();
       lastFrame = performance.now();
@@ -1351,10 +1526,10 @@
       [
         '最初から表示されたぬりえブロックにボールを当てて崩そう！',
         '開始時のルーレットで1〜3色が抜けて、毎回ちがう形になります。',
-        `時間制限はありません。全ブロックを崩すと+${CLEAR_POINTS}点で次のお題へ！`,
+        '同じ色を連続で崩すと「同色チェイン」ボーナス！',
+        `全ブロックを崩すと+${CLEAR_POINTS}点（ノーミスで+150点）で次のお題へ！`,
         'ボールをすべて落とすとゲームオーバーです。',
-        'バーの下で左右にドラッグ。PCは矢印キー、発射はタップまたはSpace。',
-        'コイン報酬はスコア÷100の小数点以下切り捨てです。'
+        'バーの下で左右にドラッグ。PCは矢印キー、発射はタップまたはSpace。'
       ].forEach(text => rules.appendChild(element('li', '', text)));
       const chips = element('div', 'bn-chips');
       for (const def of ITEMS) {
