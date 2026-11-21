@@ -1104,7 +1104,7 @@ function applyLevel(id, L) {
   G.clearShown = false; G.loading = false;
   G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false;
   Sound.setBgm(L.name, L.theme);
-  G.bgmBanner = save.settings.music !== false ? { title: Sound.bgmTitle(), t0: null } : null;
+  if (!G.overlay) G.bgmBanner = save.settings.bgm !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   if (!L.custom) Tut.levelStart(id);
   updateTip(); refreshPrices(); updateStageTalkHud();
   hudCache.coin = 0; updateCoins();
@@ -1234,8 +1234,17 @@ function showOv(name) {
   document.querySelectorAll('.ov').forEach(o => o.classList.toggle('show', o.id === 'ov-' + name));
   const card = document.querySelector('#ov-' + name + ' .card');
   if (card) card.scrollTop = 0;
-  if (name === 'title') {
+  if (name === 'title' || name === 'daily') {
     if (Sound.stageBgm) { Sound.stageBgm = null; Sound.step = 0; Sound.lyricQ = []; }
+    if (typeof Sound.setScene === 'function') Sound.setScene('home');
+  } else if (name === 'colony') {
+    if (typeof Sound.setScene === 'function') Sound.setScene('queen');
+  } else if (name === 'clear') {
+    if (typeof Sound.setScene === 'function') Sound.setScene('result');
+  } else if (name === 'load' || name === 'bgm') {
+    if (typeof Sound.setScene === 'function') Sound.setScene(null);
+  }
+  if (name === 'title') {
     renderTitle();
     if (typeof checkAppUpdate === 'function') checkAppUpdate(false);
   }
@@ -1244,6 +1253,8 @@ function showOv(name) {
 }
 function hideOv() {
   G.overlay = null;
+  if (typeof Sound.setScene === 'function') Sound.setScene(null);
+  if (G.level) G.bgmBanner = save.settings.bgm !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   pushCrumb('play' + (G.level ? '(Lv.' + posOf(G.levelId) + (G.level.custom ? '/自作' : '') + ')' : ''));
   document.querySelectorAll('.ov').forEach(o => o.classList.remove('show'));
   syncQuickFbVis();
@@ -1353,7 +1364,7 @@ function showClear() {
   persist();
   if (nx) setTimeout(() => { if (tok === G.clearTok && G.overlay === 'clear') ensureLevel(nx, () => {}); }, 1900);
 
-  Sound.fanfare(); haptic(30); Sound.duck(3.2);
+  Sound.fanfare(); haptic(30); Sound.duck(1.25);
   popText($('#clearTitle'), st === 3 ? 'パーフェクト！' : 'クリア！');
   $('#clearLv').textContent = isCustom ? 'オリジナルステージ' : 'レベル ' + pos;
   $('#clearName').textContent = '「' + G.level.name + '」がかんせい！';
@@ -3186,6 +3197,7 @@ function devTick() {
 }
 
 /* ================= 入力・ボタン ================= */
+window.addEventListener('pointerdown', () => { if (!Sound.ctx || Sound.ctx.state === 'suspended') Sound.init(); }, { passive: true });
 function evPos(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 canvas.addEventListener('pointerdown', e => {
   if (G.overlay || G.loading || !G.s) return;

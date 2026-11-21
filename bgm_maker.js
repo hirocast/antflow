@@ -77,6 +77,9 @@
   ];
   const SINGERS = [
     { id: 'custom', label: '🎤 アイドル' },
+    { id: 'home', label: '🎺 バンドリーダー' },
+    { id: 'result', label: '🏆 チャンピオン' },
+    { id: 'queen', label: '👑 ロイヤル女王' },
     { id: 'katatsumuri', label: '🕶️ ロック' },
     { id: 'sakura', label: '👘 演歌ふりそで' },
     { id: 'kirakiraboshi', label: '🌟 プリンセス' },
@@ -166,8 +169,8 @@
     const avg = cnt ? sum / cnt : 16;
     const shift = Math.round((18 - avg) / 12) * 12; // 12..24 の範囲に合わせる
     const bSteps = src.barSteps || 16;
-    const calm = src.style === 'sakura' || src.style === 'bell' || src.style === 'waltz';
-    const inst = src.style === 'bell' ? 'bell' : (src.style === 'samba' || src.style === 'sakura' || src.style === 'waltz') ? 'flute' : 'mallet';
+    const calm = src.style === 'sakura' || src.style === 'bell' || src.style === 'celesta' || src.style === 'waltz' || src.style === 'royal';
+    const inst = (src.style === 'bell' || src.style === 'celesta') ? 'bell' : (src.style === 'samba' || src.style === 'sakura' || src.style === 'waltz' || src.style === 'royal' || src.style === 'home') ? 'flute' : 'mallet';
     const lyrArr = (Sound.LYRICS && Sound.LYRICS[key]) || [];
     const bars = rawBars.map((rb, bi) => {
       const bar = emptyBar();

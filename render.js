@@ -1761,6 +1761,46 @@ function drawSingerCostume(g, u, key, t, singing) {
     roundRect(g, -0.86 * u, 0.24 * u, 1.12 * u, 0.14 * u, 0.04 * u); g.fill();
     g.fillStyle = '#ef4444'; g.strokeStyle = '#991b1b'; g.lineWidth = lw * 0.75;
     starPath(g, 0.46 * u, -0.82 * u, 0.22 * u, 0.09 * u, 5); g.fill(); g.stroke();
+  } else if (key === 'queen') {
+    // 女王さま（女王さまのロイヤルワルツ）：真紅×ゴールドの王妃ドレス＋白テン襟＋宝石付きロイヤルティアラ
+    g.fillStyle = '#e11d48'; g.strokeStyle = '#881337'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.92 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.15 * u, 0.3 * u, 0.02 * u);
+    g.lineTo(0.34 * u, 0.64 * u); g.lineTo(-1.0 * u, 0.58 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#fde047';
+    roundRect(g, -0.88 * u, 0.28 * u, 1.16 * u, 0.12 * u, 0.04 * u); g.fill();
+    g.fillStyle = '#fff';
+    roundRect(g, -0.88 * u, 0.01 * u, 1.14 * u, 0.13 * u, 0.06 * u); g.fill();
+    g.fillStyle = '#facc15'; g.strokeStyle = '#a16207'; g.lineWidth = lw * 0.85;
+    g.beginPath();
+    g.moveTo(0.2 * u, -0.66 * u); g.lineTo(0.24 * u, -0.98 * u); g.lineTo(0.37 * u, -0.78 * u);
+    g.lineTo(0.46 * u, -1.06 * u); g.lineTo(0.55 * u, -0.78 * u); g.lineTo(0.68 * u, -0.98 * u); g.lineTo(0.72 * u, -0.66 * u);
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#f43f5e'; ell(g, 0.46 * u, -0.82 * u, 0.065 * u, 0.065 * u); g.fill();
+  } else if (key === 'home') {
+    // ホーム画面（ようこそアントフロー）：スカイブルー×ゴールドの歓迎バンドリーダー衣装＋指揮者キャップ
+    g.fillStyle = '#0ea5e9'; g.strokeStyle = '#0369a1'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.88 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.28 * u, 0.02 * u);
+    g.lineTo(0.3 * u, 0.6 * u); g.lineTo(-0.96 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#fde047';
+    roundRect(g, -0.84 * u, 0.24 * u, 1.08 * u, 0.12 * u, 0.04 * u); g.fill();
+    g.fillStyle = '#0284c7'; g.strokeStyle = '#075985'; g.lineWidth = lw * 0.85;
+    roundRect(g, 0.2 * u, -0.86 * u, 0.52 * u, 0.2 * u, 0.06 * u); g.fill(); g.stroke();
+    g.fillStyle = '#fde047'; starPath(g, 0.46 * u, -0.76 * u, 0.11 * u, 0.05 * u, 5); g.fill();
+  } else if (key === 'result') {
+    // リザルト画面（クリア・セレブレーション）：黄金のチャンピオンマント＋勝利の月桂冠スタークラウン
+    g.fillStyle = '#f59e0b'; g.strokeStyle = '#92400e'; g.lineWidth = lw;
+    g.beginPath();
+    g.moveTo(-0.9 * u, 0.04 * u); g.quadraticCurveTo(-0.22 * u, -0.14 * u, 0.3 * u, 0.02 * u);
+    g.lineTo(0.32 * u, 0.62 * u); g.lineTo(-0.98 * u, 0.56 * u); g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = '#fef08a';
+    starPath(g, -0.18 * u, 0.28 * u, 0.18 * u, 0.08 * u, 5); g.fill();
+    g.fillStyle = '#fde047'; g.strokeStyle = '#b45309'; g.lineWidth = lw * 0.85;
+    starPath(g, 0.46 * u, -0.84 * u, 0.22 * u, 0.1 * u, 5); g.fill(); g.stroke();
   } else if (key === 'humoresque') {
     // アリのす（ユーモレスク）：女王さま風のロイヤルパープルマント＋金の王冠
     g.fillStyle = '#9333ea'; g.strokeStyle = '#581c87'; g.lineWidth = lw;
@@ -1805,6 +1845,7 @@ function drawSingerCostume(g, u, key, t, singing) {
   }
 }
 const SINGER_MIC_COLS = {
+  home: '#38bdf8', result: '#facc15', queen: '#fb7185',
   sakura: '#ffd23f', katatsumuri: '#e2e8f0', kirakiraboshi: '#ffd23f', alps: '#4ecdc4', usagi: '#ffb3d1', kumasan: '#ff9f43', birthday: '#ff4f6e',
   fujinoyama: '#60a5fa', kamome: '#38bdf8', nekofunjatta: '#c084fc', minuet: '#93c5fd', konpeitou: '#f472b6', muramatsuri: '#fb7185', harugakita: '#facc15', toysoldiers: '#ef4444', jupiter: '#38bdf8',
   kaeru: '#4ade80', kisha: '#facc15', yama: '#94a3b8', kuri: '#f97316', shabondama: '#7dd3fc', gavotte: '#f9a8d4', skaters: '#bae6fd',
@@ -1895,7 +1936,7 @@ function drawSinger() {
 }
 function drawBgmBanner() {
   const b = G.bgmBanner;
-  if (!b || G.overlay !== '') return;
+  if (!b || G.overlay) return;
   if (b.t0 === null) b.t0 = G.rt;
   const age = G.rt - b.t0;
   if (age > 2.9) { G.bgmBanner = null; return; }
