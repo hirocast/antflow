@@ -179,7 +179,7 @@
       try {
         const data = getArt(id);
         if (!data) return null;
-        const { w, h, grid } = data;
+        const w = data.w ?? data.W, h = data.h ?? data.H, grid = data.grid;
         if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 ||
             w > 512 || h > 512 || w * h > 65_536 || !grid || grid.length < w * h) return null;
         const pixels = Array.from({ length:w * h }, (_, i) => {

@@ -216,12 +216,15 @@
     };
 
     let drawn = false;
-    if (art && art.grid && Number.isInteger(art.w) && Number.isInteger(art.h)
-        && art.w > 0 && art.h > 0) {
-      let left = art.w, right = -1, top = art.h, bottom = -1;
-      for (let y = 0; y < art.h; y++) {
-        for (let x = 0; x < art.w; x++) {
-          if (!colorOf(pixel(y, x))) continue;
+    const aw = art && (art.w ?? art.W), ah = art && (art.h ?? art.H);
+    if (art && art.grid && Number.isInteger(aw) && Number.isInteger(ah)
+        && aw > 0 && ah > 0) {
+      let left = aw, right = -1, top = ah, bottom = -1;
+      for (let y = 0; y < ah; y++) {
+        for (let x = 0; x < aw; x++) {
+          const row = art.grid[y];
+          const cVal = Array.isArray(row) || ArrayBuffer.isView(row) ? row[x] : art.grid[y * aw + x];
+          if (!colorOf(cVal)) continue;
           left = Math.min(left, x);
           right = Math.max(right, x);
           top = Math.min(top, y);
@@ -237,7 +240,9 @@
         const oy = (128 - h * scale) / 2;
         for (let y = 0; y < h; y++) {
           for (let x = 0; x < w; x++) {
-            const color = colorOf(pixel(top + y, left + x));
+            const row = art.grid[top + y];
+            const cVal = Array.isArray(row) || ArrayBuffer.isView(row) ? row[left + x] : art.grid[(top + y) * aw + (left + x)];
+            const color = colorOf(cVal);
             if (!color) continue;
             const x0 = Math.round(ox + x * scale);
             const y0 = Math.round(oy + y * scale);

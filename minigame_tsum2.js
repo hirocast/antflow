@@ -80,8 +80,8 @@
         return {
           id,
           name: ARTS[id - 1]?.n || `ステージ ${id}`,
-          w: data.w,
-          h: data.h,
+          w: data.w ?? data.W,
+          h: data.h ?? data.H,
           grid: data.grid,
           palette: typeof HEX !== 'undefined' ? HEX : null,
           transparentIndex: -1

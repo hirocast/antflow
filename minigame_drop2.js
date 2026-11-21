@@ -168,8 +168,8 @@
             id: i + 1,
             name: ARTS[i]?.n || `ステージ ${i + 1}`,
             palette: HEX,
-            w: data.w,
-            h: data.h,
+            w: data.w ?? data.W,
+            h: data.h ?? data.H,
             cells: Array.from(data.grid)
           }, i);
           if (a) arts.push(a);
