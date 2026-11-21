@@ -302,6 +302,34 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 #bSkill .sk-txt small{font-size:9px;opacity:.75;font-weight:800}
 #bSkill.ready{background:linear-gradient(135deg,#fff0f6,#fff8d6);border-color:#ff8fb3;box-shadow:0 0 0 3px rgba(255,143,179,.35),0 6px 16px rgba(228,106,146,.35);animation:skPulse 1s ease-in-out infinite alternate}
 @keyframes skPulse{from{transform:scale(1)}to{transform:scale(1.06)}}
+.gacha-row{display:flex;gap:8px;margin-top:10px}
+.gacha-row .big{margin-top:0;flex:1;font-size:14px;padding:0 6px;line-height:1.15;height:54px}
+.gacha-row .big small{display:block;font-size:11px;font-weight:800;opacity:.92;margin-top:2px}
+.gacha-row .big.gold{background:linear-gradient(180deg,#ffe066,#ff9f43);color:#5a2d00;box-shadow:0 4px 0 #d97706}
+#ov-gacha .card{position:relative;overflow:hidden;border-color:#ffcf4a;background:linear-gradient(180deg,#fffdf8 0%,#fff4fb 100%)}
+.gacha-stage{position:relative;margin:8px 0 10px;max-height:52vh;overflow-y:auto;padding:6px 2px;touch-action:pan-y}
+.gacha-hero{position:relative;padding:16px 12px;border-radius:20px;background:radial-gradient(circle at 50% 35%,#fff9d6,#ffe3ef 72%);border:3px solid #ffcf4a;box-shadow:0 6px 20px rgba(255,159,67,.28);animation:gachaPop .45s cubic-bezier(.25,1.5,.5,1) both}
+.gacha-hero.up,.gacha-hero.new{border-color:#ff6b9d;box-shadow:0 0 0 4px rgba(255,207,74,.35),0 8px 24px rgba(228,106,146,.38)}
+.gacha-hero .gh-ico{font-size:56px;line-height:1.1;display:block;animation:gachaBounce 1.1s ease-in-out infinite alternate}
+.gacha-hero .gh-name{font-size:19px;font-weight:900;color:var(--pinkd);margin-top:4px}
+.gacha-hero .gh-sk{font-size:13px;font-weight:800;color:var(--ink);margin-top:4px}
+.gacha-hero .gh-desc{font-size:11.5px;opacity:.85;margin-top:4px;line-height:1.45}
+.gacha-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.gacha-item{position:relative;display:flex;align-items:center;gap:7px;padding:8px 8px;border-radius:14px;background:#fff;border:2.5px solid #f3d5e2;box-shadow:0 3px 0 #ecd3a8;text-align:left;opacity:0;animation:gachaPop .36s cubic-bezier(.25,1.5,.5,1) forwards;animation-delay:calc(var(--i,0) * 70ms)}
+.gacha-item.new{background:linear-gradient(135deg,#fff9d6,#fff0f6);border-color:#ffcf4a;box-shadow:0 3px 0 #e0ab2a,0 0 12px rgba(255,207,74,.45)}
+.gacha-item.up{background:linear-gradient(135deg,#ffeaf3,#fff7d6);border-color:#ff7aa6;box-shadow:0 3px 0 #e46a92,0 0 12px rgba(255,122,166,.4)}
+.gacha-item .gi-e{font-size:28px;line-height:1;flex:0 0 auto}
+.gacha-item .gi-b{min-width:0;flex:1}
+.gacha-item .gi-n{font-size:11.5px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gacha-item .gi-s{font-size:10px;font-weight:800;color:#9a5b13;margin-top:1px}
+.gacha-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:900;color:#fff;background:#a66be0;margin-right:4px}
+.gacha-badge.new{background:linear-gradient(90deg,#ff9a3c,#ffcf4a);color:#5a2d00}
+.gacha-badge.up{background:linear-gradient(90deg,#ff5a9a,#ff8fb3)}
+.gacha-badge.ref{background:#5fcf9f;color:#0e4a2f}
+.gacha-sum{background:#fff;border:2px solid #ffd3e2;border-radius:12px;padding:7px 10px;font-size:12px;font-weight:800;margin:0 0 10px;line-height:1.4}
+.gacha-actions{display:flex;flex-direction:column;gap:8px;position:relative;z-index:2}
+@keyframes gachaPop{0%{opacity:0;transform:scale(.55) rotate(-6deg)}70%{opacity:1;transform:scale(1.05) rotate(1deg)}100%{opacity:1;transform:none}}
+@keyframes gachaBounce{from{transform:translateY(0) scale(1)}to{transform:translateY(-6px) scale(1.08)}}
 .dayrow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0}
 .day{background:#fff;border-radius:10px;padding:6px 0;font-size:10px;font-weight:800;box-shadow:0 2px 0 #ecd3a8}
 .day b{display:block;font-size:11px}
@@ -562,7 +590,15 @@ function handleTalkLikeClick(e) {
       '<button class="big sec" id="bBingoClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-skins"><div class="card">' +
       '<h2>🎀 きせかえ</h2><canvas id="skCv"></canvas><div class="sk-detail" id="skDetail"></div><p class="fine" id="skSum"></p><div class="skgrid" id="skGrid"></div>' +
-      '<button class="big" id="bGacha"></button><button class="big sec" id="bSkClose">とじる</button></div></div>' +
+      '<div class="gacha-row"><button class="big" id="bGacha"></button><button class="big gold" id="bGacha10"></button></div><button class="big sec" id="bSkClose">とじる</button></div></div>' +
+    '<div class="ov" id="ov-gacha"><div class="card">' +
+      '<h2 id="gachaTitle">🎁 おたからばこ</h2>' +
+      '<div class="gacha-stage" id="gachaStage"></div>' +
+      '<div class="gacha-sum" id="gachaSum"></div>' +
+      '<div class="gacha-actions">' +
+        '<div class="gacha-row"><button class="big" id="bGachaAgain1"></button><button class="big gold" id="bGachaAgain10"></button></div>' +
+        '<button class="big sec" id="bGachaClose">きせかえにもどる</button>' +
+      '</div></div></div>' +
     '<div class="ov" id="ov-daily"><div class="card">' +
       '<h2>🎁 ログインボーナス</h2><p id="dayMsg"></p><div class="dayrow" id="dayRow"></div>' +
       '<button class="big pulse" id="bDayOk">うけとる！</button></div></div>' +
@@ -1873,40 +1909,117 @@ function renderSkins() {
   }
   const maxCnt = SKINS.filter(s => s.k !== 'none' && skinLv(s.k) >= SKIN_MAX_LV).length;
   $('#skSum').textContent = '所持 ' + save.skins.length + '/' + SKINS.length + '（MAX ' + maxCnt + '）　🎟️×' + save.tickets + '　🪙' + save.coins;
-  $('#bGacha').textContent = save.tickets > 0 ? '🎁 おたからばこ（🎟️チケット1まい）' : '🎁 おたからばこ（🪙' + PRICE.box + '）';
+  const g1 = gachaCost(1), g10 = gachaCost(10);
+  $('#bGacha').innerHTML = '🎁 1回あける<small>' + g1.short + '</small>';
+  $('#bGacha10').innerHTML = '✨ 10連あける<small>' + g10.short + '</small>';
 }
-function doGacha() {
-  const useT = save.tickets > 0;
-  if (!useT && save.coins < PRICE.box) { toast('🪙 コインが足りないよ（' + PRICE.box + 'こ必要）'); Sound.deny(); return; }
-  const cost = useT
-    ? '🎟️ おたからばこチケット 1まい（のこり ' + save.tickets + ' → ' + (save.tickets - 1) + '）'
-    : '🪙 ' + PRICE.box + 'コイン（もちコイン ' + save.coins + ' → ' + (save.coins - PRICE.box) + '）';
+function gachaCost(n) {
+  const t = Math.min(save.tickets, n);
+  const c = (n - t) * PRICE.box;
+  const ok = save.coins >= c;
+  const parts = [];
+  if (t > 0) parts.push('🎟️' + t + 'まい');
+  if (c > 0) parts.push('🪙' + c.toLocaleString());
+  const short = parts.join('＋') || '🪙0';
+  const detail = (t > 0 ? '🎟️ チケット ' + t + 'まい（のこり ' + save.tickets + ' → ' + (save.tickets - t) + '）' : '') +
+    (t > 0 && c > 0 ? '\n' : '') +
+    (c > 0 ? '🪙 ' + c.toLocaleString() + 'コイン（もちコイン ' + save.coins.toLocaleString() + ' → ' + (save.coins - c).toLocaleString() + '）' : '');
+  return { t, c, ok, short, detail };
+}
+function showGachaResult(results, count) {
+  const stage = $('#gachaStage'), sumEl = $('#gachaSum');
+  let newCnt = 0, upCnt = 0, refCoins = 0;
+  for (const r of results) {
+    if (r.kind === 'new') newCnt++;
+    else if (r.kind === 'up') upCnt++;
+    else if (r.kind === 'refund') refCoins += r.coins;
+  }
+  $('#gachaTitle').textContent = count > 1 ? '🎉 10連おたからばこ結果！' : (newCnt ? '✨ 新しいきせかえゲット！' : upCnt ? '🔥 スキルレベルアップ！' : '🎁 おたからばこ結果');
+  if (results.length === 1) {
+    const r = results[0];
+    if (r.kind === 'refund') {
+      stage.innerHTML = '<div class="gacha-hero"><span class="gh-ico">🪙</span><div class="gh-name">ぜんぶスキルMAX！</div><div class="gh-sk">🪙 ' + r.coins + ' コイン おかえし</div></div>';
+    } else {
+      const sk = getSkinSkill(r.s.k, r.newLv);
+      const badge = r.kind === 'new'
+        ? '<span class="gacha-badge new">NEW!</span> SLv.1'
+        : r.kind === 'up'
+          ? '<span class="gacha-badge up">SLv.UP!</span> SLv.' + r.oldLv + ' → SLv.' + r.newLv
+          : '<span class="gacha-badge">＋1</span> SLv.' + r.newLv + '（あと' + (r.p.need - r.p.cur) + 'こ）';
+      stage.innerHTML = '<div class="gacha-hero ' + r.kind + '">' +
+        '<span class="gh-ico">' + r.s.e + '</span>' +
+        '<div class="gh-name">' + r.s.n + '</div>' +
+        '<div style="margin-top:4px">' + badge + '</div>' +
+        '<div class="gh-sk">⚡ ' + sk.name + '</div>' +
+        '<div class="gh-desc">本編：' + sk.puzzleDesc + '<br>チェイン：' + sk.tsumDesc + '</div>' +
+      '</div>';
+    }
+  } else {
+    stage.innerHTML = '<div class="gacha-grid">' + results.map((r, i) => {
+      if (r.kind === 'refund') {
+        return '<div class="gacha-item" style="--i:' + i + '"><span class="gi-e">🪙</span><div class="gi-b"><div class="gi-n">MAXおかえし</div><div class="gi-s"><span class="gacha-badge ref">+' + r.coins + '🪙</span></div></div></div>';
+      }
+      const badge = r.kind === 'new'
+        ? '<span class="gacha-badge new">NEW!</span>SLv.1'
+        : r.kind === 'up'
+          ? '<span class="gacha-badge up">UP!</span>SLv.' + r.oldLv + '→' + r.newLv
+          : '<span class="gacha-badge">＋1</span>SLv.' + r.newLv;
+      return '<div class="gacha-item ' + r.kind + '" style="--i:' + i + '"><span class="gi-e">' + r.s.e + '</span><div class="gi-b"><div class="gi-n">' + r.s.n + '</div><div class="gi-s">' + badge + '</div></div></div>';
+    }).join('') + '</div>';
+  }
+  const sumParts = [];
+  if (newCnt) sumParts.push('✨ NEW ×' + newCnt);
+  if (upCnt) sumParts.push('🔥 SLv.UP ×' + upCnt);
+  const dupOnly = results.length - newCnt - upCnt - (refCoins ? results.filter(x => x.kind === 'refund').length : 0);
+  if (dupOnly > 0) sumParts.push('🎀 きせかえ ×' + dupOnly);
+  if (refCoins > 0) sumParts.push('🪙 おかえし +' + refCoins);
+  sumEl.textContent = (sumParts.join(' ／ ') || 'きせかえをゲット！') + '　（所持🪙' + save.coins.toLocaleString() + '）';
+  const g1 = gachaCost(1), g10 = gachaCost(10);
+  $('#bGachaAgain1').innerHTML = '🎁 もう1回<small>' + g1.short + '</small>';
+  $('#bGachaAgain10').innerHTML = '✨ もう10連<small>' + g10.short + '</small>';
+  stage.scrollTop = 0;
+  showOv('gacha');
+}
+function doGacha(count) {
+  const n = count === 10 ? 10 : 1;
+  const info = gachaCost(n);
+  if (!info.ok) { toast('🪙 コインが足りないよ（' + info.c.toLocaleString() + 'こ必要）'); Sound.deny(); return; }
   confirmSpend({
-    title: '🎁 おたからばこ',
-    desc: '「きせかえ」がランダムで1つ手に入ります。同じきせかえを集めるとスキルレベル（SLv.1〜5）が上がり、スキルの効果がパワーアップ！（すべてSLv.MAX時は🪙150かえってきます）',
-    cost,
-    okLabel: '開ける！'
+    title: n === 10 ? '✨ 10連おたからばこ' : '🎁 おたからばこ',
+    desc: '「きせかえ」がランダムで' + n + 'つ手に入ります。同じきせかえを集めるとスキルレベル（SLv.1〜5）が上がり、スキルの効果がパワーアップ！（すべてSLv.MAX時は🪙150かえってきます）',
+    cost: info.detail,
+    okLabel: n === 10 ? '10連を開ける！' : '開ける！'
   }, () => {
-    const tNow = save.tickets > 0;
-    if (!tNow && save.coins < PRICE.box) { toast('🪙 コインが足りないよ（' + PRICE.box + 'こ必要）'); Sound.deny(); return; }
-    if (tNow) save.tickets--; else save.coins -= PRICE.box;
-    const pool = SKINS.filter(s => s.k !== 'none' && skinLv(s.k) < SKIN_MAX_LV);
-    if (!pool.length) { save.coins += 150; toast('ぜんぶスキルMAX！🪙150 おかえし'); }
-    else {
+    const now = gachaCost(n);
+    if (!now.ok) { toast('🪙 コインが足りないよ（' + now.c.toLocaleString() + 'こ必要）'); Sound.deny(); return; }
+    save.tickets -= now.t;
+    save.coins -= now.c;
+    const results = [];
+    let equipChanged = false;
+    for (let i = 0; i < n; i++) {
+      const pool = SKINS.filter(s => s.k !== 'none' && skinLv(s.k) < SKIN_MAX_LV);
+      if (!pool.length) {
+        save.coins += 150;
+        results.push({ kind: 'refund', coins: 150 });
+        continue;
+      }
       const s = pick(pool);
       const oldLv = skinLv(s.k);
       save.skinCnt[s.k] = (save.skinCnt[s.k] || 0) + 1;
       if (save.skins.indexOf(s.k) < 0) save.skins.push(s.k);
-      const newLv = skinLv(s.k), p = skinProgress(s.k), sk = getSkinSkill(s.k, newLv);
+      const newLv = skinLv(s.k), p = skinProgress(s.k);
       G.skPrev = s.k;
-      if (oldLv === 0) toast('🎉 「' + s.e + s.n + '」をゲット！ SLv.1（' + sk.name + '）', 3200);
-      else if (newLv > oldLv) toast('✨ 「' + s.e + s.n + '」スキルレベルアップ！ SLv.' + oldLv + ' → SLv.' + newLv + '！', 3400);
-      else toast('🎀 「' + s.e + s.n + '」＋1！（SLv.' + newLv + ' あと' + (p.need - p.cur) + 'こ）', 3000);
-      if (save.skin === s.k) { G.perk = perks(); G.spdMul = G.perk.speed; refreshPrices(); }
+      if (save.skin === s.k) equipChanged = true;
+      results.push({ kind: oldLv === 0 ? 'new' : newLv > oldLv ? 'up' : 'dup', s, oldLv, newLv, p });
     }
+    if (equipChanged) { G.perk = perks(); G.spdMul = G.perk.speed; refreshPrices(); }
     persist(); updateCoins(true); renderSkins();
+    showGachaResult(results, n);
     Sound.fanfare();
-    Fx.burst(innerWidth / 2, innerHeight * 0.35, 60, 380, ['star', 'conf', 'dot']);
+    if (n === 10 || results.some(r => r.kind === 'new' || r.kind === 'up')) Sound.gold();
+    Fx.burst(innerWidth / 2, innerHeight * 0.3, n === 10 ? 110 : 75, n === 10 ? 460 : 380, ['star', 'conf', 'dot']);
+    if (n === 10) setTimeout(() => Fx.burst(innerWidth * 0.3, innerHeight * 0.4, 55, 360, ['star', 'conf']), 220);
+    if (n === 10) setTimeout(() => Fx.burst(innerWidth * 0.7, innerHeight * 0.4, 55, 360, ['star', 'conf']), 400);
   });
 }
 function drawSkinPrev(cv, t) {
@@ -3193,7 +3306,11 @@ on('#bMisClose', closeMeta);
 on('#bBingoClose', closeMeta);
 on('#bBingoClaim', () => { Sound.init(); claimBingo(); });
 on('#bSkClose', closeMeta);
-on('#bGacha', () => { Sound.init(); doGacha(); });
+on('#bGacha', () => { Sound.init(); doGacha(1); });
+on('#bGacha10', () => { Sound.init(); doGacha(10); });
+on('#bGachaAgain1', () => { Sound.init(); doGacha(1); });
+on('#bGachaAgain10', () => { Sound.init(); doGacha(10); });
+on('#bGachaClose', () => { Sound.tap(); showOv('skins'); });
 on('#bDayOk', () => {
   Sound.init();
   const P = G.dailyP;
@@ -3870,7 +3987,7 @@ layout();
   const BACK_MAP = {
     settings: '#bSetClose', album: '#bAlbumClose', view: '#bViewBack',
     colony: '#bQClose', missions: '#bMisClose', bingo: '#bBingoClose',
-    skins: '#bSkClose', maker: '#bMkClose', gallery: '#bGalClose',
+    skins: '#bSkClose', gacha: '#bGachaClose', maker: '#bMkClose', gallery: '#bGalClose',
     bgm: '#bgmCloseBtn', 'bgm-gal': '#bBgmGalClose', 'stage-bgm': '#bStBgmBack',
     'bgm-builtin': '#bBgmBuiltinBack', inbox: '#bInboxClose', clear: '#bClearHome',
     help: '#bHelpClose', dev: '#bDevClose', feedback: '#bFbClose',
