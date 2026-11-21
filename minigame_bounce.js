@@ -14,10 +14,9 @@
     '#616161', '#1de9b6', '#f48fb1', '#a1887f', '#90caf9', '#fff59d'
   ];
   const ITEMS = [
-    { id: 'multi',  mark: '+2球', name: 'マルチボール', color: '#7ddcff', weight: 34 },
-    { id: 'pierce', mark: '貫',   name: '貫通ボール',   color: '#ffd178', weight: 28 },
-    { id: 'wide',   mark: '幅',   name: 'ワイドバー',   color: '#a8ed9c', weight: 25 },
-    { id: 'bonus',  mark: '+100', name: 'ボーナス +100点', color: '#ffb7e1', weight: 13 }
+    { id: 'multi',  mark: '+2球', name: 'マルチボール', color: '#7ddcff', weight: 47 },
+    { id: 'wide',   mark: '幅',   name: 'ワイドバー',   color: '#a8ed9c', weight: 35 },
+    { id: 'bonus',  mark: '+100', name: 'ボーナス +100点', color: '#ffb7e1', weight: 18 }
   ];
 
   const CSS = `
@@ -44,6 +43,10 @@
     .afibn-game .bn-stat b{display:block;overflow:hidden;text-overflow:ellipsis;
       white-space:nowrap;font-size:16px}
     .afibn-game .bn-low{color:#ffacaa}
+    .afibn-game .bn-art-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+    .afibn-game .bn-preview{flex:none;width:42px;height:42px;border-radius:6px;
+      background:#0d182b;border:1px solid #3c537a;image-rendering:pixelated}
+    .afibn-game .bn-art-info{flex:1;min-width:0}
     .afibn-game .bn-progress{height:4px;background:#263752;border-radius:4px;overflow:hidden}
     .afibn-game .bn-progress i{display:block;width:0;height:100%;
       background:linear-gradient(90deg,#74dfff,#c3a7ff)}
@@ -290,12 +293,21 @@
       return value;
     }
     const scoreEl = stat('スコア'), timeEl = stat('完成枚数'), bestEl = stat('ベスト');
+    const artRow = element('div', 'bn-art-row');
+    const previewCanvas = element('canvas', 'bn-preview');
+    previewCanvas.width = 48;
+    previewCanvas.height = 48;
+    previewCanvas.setAttribute('aria-hidden', 'true');
+    const previewCtx = previewCanvas.getContext('2d');
+    const artInfo = element('div', 'bn-art-info');
     const progress = element('div', 'bn-progress');
     const fill = element('i');
     progress.setAttribute('aria-hidden', 'true');
     progress.appendChild(fill);
     const artEl = element('div', 'bn-art');
-    head.append(top, stats, progress, artEl);
+    artInfo.append(progress, artEl);
+    artRow.append(previewCanvas, artInfo);
+    head.append(top, stats, artRow);
 
     const field = element('div', 'bn-field');
     const canvas = element('canvas', 'bn-canvas');
@@ -323,7 +335,7 @@
     const invalid = new Set();
     const validArtCount = Number.isSafeInteger(artList.length) ? artList.length : 0;
     let score = 0, clock = 0, combo = 0, lastHit = -Infinity;
-    let wideUntil = 0, pierceUntil = 0, clearLeft = 0, serveLeft = 0;
+    let wideUntil = 0, clearLeft = 0, serveLeft = 0;
     let notice = '', noticeUntil = 0, dryHits = 0, lastDrop = -Infinity;
     let balls = [], items = [], particles = [];
     const paddle = { x: W / 2, target: W / 2, w: 84 };
@@ -483,6 +495,23 @@
       draw();
     }
 
+    function drawPreview() {
+      if (!previewCtx) return;
+      previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+      if (!stage) return;
+      const unit = Math.max(1, Math.floor(42 / Math.max(stage.cols, stage.rows)));
+      const ox = Math.floor((previewCanvas.width - stage.cols * unit) / 2);
+      const oy = Math.floor((previewCanvas.height - stage.rows * unit) / 2);
+      for (const c of stage.cells) {
+        previewCtx.fillStyle = color(c.color);
+        previewCtx.fillRect(
+          ox + (c.i % stage.cols) * unit,
+          oy + Math.floor(c.i / stage.cols) * unit,
+          unit, unit
+        );
+      }
+    }
+
     function nextStage() {
       stage = chooseStage();
       stageNo++;
@@ -491,6 +520,7 @@
       items = [];
       balls = [];
       notice = ''; noticeUntil = 0;
+      drawPreview();
       roulette = planRoulette(stage);
       if (roulette) {
         phase = 'roulette';
@@ -606,8 +636,6 @@
       let label = def.name;
       if (def.id === 'wide') {
         wideUntil = Math.min(clock + 16, Math.max(clock, wideUntil) + 8);
-      } else if (def.id === 'pierce') {
-        pierceUntil = Math.min(clock + 12, Math.max(clock, pierceUntil) + 6);
       } else if (def.id === 'bonus') {
         score += 100;
       } else if (balls.length >= MAX_BALLS) {
@@ -665,8 +693,6 @@
         const c1 = Math.min(stage.cols - 1, Math.floor((Math.max(x, endX) + R - stage.x) / stage.size));
         const r0 = Math.max(0, Math.floor((Math.min(y, endY) - R - stage.y) / stage.size));
         const r1 = Math.min(stage.rows - 1, Math.floor((Math.max(y, endY) + R - stage.y) / stage.size));
-        const piercing = clock < pierceUntil;
-        const pierced = piercing ? [] : null;
 
         for (let row = r0; row <= r1; row++) {
           for (let col = c0; col <= c1; col++) {
@@ -674,16 +700,7 @@
             if (!cell || cell.broken || cell.skipped) continue;
             const hit = sweep(x, y, vx, vy, cell, duration);
             if (!hit) continue;
-            if (piercing) pierced.push({ time: hit.time, cell });
-            else consider(hit.time, 'cell', hit.nx, hit.ny, hit.push, cell);
-          }
-        }
-
-        if (pierced && pierced.length) {
-          pierced.sort((a, b) => a.time - b.time);
-          for (const hit of pierced) {
-            paint(hit.cell);
-            if (phase !== 'play') return true;
+            consider(hit.time, 'cell', hit.nx, hit.ny, hit.push, cell);
           }
         }
 
@@ -821,7 +838,6 @@
       if (phase === 'play') {
         if (clock < noticeUntil) status.push(notice);
         if (combo >= 2) status.push(`${combo}連続 ×${multiplier()}`);
-        if (clock < pierceUntil) status.push(`貫通 ${Math.ceil(pierceUntil - clock)}秒`);
         if (clock < wideUntil) status.push(`ワイド ${Math.ceil(wideUntil - clock)}秒`);
       }
       setText(footer, status.join(' ・ ') || '左右にドラッグ ／ PC：← →・Spaceで発射');
@@ -914,7 +930,7 @@
       }
 
       for (const ball of balls) {
-        ctx.fillStyle = clock < pierceUntil ? '#ffd178' : '#f7fcff';
+        ctx.fillStyle = '#f7fcff';
         for (let i = 0; i < ball.trail.length; i++) {
           const p = ball.trail[i];
           ctx.globalAlpha = 0.2 * (i + 1) / ball.trail.length;
@@ -1134,7 +1150,7 @@
       clearControls();
       started = true; settlement = null;
       score = 0; clock = 0; stageNo = 0;
-      wideUntil = 0; pierceUntil = 0; clearLeft = 0;
+      wideUntil = 0; clearLeft = 0;
       stage = null; bag = []; invalid.clear(); completed = []; particles = [];
       roulette = null;
       paddle.x = paddle.target = W / 2; paddle.w = 84;
