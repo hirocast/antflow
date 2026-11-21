@@ -337,9 +337,7 @@ const Sound = {
     else if (name === 'サンゴしょう') k = 'warewauminoko';
     else if (name === 'じんじゃ') k = 'momiji';
     else if (name === 'アリのす') k = 'humoresque';
-    else if (name === 'アイスクリーム') k = 'samba';
-    else if (name === 'ハロウィンかぼちゃ') k = 'samba';
-    else if (name === 'ありんこ隊のピクニック') k = 'samba';
+    else if (name === 'アイスクリーム' || name === 'ハロウィンかぼちゃ' || name === 'ありんこ隊のピクニック' || name === 'フルーツパフェ' || name === 'ちょうちょとお花畑' || name === 'ぽかぽかおんせん' || name === 'イルカのジャンプ' || name === 'ふうしゃのお花畑' || name === 'メリーゴーランド' || name === 'ほしぞらキャンプ' || name === 'かいぞくせん') k = 'samba';
     else if (theme === 'おまつり') k = 'matsuri';
     else if (theme === 'はな' || theme === 'しぜん') k = 'breeze';
     if (this.bgmKey !== k) { this.bgmKey = k; this.step = 0; this.lyricQ = []; }
