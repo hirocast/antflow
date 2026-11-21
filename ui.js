@@ -519,7 +519,7 @@ function handleTalkLikeClick(e) {
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
   const titleCard = $('#ov-title .card');
-  if (titleCard) titleCard.insertAdjacentHTML('beforeend', '<button class="big sec" id="bTitleFeedback" style="margin-top:8px">💬 要望・不具合を送る</button><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
+  if (titleCard) titleCard.insertAdjacentHTML('beforeend', '<button class="big sec" id="bTitleFeedback" style="margin-top:8px">💬 要望・不具合を送る</button><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button><button class="link" id="bTitleSet" style="display:block;margin:12px auto 0">⚙️ せってい</button>');
   // あそびかた：ページめくり式に作りかえる
   $('#ov-help .help').innerHTML =
     '<div class="hpic" id="hPic"><canvas id="hCv"></canvas><b class="hnum" id="hNum"></b></div>' +
@@ -2939,6 +2939,7 @@ on('#bSpeed', () => { G.speed = G.speed === 1 ? 2 : 1; save.settings.fast = G.sp
 on('#bHint', () => { Sound.init(); doHint(); });
 on('#bScan', () => { Sound.init(); doScan(); });
 on('#bSet', () => { G.fromTitle = false; showOv('settings'); });
+on('#bTitleSet', () => { Sound.init(); Sound.tap(); G.fromTitle = true; showOv('settings'); });
 on('#bSetClose', back);
 on('#bSetHome', () => { Sound.init(); showOv('title'); });
 on('#bHome', () => { Sound.init(); showOv('title'); });
