@@ -28,11 +28,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-eve
  radial-gradient(ellipse 110px 34px at 82% 18%,#fff 60%,transparent 62%),radial-gradient(ellipse 66px 26px at 89% 14%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%)}
 header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
-.lv{display:grid!important;grid-template-columns:auto auto;align-items:center;column-gap:7px;row-gap:1px;min-width:0;margin-right:auto;padding:4px 9px;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
-.lv #lvNum{grid-column:1;grid-row:1;font-size:15px;line-height:1.1}
-.lv #lvStars{grid-column:1;grid-row:2;font-size:10.5px;line-height:1.1}
-.lv #lvName{grid-column:2;grid-row:1;font-size:11px;font-weight:900;color:var(--ink);max-width:108px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.lv{display:grid!important;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:7px;row-gap:1px;flex:0 1 auto;min-width:0;margin-right:auto;padding:4px 9px;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
+.lv #lvNum{grid-column:1;grid-row:1;font-size:15px;line-height:1.1;white-space:nowrap}
+.lv #lvStars{grid-column:1;grid-row:2;font-size:10.5px;line-height:1.1;white-space:nowrap}
+.lv #lvName{grid-column:2;grid-row:1;font-size:11px;font-weight:900;color:var(--ink);max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;line-height:1.15;text-align:center;word-break:keep-all;overflow-wrap:anywhere}
 .lv #lvTalkSub{grid-column:2;grid-row:2;font-size:9.5px;font-weight:900;color:#c0507a;letter-spacing:-0.02em;white-space:nowrap;text-align:center}
+.al span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.2;font-size:10.5px;text-align:center;word-break:keep-all;overflow-wrap:anywhere;width:100%}
+.dv b,.galcard b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.18;text-align:center;overflow-wrap:anywhere}
 .ib{border:3px solid #fff;background:linear-gradient(#fff,#ffeef5);box-shadow:0 4px 0 rgba(90,61,92,.22)}
 .prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:8px;padding-top:1px}
 .bar{flex:1;min-width:44px;height:12px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
@@ -376,8 +378,6 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
  header{gap:4px;padding:4px 6px 3px}
  .lv{padding:4px 8px;column-gap:6px}
  .lv #lvNum{font-size:14px}
- .lv #lvName{max-width:90px}
- body:not(.dev) .lv #lvName{max-width:126px}
  .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
  .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
  .coin i{font-size:15px}
@@ -1881,7 +1881,7 @@ function updateHUD() {
   const isCustom = !!(G.level && G.level.custom);
   const pos = isCustom ? 1 : posOf(G.levelId), st = starsAt(pos);
   const lv = isCustom ? 'オリジナル' : 'Lv.' + pos, stars = isCustom ? '🎨' : '★'.repeat(st) + '☆'.repeat(5 - st);
-  const name = isCustom || save.cleared[G.levelId] || save.settings.dev ? G.level.name : '？？？（' + G.level.theme + '）';
+  const name = G.level.name;
   const left = 'のこり ' + G.vleft + ' / ' + G.level.total;
   const dis = !G.undo.length, spd = G.speed + 'x';
   const coin = runEarnedCoins(G.run);
@@ -2090,7 +2090,7 @@ function openAlbum(fromTitle) {
       }
       btn.appendChild(cv);
       const sp = document.createElement('span');
-      sp.textContent = pos + '. ' + (cleared ? art.name : '？？？');
+      sp.textContent = pos + '. ' + art.name;
       btn.appendChild(sp);
       if (cleared) {
         const b = save.best[id], s = b ? b.s : 1, bs = document.createElement('small');
