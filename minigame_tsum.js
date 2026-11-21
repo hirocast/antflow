@@ -155,7 +155,7 @@
 
     return ids.map((id, i) => {
       const name = (id !== null && arts && arts[id - 1] && arts[id - 1].n)
-        || (id === null ? `おまけツム ${i + 1}` : `ステージ ${id}`);
+        || (id === null ? `おまけピース ${i + 1}` : `ステージ ${id}`);
       return { name, sprite: makeSprite(id, i) };
     });
   }
@@ -278,7 +278,7 @@
     overlay.innerHTML = `
       <section class="afits-panel" role="dialog" aria-modal="true" aria-labelledby="afits-title">
         <header class="afits-top">
-          <h2 id="afits-title">アントツム</h2>
+          <h2 id="afits-title">ありんこチェイン</h2>
           <div class="afits-actions">
             <button type="button" data-ui="shuffle" disabled>シャッフル</button>
             <button type="button" data-ui="close" aria-label="ゲームを閉じる">×</button>
@@ -297,13 +297,13 @@
           </div>
         </div>
         <div class="afits-stage">
-          <canvas aria-label="ツムの盤面"></canvas>
+          <canvas aria-label="パズルの盤面"></canvas>
           <div class="afits-banner" data-ui="banner" aria-hidden="true"></div>
         </div>
-        <p class="afits-hint">同じツムを3つ以上なぞって離そう。7つ以上でボム！</p>
+        <p class="afits-hint">同じ絵を3つ以上なぞって離そう。7つ以上でボム！</p>
         <div class="afits-screen" data-ui="screen">
           <div class="afits-card" data-ui="intro">
-            <h3>アントツムであそぼう！</h3>
+            <h3>ありんこチェインであそぼう！</h3>
             <div class="afits-cast" data-ui="cast"></div>
             <p>ボムはタップで周囲を消去。近くのボムも誘爆します。<br>
               フィーバーで残り時間＋5秒、発動中はスコア2倍！</p>
