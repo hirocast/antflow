@@ -6,8 +6,7 @@
   const R = 5.3, LEFT = 10, RIGHT = W - 10, TOP = 16;
   const PAD_Y = 576, PAD_H = 12;
   const STEP = 1 / 120, EPS = 1e-7, SEPARATION = 0.03;
-  const START_TIME = 60, CLEAR_POINTS = 500, CLEAR_TIME = 8;
-  const MISS_TIME = 2, MAX_BALLS = 7, MAX_CELLS = 180;
+  const CLEAR_POINTS = 500, MAX_BALLS = 7, MAX_CELLS = 180;
   const FALLBACK_COLORS = [
     '#000000', '#ffffff', '#ff5252', '#ff8a80', '#ffab40',
     '#ffd740', '#ffff8d', '#69f0ae', '#00e676', '#40c4ff',
@@ -18,7 +17,7 @@
     { id: 'multi',  mark: '+2球', name: 'マルチボール', color: '#7ddcff', weight: 34 },
     { id: 'pierce', mark: '貫',   name: '貫通ボール',   color: '#ffd178', weight: 28 },
     { id: 'wide',   mark: '幅',   name: 'ワイドバー',   color: '#a8ed9c', weight: 25 },
-    { id: 'time',   mark: '+3',   name: '+3秒',         color: '#ffb7e1', weight: 13 }
+    { id: 'bonus',  mark: '+100', name: 'ボーナス +100点', color: '#ffb7e1', weight: 13 }
   ];
 
   const CSS = `
@@ -284,7 +283,7 @@
       stats.appendChild(box);
       return value;
     }
-    const scoreEl = stat('スコア'), timeEl = stat('残り時間'), bestEl = stat('ベスト');
+    const scoreEl = stat('スコア'), timeEl = stat('完成枚数'), bestEl = stat('ベスト');
     const progress = element('div', 'bn-progress');
     const fill = element('i');
     progress.setAttribute('aria-hidden', 'true');
@@ -317,7 +316,7 @@
     let stage = null, stageNo = 0, bag = [], completed = [];
     const invalid = new Set();
     const validArtCount = Number.isSafeInteger(artList.length) ? artList.length : 0;
-    let score = 0, time = START_TIME, clock = 0, combo = 0, lastHit = -Infinity;
+    let score = 0, clock = 0, combo = 0, lastHit = -Infinity;
     let wideUntil = 0, pierceUntil = 0, clearLeft = 0, serveLeft = 0;
     let notice = '', noticeUntil = 0, dryHits = 0, lastDrop = -Infinity;
     let balls = [], items = [], particles = [];
@@ -496,7 +495,6 @@
       phase = 'clear';
       clearLeft = reduceMotion ? 0.7 : 1.25;
       score += CLEAR_POINTS;
-      time += CLEAR_TIME;
       completed.push(snapshot());
       balls = [];
       items = [];
@@ -505,7 +503,7 @@
         burst(c.x + c.w / 2, c.y + c.h / 2, color(c.color), 4, 235);
       }
       sound('fanfare');
-      announce(`${stage.name}が完成。${CLEAR_POINTS}点と${CLEAR_TIME}秒を獲得。`);
+      announce(`${stage.name}が完成。${CLEAR_POINTS}点を獲得。`);
     }
 
     function paint(cell) {
@@ -529,8 +527,8 @@
         wideUntil = Math.min(clock + 16, Math.max(clock, wideUntil) + 8);
       } else if (def.id === 'pierce') {
         pierceUntil = Math.min(clock + 12, Math.max(clock, pierceUntil) + 6);
-      } else if (def.id === 'time') {
-        time += 3;
+      } else if (def.id === 'bonus') {
+        score += 100;
       } else if (balls.length >= MAX_BALLS) {
         score += 50;
         label = 'ボール上限：+50点';
@@ -682,14 +680,9 @@
       }
       if (!balls.length) {
         combo = 0; lastHit = -Infinity;
-        time = Math.max(0, time - MISS_TIME);
         sound('deny');
-        if (time <= 0) {
-          finish('タイムアップ！');
-          return;
-        }
-        message(`ボール落下 −${MISS_TIME}秒`);
-        serve(0.45);
+        finish('ゲームオーバー！');
+        return;
       }
     }
 
@@ -726,9 +719,9 @@
 
     function hud() {
       setText(scoreEl, score.toLocaleString());
-      setText(timeEl, `${Math.ceil(time)}秒`);
+      setText(timeEl, `${completed.length}枚`);
       setText(bestEl, Math.max(best, score).toLocaleString());
-      timeEl.classList.toggle('bn-low', phase === 'play' && time <= 10);
+      timeEl.classList.remove('bn-low');
       const ratio = stage ? 100 * (stage.total - stage.left) / stage.total : 0;
       const width = `${ratio.toFixed(1)}%`;
       if (fill.style.width !== width) fill.style.width = width;
@@ -739,8 +732,8 @@
       pauseBtn.disabled = !playable;
       setText(pauseBtn, phase === 'paused' ? '再開' : '一時停止');
       const status = [];
-      if (phase === 'paused' || phase === 'confirm') status.push('時間停止中');
-      if (phase === 'clear') status.push(`完成！ +${CLEAR_POINTS}点 ／ +${CLEAR_TIME}秒`);
+      if (phase === 'paused' || phase === 'confirm') status.push('一時停止中');
+      if (phase === 'clear') status.push(`完成！ +${CLEAR_POINTS}点`);
       if (phase === 'play') {
         if (clock < noticeUntil) status.push(notice);
         if (combo >= 2) status.push(`${combo}連続 ×${multiplier()}`);
@@ -844,7 +837,7 @@
         ctx.fillText('完成！', W / 2, 397);
         ctx.fillStyle = '#edf5ff';
         ctx.font = 'bold 16px system-ui,sans-serif';
-        ctx.fillText(`+${CLEAR_POINTS}点 ／ +${CLEAR_TIME}秒`, W / 2, 435);
+        ctx.fillText(`+${CLEAR_POINTS}点`, W / 2, 435);
       }
       ctx.restore();
     }
@@ -863,17 +856,12 @@
         }
       }
       if (phase === 'play') {
-        // 制限時間は実時間。物理だけ追いつき処理の上限を設ける。
-        time = Math.max(0, time - elapsed);
-        if (time <= 0) finish('タイムアップ！');
-        else {
-          accumulator = Math.min(0.1, accumulator + elapsed);
-          while (accumulator >= STEP && phase === 'play') {
-            accumulator -= STEP;
-            simulate(STEP);
-          }
-          if (phase !== 'play') accumulator = 0;
+        accumulator = Math.min(0.1, accumulator + elapsed);
+        while (accumulator >= STEP && phase === 'play') {
+          accumulator -= STEP;
+          simulate(STEP);
         }
+        if (phase !== 'play') accumulator = 0;
       }
       updateEffects(Math.min(elapsed, 0.04));
       hud();
@@ -977,7 +965,7 @@
       stopFrame();
       clearControls();
       started = true; settlement = null;
-      score = 0; time = START_TIME; clock = 0; stageNo = 0;
+      score = 0; clock = 0; stageNo = 0;
       wideUntil = 0; pierceUntil = 0; clearLeft = 0;
       stage = null; bag = []; invalid.clear(); completed = []; particles = [];
       paddle.x = paddle.target = W / 2; paddle.w = 84;
@@ -1169,8 +1157,8 @@
       const rules = element('ul');
       [
         '未塗りのマスに当てると着色。塗ったマスは通り抜けます。',
-        `制限時間は${START_TIME}秒。全マスを塗ると+${CLEAR_POINTS}点・+${CLEAR_TIME}秒で次のお題へ。`,
-        `すべてのボールを落とすと−${MISS_TIME}秒。次の球は自動で発射されます。`,
+        `時間制限はありません。全マスを塗ると+${CLEAR_POINTS}点で次のお題へ！`,
+        'ボールをすべて落とすとゲームオーバーです。',
         'バーの下で左右にドラッグ。PCは矢印キー、発射はタップまたはSpace。',
         'コイン報酬はスコア÷100の小数点以下切り捨てです。'
       ].forEach(text => rules.appendChild(element('li', '', text)));
