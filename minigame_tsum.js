@@ -125,6 +125,24 @@
       .afits-card .afits-result-score { font-size:26px; font-weight:900 }
       .afits-cast { display:flex; flex-wrap:wrap; justify-content:center; gap:6px }
       .afits-cast img { width:42px; height:42px }
+      .afits-skill-info {
+        margin:6px 0; padding:6px 10px; border-radius:12px;
+        background:#fff; border:1.5px solid #e4c7a0; font-size:12px; line-height:1.4;
+      }
+      .afits-skill {
+        position:relative; overflow:hidden; display:inline-flex; align-items:center; gap:5px;
+        background:#fffdf6; border:2px solid #e4c7a0;
+      }
+      .afits-skill .afits-sk-fill {
+        position:absolute; inset:0 auto 0 0; width:0%;
+        background:linear-gradient(90deg,#ffd5e5,#ffe29a); pointer-events:none; transition:width .18s;
+      }
+      .afits-skill span { position:relative }
+      .afits-skill.afits-sk-ready {
+        border-color:#df7197; background:#fff0f6; color:#893e59;
+        box-shadow:0 0 0 2px #ff8fb355; animation:afitsSkPulse .85s ease-in-out infinite alternate;
+      }
+      @keyframes afitsSkPulse { from { transform:scale(1) } to { transform:scale(1.05) } }
       @media(max-height:440px) {
         .afits-panel { gap:4px; padding:5px; border-radius:12px }
         .afits-card { padding:8px }
@@ -277,6 +295,15 @@
     const reduceMotion = !!(window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const cast = chooseCast();
+    function currentSkinInfo() {
+      const k = (typeof save !== 'undefined' && save && save.skin) || 'none';
+      const s = (typeof SKINS !== 'undefined' && Array.isArray(SKINS) && SKINS.find((x) => x.k === k)) || { k: 'none', n: 'すっぴん', e: '🐜' };
+      const sk = (typeof getSkinSkill === 'function')
+        ? getSkinSkill(s.k)
+        : { k: 'none', name: 'ありんこエール', type: 'random', lv: 1, need: 16, tsumDesc: 'ランダムに10こ消去！' };
+      return { skin: s, skill: sk };
+    }
+    const activeSkin = currentSkinInfo();
     const bombSprite = makeSprite(null, BOMB);
     const overlay = document.createElement('div');
     overlay.className = 'afits';
@@ -285,6 +312,10 @@
         <header class="afits-top">
           <h2 id="afits-title">ありんこチェイン</h2>
           <div class="afits-actions">
+            <button type="button" class="afits-skill" data-ui="skill" disabled>
+              <i class="afits-sk-fill" data-ui="skillFill"></i>
+              <span data-ui="skillLabel">${activeSkin.skin.e} スキル 0%</span>
+            </button>
             <button type="button" data-ui="shuffle" disabled>シャッフル</button>
             <button type="button" data-ui="close" aria-label="ゲームを閉じる">×</button>
           </div>
@@ -310,6 +341,10 @@
           <div class="afits-card" data-ui="intro">
             <h3>ありんこチェインであそぼう！</h3>
             <div class="afits-cast" data-ui="cast"></div>
+            <div class="afits-skill-info">
+              <b>${activeSkin.skin.e} ${activeSkin.skin.n}（SLv.${activeSkin.skill.lv}）</b><br>
+              ⚡ ${activeSkin.skill.name}：${activeSkin.skill.tsumDesc}
+            </div>
             <p>ボムはタップで周囲を消去。近くのボムも誘爆します。<br>
               フィーバーで残り時間＋5秒、発動中はスコア2倍！</p>
             <p>制限時間は60秒。100点ごとに1コイン。</p>
@@ -352,6 +387,7 @@
     let pieces = [], effects = [], gesture = null;
     let score = 0, combo = 0, maxCombo = 0, maxChain = 0;
     let lastClear = -Infinity, charge = 0, feverUntil = 0, shuffleAt = 0;
+    let skillCharge = 0, skillFreezeUntil = 0, skillRushUntil = 0, skillRushMul = 1;
     let startAt = 0, endAt = 0;
     let frame = 0, lastFrame = 0, accumulator = 0, spawnWait = 0;
     let observer = null, lastMeter = -1, round = 0;
@@ -366,18 +402,28 @@
 
     function hud(now) {
       const hot = isFever(now);
+      const frozen = phase === 'playing' && now < skillFreezeUntil;
       const seconds = phase === 'result' ? 0 : phase === 'playing'
         ? Math.max(0, Math.ceil((endAt - now) / 1000)) : ROUND_MS / 1000;
       const percent = clamp(Math.round(100 * (hot
         ? (feverUntil - now) / FEVER_MS : charge / FEVER_CAPACITY)), 0, 100);
 
-      text(ui.time, `${seconds}秒`);
+      text(ui.time, frozen ? `❄️${seconds}秒` : `${seconds}秒`);
       text(ui.score, fmt(score));
       text(ui.combo, now - lastClear <= COMBO_MS ? fmt(combo) : '0');
       text(ui.fever, hot ? 'フィーバー ×2' : 'フィーバー');
-      ui.time.classList.toggle('afits-low', phase === 'playing' && seconds <= 10);
+      ui.time.classList.toggle('afits-low', phase === 'playing' && seconds <= 10 && !frozen);
       panel.classList.toggle('afits-hot', hot);
       ui.shuffle.disabled = phase !== 'playing' || now < shuffleAt;
+
+      const skNeed = activeSkin.skill.need;
+      const skPct = clamp(Math.round(100 * skillCharge / skNeed), 0, 100);
+      const skReady = phase === 'playing' && skillCharge >= skNeed;
+      ui.skill.disabled = !skReady;
+      ui.skill.classList.toggle('afits-sk-ready', skReady);
+      ui.skillFill.style.width = `${skPct}%`;
+      text(ui.skillLabel, skReady ? `${activeSkin.skin.e} スキルOK!` : `${activeSkin.skin.e} ${skPct}%`);
+
       if (percent !== lastMeter) {
         lastMeter = percent;
         ui.fill.style.transform = `scaleX(${percent / 100})`;
@@ -624,15 +670,19 @@
       }
     }
 
-    function award(count, now, fromBomb) {
+    function award(count, now, fromBomb, fromSkill) {
       combo = now - lastClear <= COMBO_MS ? combo + 1 : 1;
       lastClear = now;
       maxCombo = Math.max(maxCombo, combo);
       const hot = isFever(now);
-      const chainBonus = fromBomb ? 0 : 5 * count * Math.max(0, count - MIN_CHAIN);
-      const points = (20 * count + chainBonus + 10 * Math.min(combo - 1, 20)) * (hot ? 2 : 1);
+      const rush = now < skillRushUntil ? skillRushMul : 1;
+      const chainBonus = (fromBomb || fromSkill) ? 0 : 5 * count * Math.max(0, count - MIN_CHAIN);
+      const points = Math.round((20 * count + chainBonus + 10 * Math.min(combo - 1, 20)) * (hot ? 2 : 1) * rush);
       score += points;
 
+      if (!fromSkill) {
+        skillCharge = Math.min(activeSkin.skill.need, skillCharge + count);
+      }
       if (!hot) {
         charge += count;
         if (charge >= FEVER_CAPACITY) {
@@ -644,6 +694,125 @@
         }
       }
       return points;
+    }
+
+    function triggerSkill() {
+      const now = performance.now();
+      if (!canPlay(now) || skillCharge < activeSkin.skill.need) return;
+      clearGesture();
+      skillCharge = 0;
+      const sk = activeSkin.skill;
+      const lv = sk.lv;
+      sound('starPing');
+      label(width / 2, height * 0.28, `${activeSkin.skin.e} ${sk.name}！`, '#b03060', now);
+
+      const clearSet = (list) => {
+        if (!list.length) return 0;
+        removePieces(list, now);
+        const pts = award(list.length, now, false, true);
+        label(width / 2, height * 0.45, `+${fmt(pts)}`, '#a45e25', now);
+        sound('boom');
+        return list.length;
+      };
+      const pickRandom = (n) => {
+        const pool = pieces.filter((p) => p.type >= 0 && p.y > 0);
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        return pool.slice(0, n);
+      };
+
+      switch (sk.type) {
+        case 'sweepH': {
+          const cy = height * 0.56;
+          const band = radius * (1.5 + lv * 0.55);
+          if (!reduceMotion) effects.push({ kind: 'ring', x: width / 2, y: cy, radius: width * 0.55, at: now, life: 360 });
+          clearSet(pieces.filter((p) => p.type >= 0 && Math.abs(p.y - cy) <= band));
+          break;
+        }
+        case 'burst': {
+          const cx = width / 2, cy = height * 0.55;
+          const r = radius * (2.6 + lv * 0.65);
+          if (!reduceMotion) effects.push({ kind: 'ring', x: cx, y: cy, radius: r, at: now, life: 400 });
+          clearSet(pieces.filter((p) => p.type >= 0 && (p.x - cx) ** 2 + (p.y - cy) ** 2 <= r * r));
+          break;
+        }
+        case 'cross': {
+          const cx = width / 2, cy = height * 0.55;
+          const w = radius * (1.2 + lv * 0.4);
+          if (!reduceMotion) effects.push({ kind: 'ring', x: cx, y: cy, radius: width * 0.45, at: now, life: 360 });
+          clearSet(pieces.filter((p) => p.type >= 0 && (Math.abs(p.x - cx) <= w || Math.abs(p.y - cy) <= w)));
+          break;
+        }
+        case 'color': {
+          const counts = new Map();
+          for (const p of pieces) if (p.type >= 0 && p.y > 0) counts.set(p.type, (counts.get(p.type) || 0) + 1);
+          let bestType = 0, bestN = -1;
+          for (const [t, n] of counts) if (n > bestN) { bestN = n; bestType = t; }
+          clearSet(pieces.filter((p) => p.type === bestType && p.y > 0));
+          const bombs = lv >= 5 ? 2 : lv >= 3 ? 1 : 0;
+          for (let b = 0; b < bombs; b++) {
+            pieces.push(piece(BOMB, clamp(width * (0.35 + b * 0.3), radius, width - radius), height * 0.5, 0, -radius * 3));
+          }
+          break;
+        }
+        case 'bomb': {
+          const n = 1 + Math.floor(lv / 2) + (lv >= 4 ? 1 : 0);
+          for (let i = 0; i < n; i++) {
+            const x = clamp(width * (0.2 + 0.6 * ((i + 0.5) / n)), radius, width - radius);
+            pieces.push(piece(BOMB, x, height * 0.45 + (i % 2) * radius, 0, -radius * 3));
+          }
+          break;
+        }
+        case 'transform': {
+          const counts = new Map();
+          for (const p of pieces) if (p.type >= 0 && p.y > 0) counts.set(p.type, (counts.get(p.type) || 0) + 1);
+          let bestType = 0, bestN = -1;
+          for (const [t, n] of counts) if (n > bestN) { bestN = n; bestType = t; }
+          const others = pieces.filter((p) => p.type >= 0 && p.type !== bestType && p.y > 0);
+          const n = Math.min(others.length, 7 + lv * 3);
+          for (let i = 0; i < n; i++) {
+            others[i].type = bestType;
+            burst(others[i], now);
+          }
+          break;
+        }
+        case 'freeze': {
+          skillFreezeUntil = Math.max(skillFreezeUntil, now + (4 + lv) * 1000);
+          clearSet(pickRandom(5 + lv * 2));
+          break;
+        }
+        case 'timePlus': {
+          endAt += (2 + lv) * 1000;
+          label(width / 2, height * 0.38, `残り時間 ＋${2 + lv}秒！`, '#2e8f55', now);
+          clearSet(pickRandom(4 + lv * 2));
+          break;
+        }
+        case 'fever': {
+          if (isFever(now)) {
+            feverUntil += (lv + 1) * 1000;
+          } else {
+            charge = 0;
+            feverUntil = now + FEVER_MS + (lv - 1) * 800;
+            endAt += FEVER_BONUS_MS;
+          }
+          clearSet(pickRandom(5 + lv * 2));
+          break;
+        }
+        case 'goldRush': {
+          skillRushMul = 1.4 + lv * 0.2;
+          skillRushUntil = Math.max(skillRushUntil, now + (6 + lv * 2) * 1000);
+          clearSet(pickRandom(4 + lv * 2));
+          break;
+        }
+        default: {
+          clearSet(pickRandom(7 + lv * 3));
+          break;
+        }
+      }
+      hud(now);
+      paint(now);
     }
 
     function removePieces(removed, now) {
@@ -917,13 +1086,15 @@
         text(ui.banner, startAt - now > 500 ? 'よーい…' : 'まもなくスタート');
       }
 
+      const dtMs = Math.max(0, now - lastFrame);
+      if (phase === 'playing' && now < skillFreezeUntil) endAt += dtMs;
       if (phase === 'playing' && now >= endAt) {
         finishRound(now);
         return;
       }
 
       // 制限時間は実時間で進め、物理演算だけ追いつき量を制限する。
-      accumulator += clamp((now - lastFrame) / 1000, 0, 0.055);
+      accumulator += clamp(dtMs / 1000, 0, 0.055);
       lastFrame = now;
       while (accumulator >= STEP) {
         physics(STEP);
@@ -944,6 +1115,7 @@
       pieces = [];
       effects = [];
       score = combo = maxCombo = maxChain = charge = feverUntil = shuffleAt = 0;
+      skillCharge = skillFreezeUntil = skillRushUntil = 0; skillRushMul = 1;
       lastClear = -Infinity;
       accumulator = spawnWait = 0;
       const now = performance.now();
@@ -1019,6 +1191,7 @@
 
     ui.start.addEventListener('click', startRound);
     ui.retry.addEventListener('click', startRound);
+    ui.skill.addEventListener('click', triggerSkill);
     ui.shuffle.addEventListener('click', shuffleBoard);
     for (const button of [ui.close, ui.leave, ui.done]) button.addEventListener('click', close);
     canvas.addEventListener('pointerdown', pointerDown);

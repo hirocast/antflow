@@ -280,13 +280,28 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .mis p{margin:0!important;font-weight:800;display:flex;justify-content:space-between;gap:6px}
 .mis .abar{margin:4px 0 0}
 .mis small{font-size:10px;opacity:.7}
-.skgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:40vh;overflow:auto;touch-action:pan-y;padding:4px}
-.sk{border:3px solid #fff;border-radius:14px;background:#fff1d6;padding:6px 2px;font:800 11px var(--rf);color:var(--ink);cursor:pointer;box-shadow:0 3px 0 #ecd3a8}
-.sk i{display:block;font-style:normal;font-size:26px}
-.sk small{display:block;font-size:9px;opacity:.75;font-weight:700}
+.skgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:36vh;overflow:auto;touch-action:pan-y;padding:4px}
+.sk{position:relative;border:3px solid #fff;border-radius:14px;background:#fff1d6;padding:6px 2px 5px;font:800 11px var(--rf);color:var(--ink);cursor:pointer;box-shadow:0 3px 0 #ecd3a8}
+.sk i{display:block;font-style:normal;font-size:25px;line-height:1.1}
+.sk small{display:block;font-size:9px;opacity:.75;font-weight:700;line-height:1.2}
 .sk.on{background:#ffe0ec;border-color:var(--pink)}
 .sk.lock{opacity:.5;cursor:default}
-#skCv{display:block;width:120px;height:120px;margin:0 auto}
+.sk-lv{position:absolute;top:3px;right:4px;background:#fff;border-radius:8px;padding:1px 5px;font-size:9px;font-weight:900;color:#c0507a;box-shadow:0 1px 0 rgba(90,61,92,.15)}
+.sk-lv.max{background:linear-gradient(90deg,#ffd23f,#ff9a3c);color:#5a2d00}
+.sk-bar{height:5px;border-radius:4px;background:rgba(255,255,255,.8);margin:4px 6px 1px;overflow:hidden}
+.sk-bar i{display:block;height:100%;background:linear-gradient(90deg,#ff8fb3,#ffb347);border-radius:4px}
+.sk-detail{background:#fff;border:2px solid #ffd3e2;border-radius:14px;padding:8px 10px;margin:4px 0 6px;text-align:left;font-size:11px;line-height:1.45}
+.sk-detail b{color:var(--pinkd);font-size:12px}
+.sk-detail .sk-tag{display:inline-block;background:#fff1d6;color:#9a5b13;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:900;margin-left:4px}
+#skCv{display:block;width:104px;height:104px;margin:0 auto}
+#bSkill{position:absolute;right:10px;bottom:10px;z-index:4;display:flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:3px solid #fff;border-radius:999px;background:rgba(255,255,255,.94);color:var(--ink);font:900 12px var(--rf);box-shadow:0 4px 12px rgba(90,61,92,.22);cursor:pointer;overflow:hidden;transition:transform .15s,box-shadow .15s}
+#bSkill:active{transform:scale(.94)}
+#bSkill .sk-fill{position:absolute;left:0;bottom:0;top:0;width:0%;background:linear-gradient(90deg,rgba(255,143,179,.28),rgba(255,207,74,.38));transition:width .2s;pointer-events:none}
+#bSkill .sk-ico{position:relative;font-size:21px;line-height:1}
+#bSkill .sk-txt{position:relative;display:flex;flex-direction:column;align-items:flex-start;line-height:1.1}
+#bSkill .sk-txt small{font-size:9px;opacity:.75;font-weight:800}
+#bSkill.ready{background:linear-gradient(135deg,#fff0f6,#fff8d6);border-color:#ff8fb3;box-shadow:0 0 0 3px rgba(255,143,179,.35),0 6px 16px rgba(228,106,146,.35);animation:skPulse 1s ease-in-out infinite alternate}
+@keyframes skPulse{from{transform:scale(1)}to{transform:scale(1.06)}}
 .dayrow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0}
 .day{background:#fff;border-radius:10px;padding:6px 0;font-size:10px;font-weight:800;box-shadow:0 2px 0 #ecd3a8}
 .day b{display:block;font-size:11px}
@@ -434,6 +449,7 @@ function handleTalkLikeClick(e) {
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
   $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全はこび</small><em class="price" id="pScan"></em></button>');
+  $('#stage').insertAdjacentHTML('beforeend', '<button type="button" id="bSkill" aria-label="きせかえスキル"><span class="sk-fill" id="skFill"></span><span class="sk-ico" id="skBtnIco">🐜</span><span class="sk-txt"><b id="skBtnLv">SLv.1</b><small id="skBtnPct">0%</small></span></button>');
   $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2>');
   const setBtn = $('#bSet');
   if (setBtn && !$('#setUpdDot')) setBtn.insertAdjacentHTML('beforeend', '<em class="dot" id="setUpdDot"></em>');
@@ -545,7 +561,7 @@ function handleTalkLikeClick(e) {
       '<div class="bg-det" id="bgDet"></div><button class="big mint" id="bBingoClaim" style="display:none"></button>' +
       '<button class="big sec" id="bBingoClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-skins"><div class="card">' +
-      '<h2>🎀 きせかえ</h2><canvas id="skCv"></canvas><p class="fine" id="skSum"></p><div class="skgrid" id="skGrid"></div>' +
+      '<h2>🎀 きせかえ</h2><canvas id="skCv"></canvas><div class="sk-detail" id="skDetail"></div><p class="fine" id="skSum"></p><div class="skgrid" id="skGrid"></div>' +
       '<button class="big" id="bGacha"></button><button class="big sec" id="bSkClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-daily"><div class="card">' +
       '<h2>🎁 ログインボーナス</h2><p id="dayMsg"></p><div class="dayrow" id="dayRow"></div>' +
@@ -574,7 +590,7 @@ Sound.nice = function () { if (this.ok()) [659.25, 987.77].forEach((f, i) => thi
 
 /* ================= 育成・経済（セーブに項目を足す。古いセーブもそのまま使える） ================= */
 // tut：見おわったチュートリアルの記録
-const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {}, seenTalk: [], bingo: { card: 0, claimed: {} } };
+const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skinCnt: { none: 1 }, skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {}, seenTalk: [], bingo: { card: 0, claimed: {} } };
 let seenTalkSet = new Set();
 function metaInit(force) {
   for (const k in META_DEF) {
@@ -583,6 +599,14 @@ function metaInit(force) {
   }
   if (save.skins.indexOf('none') < 0) save.skins.unshift('none');
   save.skins = save.skins.filter(k => SKINS.some(s => s.k === k));
+  if (!save.skinCnt || typeof save.skinCnt !== 'object') save.skinCnt = { none: 1 };
+  for (const k of save.skins) if (!(save.skinCnt[k] > 0)) save.skinCnt[k] = 1;
+  for (const k in save.skinCnt) {
+    if (!SKINS.some(s => s.k === k) || !(save.skinCnt[k] > 0)) { delete save.skinCnt[k]; continue; }
+    save.skinCnt[k] = Math.floor(save.skinCnt[k]);
+    if (save.skins.indexOf(k) < 0) save.skins.push(k);
+  }
+  save.skinCnt.none = 1;
   if (save.skins.indexOf(save.skin) < 0) save.skin = 'none';
   save.qlv = clamp(Math.floor(save.qlv) || 1, 1, Q_MAX);
   save.coins = Math.max(0, Math.floor(save.coins) || 0);
@@ -1035,6 +1059,9 @@ function applyLevel(id, L) {
   G.run = { started: false, done: false, time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0, freeU: G.perk.freeUndo, freeH: G.perk.freeHint, newTalks: [], bingoSnap: bingoSnapshot() };
   G.par = parTimes(L); G.waitIds = new Set(); G.timerShown = -9;
   endFever(); G.fever.g = 0;
+  const sk = getSkinSkill(save.skin);
+  G.skill = { g: 0, max: Math.min(sk.pNeed, Math.max(10, Math.round(L.total * 0.35))), freezeT: 0, boostT: 0 };
+  if (typeof updateSkillBtn === 'function') updateSkillBtn();
   G.gold = pickGold(L);
   if (!L.custom) { save.level = id; persist(); }
   layout(); resetVisual();
@@ -1812,18 +1839,40 @@ function renderSkins() {
   const grid = $('#skGrid');
   grid.innerHTML = '';
   for (const s of SKINS) {
-    const own = save.skins.indexOf(s.k) >= 0, b = document.createElement('button');
+    const lv = skinLv(s.k), own = lv > 0, p = skinProgress(s.k), b = document.createElement('button');
+    const sk = getSkinSkill(s.k, Math.max(1, lv));
     b.className = 'sk' + (save.skin === s.k ? ' on' : '') + (own ? '' : ' lock');
-    b.innerHTML = '<i>' + (own ? s.e : '❔') + '</i>' + (own ? s.n : '？？？') + '<small>' + (own ? s.d : 'おたからばこで出るよ') + '</small>';
+    const lvTag = own ? (s.k === 'none' ? '<span class="sk-lv">基本</span>' : '<span class="sk-lv' + (p.isMax ? ' max' : '') + '">' + (p.isMax ? 'MAX' : 'SLv.' + lv) + '</span>') : '';
+    const bar = (own && s.k !== 'none') ? '<div class="sk-bar"><i style="width:' + (p.isMax ? 100 : Math.round(100 * p.cur / p.need)) + '%"></i></div>' : '';
+    b.innerHTML = lvTag + '<i>' + (own ? s.e : '❔') + '</i>' + (own ? s.n : '？？？') + '<small>' + (own ? sk.name : 'おたからばこで出るよ') + '</small>' + bar;
     if (own) b.addEventListener('click', () => {
       save.skin = s.k; G.skPrev = null; persist();
       antCache.clear(); G.perk = perks(); G.spdMul = G.perk.speed;
+      if (G.skill) {
+        const nsk = getSkinSkill(s.k);
+        G.skill.max = G.level ? Math.min(nsk.pNeed, Math.max(10, Math.round(G.level.total * 0.35))) : nsk.pNeed;
+        G.skill.g = Math.min(G.skill.g, G.skill.max);
+        if (typeof updateSkillBtn === 'function') updateSkillBtn();
+      }
       Sound.tap(); renderSkins(); refreshPrices();
-      toast(s.e + ' ' + s.n + '：' + s.d);
+      toast(s.e + ' ' + s.n + '（SLv.' + lv + '）：' + sk.name);
     });
     grid.appendChild(b);
   }
-  $('#skSum').textContent = 'もっているきせかえ ' + save.skins.length + ' / ' + SKINS.length + '　🎟️チケット×' + save.tickets + '　🪙' + save.coins;
+  const curKey = G.skPrev || save.skin;
+  const curS = SKINS.find(s => s.k === curKey) || SKINS[0];
+  const curLv = Math.max(1, skinLv(curKey)), curP = skinProgress(curKey), curSk = getSkinSkill(curKey, curLv);
+  const progTxt = curKey === 'none' ? '基本きせかえ' : curP.isMax ? 'SLv.MAX（最大強化！）' : 'SLv.' + curLv + '（あと' + (curP.need - curP.cur) + 'こでUP）';
+  const det = $('#skDetail');
+  if (det) {
+    det.innerHTML = '<div><b>' + curS.e + ' ' + curS.n + '</b><span class="sk-tag">' + progTxt + '</span></div>' +
+      '<div>⚡ スキル「<b>' + curSk.name + '</b>」</div>' +
+      '<div style="opacity:.85">・本編：' + curSk.puzzleDesc + '</div>' +
+      '<div style="opacity:.85">・ありんこチェイン：' + curSk.tsumDesc + '</div>' +
+      '<div style="opacity:.75">・パッシブ：' + curS.d + (curLv > 1 && curKey !== 'none' ? '（SLv.' + curLv + '強化中！）' : '') + '</div>';
+  }
+  const maxCnt = SKINS.filter(s => s.k !== 'none' && skinLv(s.k) >= SKIN_MAX_LV).length;
+  $('#skSum').textContent = '所持 ' + save.skins.length + '/' + SKINS.length + '（MAX ' + maxCnt + '）　🎟️×' + save.tickets + '　🪙' + save.coins;
   $('#bGacha').textContent = save.tickets > 0 ? '🎁 おたからばこ（🎟️チケット1まい）' : '🎁 おたからばこ（🪙' + PRICE.box + '）';
 }
 function doGacha() {
@@ -1834,19 +1883,26 @@ function doGacha() {
     : '🪙 ' + PRICE.box + 'コイン（もちコイン ' + save.coins + ' → ' + (save.coins - PRICE.box) + '）';
   confirmSpend({
     title: '🎁 おたからばこ',
-    desc: 'アリの「きせかえ」がランダムで1つ手に入ります。きせかえごとに便利な効果がついています！（ぜんぶ所持済みの場合は🪙150かえってきます）',
+    desc: '「きせかえ」がランダムで1つ手に入ります。同じきせかえを集めるとスキルレベル（SLv.1〜5）が上がり、スキルの効果がパワーアップ！（すべてSLv.MAX時は🪙150かえってきます）',
     cost,
     okLabel: '開ける！'
   }, () => {
     const tNow = save.tickets > 0;
     if (!tNow && save.coins < PRICE.box) { toast('🪙 コインが足りないよ（' + PRICE.box + 'こ必要）'); Sound.deny(); return; }
     if (tNow) save.tickets--; else save.coins -= PRICE.box;
-    const rest = SKINS.filter(s => save.skins.indexOf(s.k) < 0);
-    if (!rest.length) { save.coins += 150; toast('ぜんぶ持ってる！🪙150 おかえし'); }
+    const pool = SKINS.filter(s => s.k !== 'none' && skinLv(s.k) < SKIN_MAX_LV);
+    if (!pool.length) { save.coins += 150; toast('ぜんぶスキルMAX！🪙150 おかえし'); }
     else {
-      const s = pick(rest);
-      save.skins.push(s.k); G.skPrev = s.k;
-      toast('🎉 「' + s.e + s.n + '」をゲット！ ' + s.d + '（タップでつけかえ）', 3200);
+      const s = pick(pool);
+      const oldLv = skinLv(s.k);
+      save.skinCnt[s.k] = (save.skinCnt[s.k] || 0) + 1;
+      if (save.skins.indexOf(s.k) < 0) save.skins.push(s.k);
+      const newLv = skinLv(s.k), p = skinProgress(s.k), sk = getSkinSkill(s.k, newLv);
+      G.skPrev = s.k;
+      if (oldLv === 0) toast('🎉 「' + s.e + s.n + '」をゲット！ SLv.1（' + sk.name + '）', 3200);
+      else if (newLv > oldLv) toast('✨ 「' + s.e + s.n + '」スキルレベルアップ！ SLv.' + oldLv + ' → SLv.' + newLv + '！', 3400);
+      else toast('🎀 「' + s.e + s.n + '」＋1！（SLv.' + newLv + ' あと' + (p.need - p.cur) + 'こ）', 3000);
+      if (save.skin === s.k) { G.perk = perks(); G.spdMul = G.perk.speed; refreshPrices(); }
     }
     persist(); updateCoins(true); renderSkins();
     Sound.fanfare();
@@ -2061,6 +2117,176 @@ function doScan() {
     refreshPrices();
     toast('🔍 全部運べる箱が光るよ！（このステージ中）', 2600);
   });
+}
+function updateSkillBtn() {
+  const b = $('#bSkill');
+  if (!b || !G.skill) return;
+  const s = SKINS.find(x => x.k === save.skin) || SKINS[0];
+  const lv = Math.max(1, skinLv(s.k));
+  const pct = G.skill.max > 0 ? Math.min(100, Math.round(100 * G.skill.g / G.skill.max)) : 0;
+  const ready = G.skill.g >= G.skill.max;
+  $('#skBtnIco').textContent = s.e;
+  $('#skBtnLv').textContent = s.k === 'none' ? 'スキル' : 'SLv.' + lv;
+  $('#skBtnPct').textContent = ready ? 'OK!' : pct + '%';
+  $('#skFill').style.width = pct + '%';
+  b.classList.toggle('ready', ready);
+}
+function addSkillCharge(n) {
+  if (!G.skill || G.skill.g >= G.skill.max) return;
+  G.skill.g = Math.min(G.skill.max, G.skill.g + (n || 1));
+  updateSkillBtn();
+}
+function skillAutoPlace(count) {
+  let placed = 0;
+  for (let k = 0; k < count; k++) {
+    if (!G.s || G.pendingWin || G.s.boxes.length >= SLOT_COUNT) break;
+    let j = -1;
+    const sol = G.level && G.level.solution;
+    if (sol && followsSolution() && G.moves.length < sol.length) j = sol[G.moves.length];
+    else {
+      const r = solve(G.s, 220, 20000);
+      if (r.path && r.path.length) j = r.path[0];
+      else {
+        const hs = headsOf(G.s);
+        if (hs.length) j = hs[0];
+      }
+    }
+    if (j >= 0) { onTapCol(j); placed++; } else break;
+  }
+  return placed;
+}
+function skillDeliverFromSlots(maxCount) {
+  if (!G.s || !G.s.boxes.length) return 0;
+  let delivered = 0;
+  const W = G.s.W, H = G.s.H;
+  for (let bi = G.s.boxes.length - 1; bi >= 0 && delivered < maxCount; bi--) {
+    const b = G.s.boxes[bi];
+    const vb = G.vboxes.find(v => v.id === b.id);
+    for (let i = 0; i < G.s.grid.length && b.rem > 0 && delivered < maxCount; i++) {
+      if (G.s.grid[i] !== b.c) continue;
+      G.s.grid[i] = -1; G.s.left--; b.rem--;
+      if (G.vgrid[i] >= 0) { G.vgrid[i] = -1; G.vver++; G.vleft--; eraseCell(i); G.boardSoft = true; }
+      if (vb) { vb.picked++; vb.dispatched++; }
+      const x = i % W, y = (i - x) / W, w = toW(x + 1, y + 1);
+      for (let p = 0; p < 5; p++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 180, vy: -Math.random() * 140 - 30, life: 0, max: 0.45, col: HEX[b.c], s: Math.max(2.5, antPx * 0.18), star: p === 0 });
+      if (G.run) {
+        G.run.candies++; G.run.food += G.fever.t > 0 ? 2 : 1;
+        if (G.gold.has(i)) { G.gold.delete(i); G.run.gold++; }
+      }
+      delivered++;
+    }
+    if (b.rem <= 0) {
+      if (vb) vb.logicalDone = true;
+      G.waitIds.delete(b.id);
+      G.s.boxes.splice(bi, 1);
+    }
+  }
+  if (delivered > 0) {
+    const ev = [];
+    resolve(G.s, ev);
+    for (const e of ev) {
+      const vb = G.vboxes.find(v => v.id === e.id);
+      if (!vb) continue;
+      if (e.type === 'assign') vb.queue.push(...e.cells);
+      else if (e.type === 'done') vb.logicalDone = true;
+    }
+    G.rc = reachableCounts(G.s); G.hc = null; G.boardDirty = true; G.hudDirty = true;
+    if (G.s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
+    else G.pendingJam = isJam(G.s);
+  }
+  return delivered;
+}
+function skillAddGold(count) {
+  if (!G.s) return 0;
+  const cand = [];
+  for (let i = 0; i < G.s.grid.length; i++) if (G.s.grid[i] >= 0 && !G.gold.has(i)) cand.push(i);
+  let added = 0;
+  while (cand.length && added < count) {
+    const idx = Math.floor(Math.random() * cand.length);
+    G.gold.add(cand.splice(idx, 1)[0]);
+    added++;
+  }
+  if (added > 0) G.boardDirty = true;
+  return added;
+}
+function doMainSkill() {
+  if (G.overlay || G.pendingWin || G.loading || !G.s || !G.skill) return;
+  const s = SKINS.find(x => x.k === save.skin) || SKINS[0];
+  const sk = getSkinSkill(s.k);
+  if (G.skill.g < G.skill.max) {
+    toast(s.e + ' ' + sk.name + '（SLv.' + sk.lv + '）：' + sk.puzzleDesc + ' [' + G.skill.g + '/' + G.skill.max + ']', 2400);
+    return;
+  }
+  G.skill.g = 0;
+  updateSkillBtn();
+  if (G.run && !G.run.started) { G.run.started = true; G.timerShown = -9; }
+  const lv = sk.lv;
+  Sound.fever(); haptic(22);
+  const r = canvas.getBoundingClientRect();
+  Fx.burst(r.left + bcx(), r.top + oy + G.s.H * cs * 0.5, 45, 340, ['star', 'conf', 'dot']);
+  popup(s.e + ' ' + sk.name + '!', bcx(), oy + G.s.H * cs * 0.35, '#ff5a9a', true);
+  switch (sk.type) {
+    case 'sweepH': {
+      const del = skillDeliverFromSlots(3 + lv * 2);
+      if (!del) skillAutoPlace(lv >= 4 ? 2 : 1);
+      G.skill.boostT = Math.max(G.skill.boostT, 4 + lv);
+      break;
+    }
+    case 'burst': {
+      const del = skillDeliverFromSlots(3 + lv * 2);
+      if (!del) skillAutoPlace(1);
+      if (G.fever.t <= 0) { G.fever.g += 0.25 + lv * 0.08; if (G.fever.g >= 1) startFever(); }
+      break;
+    }
+    case 'cross': {
+      skillAddGold(1 + lv);
+      const del = skillDeliverFromSlots(2 + lv * 2);
+      if (!del) skillAutoPlace(1);
+      break;
+    }
+    case 'color': {
+      skillAutoPlace(lv >= 4 ? 2 : 1);
+      if (lv >= 3 && G.scanId !== G.levelId) { G.scanId = G.levelId; G.hc = null; refreshPrices(); }
+      break;
+    }
+    case 'bomb': {
+      skillAutoPlace(lv >= 3 ? 2 : 1);
+      if (G.fever.t <= 0) { G.fever.g += 0.2 + lv * 0.1; if (G.fever.g >= 1) startFever(); }
+      break;
+    }
+    case 'transform': {
+      const del = skillDeliverFromSlots(3 + lv * 2);
+      if (!del) skillAutoPlace(1);
+      if (G.run) G.run.food += lv * 4;
+      break;
+    }
+    case 'freeze': {
+      G.skill.freezeT = Math.max(G.skill.freezeT, 4 + lv * 2);
+      G.skill.boostT = Math.max(G.skill.boostT, 4 + lv * 2);
+      break;
+    }
+    case 'timePlus': {
+      if (G.run) { G.run.time = Math.max(0, G.run.time - (2 + lv)); G.run.food += lv * 5; G.timerShown = -9; }
+      break;
+    }
+    case 'fever': {
+      if (G.fever.t > 0) G.fever.t += lv + 1;
+      else { startFever(); G.fever.t += Math.max(0, lv - 1); }
+      break;
+    }
+    case 'goldRush': {
+      skillAddGold(2 + lv);
+      const bonus = 15 + lv * 10;
+      save.coins += bonus; persist(); updateCoins(true);
+      break;
+    }
+    default: {
+      skillAutoPlace(lv >= 4 ? 2 : 1);
+      if (G.run) G.run.food += lv * 4;
+      break;
+    }
+  }
+  toast('⚡ ' + s.e + ' ' + sk.name + '（SLv.' + lv + '）発動！', 2200);
 }
 let albumRenderTok = 0;
 const albumCvCache = new Map();
@@ -2938,6 +3164,7 @@ on('#bRetry', doRetry);
 on('#bSpeed', () => { G.speed = G.speed === 1 ? 2 : 1; save.settings.fast = G.speed === 2; persist(); G.hudDirty = true; });
 on('#bHint', () => { Sound.init(); doHint(); });
 on('#bScan', () => { Sound.init(); doScan(); });
+on('#bSkill', () => { Sound.init(); doMainSkill(); });
 on('#bSet', () => { G.fromTitle = false; showOv('settings'); });
 on('#bTitleSet', () => { Sound.init(); Sound.tap(); G.fromTitle = true; showOv('settings'); });
 on('#bTitleDrop', () => { Sound.init(); Sound.tap(); if (typeof window.openMiniDrop === 'function') window.openMiniDrop(); });
@@ -3354,8 +3581,12 @@ function frame(now) {
     if (G.s && CW > 0) {
       G.time += dt;
       const R = G.run;
-      // タイム：最初のタップから全部運び終わる（論理的に）まで。メニューやチュートリアルの説明中は止まる
-      if (R && R.started && !R.done && !G.overlay && !G.loading && !Tut.busy()) R.time += rdt;
+      // タイム：最初のタップから全部運び終わる（論理的に）まで。メニューやチュートリアルの説明中・スキル停止中は止まる
+      if (G.skill && !G.overlay && !Tut.busy()) {
+        if (G.skill.freezeT > 0) G.skill.freezeT = Math.max(0, G.skill.freezeT - rdt);
+        if (G.skill.boostT > 0) G.skill.boostT = Math.max(0, G.skill.boostT - rdt);
+      }
+      if (R && R.started && !R.done && !G.overlay && !G.loading && !Tut.busy() && !(G.skill && G.skill.freezeT > 0)) R.time += rdt;
       if (G.fever.t > 0 && !G.overlay && !Tut.busy()) { G.fever.t -= rdt; if (G.fever.t <= 0) endFever(); }
       updateBoxes(dt); updateAnts(dt, rdt); updateParts(dt);
       Sound.walk(G.overlay ? 0 : G.ants.length);

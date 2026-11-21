@@ -1371,22 +1371,141 @@ const MISSION_POOL = [
   { k: 'feed', n: 1, t: '女王さまにごはんをあげる', r: 40 }
 ];
 const LOGIN_REWARD = [50, 60, 80, 100, 120, 150, 300];
-// 今の女王レベルときせかえから、特別な力を合計する
+// きせかえスキルレベル（ツムツム風育成）
+const SKIN_MAX_LV = 5;
+const SKIN_SLV_THRESH = [1, 2, 4, 7, 11];
+function skinCount(k) {
+  if (k === 'none') return 1;
+  const c = save && save.skinCnt && save.skinCnt[k];
+  if (typeof c === 'number' && c > 0) return Math.floor(c);
+  return (save && save.skins && save.skins.indexOf(k) >= 0) ? 1 : 0;
+}
+function skinLv(k) {
+  const c = skinCount(k);
+  if (c <= 0) return 0;
+  let lv = 1;
+  for (let i = 1; i < SKIN_SLV_THRESH.length; i++) if (c >= SKIN_SLV_THRESH[i]) lv = i + 1;
+  return lv;
+}
+function skinProgress(k) {
+  const c = skinCount(k), lv = skinLv(k);
+  if (lv <= 0) return { lv: 0, count: 0, cur: 0, need: 1, isMax: false };
+  if (lv >= SKIN_MAX_LV) return { lv: SKIN_MAX_LV, count: c, cur: 1, need: 1, isMax: true };
+  const prev = SKIN_SLV_THRESH[lv - 1], next = SKIN_SLV_THRESH[lv];
+  return { lv, count: c, cur: c - prev, need: next - prev, isMax: false };
+}
+
+// きせかえごとのアクティブスキル（本編パズル・ありんこチェイン両対応）
+// type: sweepH, burst, cross, color, bomb, transform, freeze, timePlus, fever, random, goldRush
+const SKIN_SKILLS = {
+  none:     { name: 'ありんこエール',       type: 'random',    need: 16, pNeed: 18 },
+  ribbon:   { name: 'リボンマジック',       type: 'sweepH',    need: 15, pNeed: 18 },
+  straw:    { name: 'そよかぜスウィープ',   type: 'sweepH',    need: 14, pNeed: 18 },
+  band:     { name: 'きあいコンボ',         type: 'transform', need: 15, pNeed: 20 },
+  glasses:  { name: 'ひらめきスキャン',     type: 'color',     need: 17, pNeed: 18 },
+  cat:      { name: 'にゃんこスクラッチ',   type: 'cross',     need: 16, pNeed: 20 },
+  flower:   { name: 'フラワーシャワー',     type: 'random',    need: 15, pNeed: 18 },
+  phones:   { name: 'ビートタイム',         type: 'timePlus',  need: 16, pNeed: 20 },
+  magic:    { name: 'マジックボム',         type: 'bomb',      need: 16, pNeed: 20 },
+  crown:    { name: 'ロイヤルフィーバー',   type: 'fever',     need: 17, pNeed: 20 },
+  santa:    { name: 'プレゼントボム',       type: 'bomb',      need: 16, pNeed: 20 },
+  helmet:   { name: 'どっかんハンマー',     type: 'burst',     need: 15, pNeed: 18 },
+  beret:    { name: 'パレットチェンジ',     type: 'transform', need: 15, pNeed: 18 },
+  cap:      { name: 'ホームランスウィープ', type: 'sweepH',    need: 15, pNeed: 18 },
+  bunny:    { name: 'ピョンピョンホップ',   type: 'random',    need: 14, pNeed: 18 },
+  angel:    { name: 'エンジェルタイム',     type: 'freeze',    need: 16, pNeed: 20 },
+  devil:    { name: 'デビルフィーバー',     type: 'fever',     need: 16, pNeed: 18 },
+  sunglass: { name: 'セレブゴールド',       type: 'goldRush',  need: 17, pNeed: 20 },
+  chef:     { name: 'スイーツクッキング',   type: 'transform', need: 15, pNeed: 18 },
+  ninja:    { name: 'しゅりけんクロス',     type: 'cross',     need: 15, pNeed: 18 },
+  viking:   { name: 'トレジャーバースト',   type: 'burst',     need: 16, pNeed: 20 },
+  tophat:   { name: 'イリュージョンカラー', type: 'color',     need: 17, pNeed: 20 },
+  party:    { name: 'クラッカーパーティー', type: 'fever',     need: 15, pNeed: 18 },
+  grad:     { name: 'スマートアナライズ',   type: 'color',     need: 16, pNeed: 18 },
+  leaf:     { name: 'リーフサイクロン',     type: 'burst',     need: 15, pNeed: 18 },
+  star:     { name: 'スターライトストップ', type: 'freeze',    need: 16, pNeed: 20 },
+  pirate:   { name: 'パイレーツキャノン',   type: 'bomb',      need: 16, pNeed: 20 },
+  frog:     { name: 'ケロケロスプラッシュ', type: 'random',    need: 14, pNeed: 18 },
+  bear:     { name: 'ベアハッグ',           type: 'burst',     need: 15, pNeed: 18 },
+  fox:      { name: 'きつねびマジック',     type: 'cross',     need: 15, pNeed: 18 },
+  panda:    { name: 'パンダタイム',         type: 'timePlus',  need: 16, pNeed: 20 },
+  cherry:   { name: 'チェリーツインズ',     type: 'transform', need: 15, pNeed: 18 },
+  tiara:    { name: 'ダイヤモンドラッシュ', type: 'goldRush',  need: 16, pNeed: 20 },
+  robo:     { name: 'レーザービーム',       type: 'sweepH',    need: 15, pNeed: 18 },
+  astro:    { name: 'コズミックタイム',     type: 'timePlus',  need: 16, pNeed: 20 },
+  rainbow:  { name: 'レインボーミラクル',   type: 'color',     need: 16, pNeed: 18 }
+};
+function getSkinSkill(k, lvOverride) {
+  const def = SKIN_SKILLS[k] || SKIN_SKILLS.none;
+  const lv = clamp(Math.floor(lvOverride != null ? lvOverride : Math.max(1, skinLv(k))), 1, SKIN_MAX_LV);
+  const power = lv; // 1..5
+  let tsumDesc = '', puzzleDesc = '';
+  switch (def.type) {
+    case 'sweepH':
+      tsumDesc = '横ラインをまとめて消去（はんいLv.' + lv + '）';
+      puzzleDesc = '待機/おすすめ箱 ' + (lv >= 4 ? 2 : 1) + 'つ分をおとどけ＆加速';
+      break;
+    case 'burst':
+      tsumDesc = '中央のありんこをまとめて消去（はんいLv.' + lv + '）';
+      puzzleDesc = '待機中の箱から最大' + (3 + lv * 2) + 'こ即おとどけ';
+      break;
+    case 'cross':
+      tsumDesc = '十字ラインを一閃消去（はんいLv.' + lv + '）';
+      puzzleDesc = '金キャンディ+' + (1 + lv) + 'こ＆最大' + (2 + lv * 2) + 'こおとどけ';
+      break;
+    case 'color':
+      tsumDesc = 'いちばん多い色をぜんぶ消去' + (lv >= 3 ? '＋ボム' + (lv >= 5 ? 2 : 1) + 'こ' : '');
+      puzzleDesc = 'おすすめ箱' + (lv >= 4 ? 2 : 1) + '手配置' + (lv >= 3 ? '＆全はこび' : '');
+      break;
+    case 'bomb':
+      tsumDesc = 'ボムを' + (1 + Math.floor(lv / 2)) + '〜' + (lv + 1) + 'こ発生！';
+      puzzleDesc = 'おすすめ箱を' + (lv >= 3 ? 2 : 1) + '手配置＆フィーバー+' + (20 + lv * 10) + '%';
+      break;
+    case 'transform':
+      tsumDesc = (7 + lv * 3) + 'こを同じ色にへんかん！';
+      puzzleDesc = '待機中の箱から最大' + (3 + lv * 2) + 'こ即おとどけ＆エサ+' + (lv * 4);
+      break;
+    case 'freeze':
+      tsumDesc = (4 + lv) + '秒タイマー停止＋' + (5 + lv * 2) + 'こ消去';
+      puzzleDesc = 'タイマー' + (4 + lv * 2) + '秒停止＆アリ速度UP';
+      break;
+    case 'timePlus':
+      tsumDesc = '残り時間＋' + (2 + lv) + '秒＆' + (4 + lv * 2) + 'こ消去';
+      puzzleDesc = '経過時間-' + (2 + lv) + '秒＆エサ+' + (lv * 5);
+      break;
+    case 'fever':
+      tsumDesc = '即フィーバー！＆' + (5 + lv * 2) + 'こ消去';
+      puzzleDesc = '即フィーバー突入（' + (lv + 1) + '秒延長）';
+      break;
+    case 'goldRush':
+      tsumDesc = (6 + lv * 2) + '秒スコア' + (1.4 + lv * 0.2).toFixed(1) + '倍＋' + (4 + lv * 2) + 'こ消去';
+      puzzleDesc = '金キャンディ+' + (2 + lv) + 'こ＆🪙+' + (15 + lv * 10);
+      break;
+    default: // random
+      tsumDesc = 'ランダムに' + (7 + lv * 3) + 'こ消去！';
+      puzzleDesc = 'おすすめ箱' + (lv >= 4 ? 2 : 1) + '手配置＆エサ+' + (lv * 4);
+      break;
+  }
+  return { k, name: def.name, type: def.type, lv, need: Math.max(10, def.need - (lv >= 4 ? 1 : 0)), pNeed: Math.max(12, def.pNeed - (lv >= 4 ? 1 : 0)), power, tsumDesc, puzzleDesc };
+}
+
+// 今の女王レベルときせかえ（SLv補正込み）から、特別な力を合計する
 function perks() {
   const q = (save && save.qlv) || 1, sk = SKINS.find(s => s.k === (save && save.skin)) || SKINS[0], f = sk.fx;
+  const lv = Math.max(1, skinLv(sk.k)), mul = 1 + 0.2 * (lv - 1), imul = 1 + 0.25 * (lv - 1);
   return {
-    coin: 1 + 0.02 * (q - 1) + (f.coin || 0),
-    food: 1 + (q >= 300 ? 1.0 : q >= 250 ? 0.8 : q >= 120 ? 0.5 : q >= 60 ? 0.3 : q >= 35 ? 0.15 : 0) + (f.food || 0),
-    speed: 1 + (q >= 280 ? 0.5 : q >= 220 ? 0.4 : q >= 140 ? 0.3 : q >= 70 ? 0.2 : q >= 25 ? 0.1 : 0) + (f.speed || 0),
-    combo: 0.6 + (q >= 210 ? 0.5 : q >= 130 ? 0.3 : q >= 55 ? 0.15 : 0) + (f.combo || 0),
-    hintCut: Math.max(q >= 150 ? 0.8 : q >= 65 ? 0.6 : q >= 12 ? 0.4 : q >= 5 ? 0.2 : 0, f.hintCut || 0),
-    fever: 1 + (q >= 6 ? 0.2 : 0) + (q >= 20 ? 0.2 : 0) + (q >= 175 ? 0.3 : 0) + (q >= 260 ? 0.3 : 0) + (f.fever || 0),
-    feverT: (q >= 270 ? 11 : q >= 180 ? 9.5 : q >= 90 ? 8 : q >= 30 ? 6.5 : 5) + (f.feverT || 0),
-    gold: 1 + (q >= 290 ? 4 : q >= 200 ? 3 : q >= 100 ? 2 : q >= 10 ? 1 : 0) + (f.gold || 0),
-    par: 1 + (q >= 240 ? 0.3 : q >= 160 ? 0.2 : q >= 75 ? 0.1 : 0) + (f.par || 0),
-    freeUndo: (q >= 230 ? 7 : q >= 110 ? 5 : q >= 50 ? 4 : q >= 15 ? 3 : q >= 8 ? 2 : q >= 3 ? 1 : 0) + (f.freeUndo || 0),
-    freeHint: (q >= 275 ? 3 : q >= 165 ? 2 : q >= 85 ? 1 : 0) + (f.freeHint || 0),
-    bonus: (q >= 300 ? 350 : q >= 295 ? 200 : q >= 190 ? 100 : q >= 95 ? 50 : q >= 45 ? 20 : 0) + (f.bonus || 0)
+    coin: 1 + 0.02 * (q - 1) + (f.coin ? f.coin * mul : 0),
+    food: 1 + (q >= 300 ? 1.0 : q >= 250 ? 0.8 : q >= 120 ? 0.5 : q >= 60 ? 0.3 : q >= 35 ? 0.15 : 0) + (f.food ? f.food * mul : 0),
+    speed: 1 + (q >= 280 ? 0.5 : q >= 220 ? 0.4 : q >= 140 ? 0.3 : q >= 70 ? 0.2 : q >= 25 ? 0.1 : 0) + (f.speed ? f.speed * mul : 0),
+    combo: 0.6 + (q >= 210 ? 0.5 : q >= 130 ? 0.3 : q >= 55 ? 0.15 : 0) + (f.combo ? f.combo * mul : 0),
+    hintCut: Math.max(q >= 150 ? 0.8 : q >= 65 ? 0.6 : q >= 12 ? 0.4 : q >= 5 ? 0.2 : 0, f.hintCut ? Math.min(0.95, f.hintCut * mul) : 0),
+    fever: 1 + (q >= 6 ? 0.2 : 0) + (q >= 20 ? 0.2 : 0) + (q >= 175 ? 0.3 : 0) + (q >= 260 ? 0.3 : 0) + (f.fever ? f.fever * mul : 0),
+    feverT: (q >= 270 ? 11 : q >= 180 ? 9.5 : q >= 90 ? 8 : q >= 30 ? 6.5 : 5) + (f.feverT ? f.feverT * mul : 0),
+    gold: 1 + (q >= 290 ? 4 : q >= 200 ? 3 : q >= 100 ? 2 : q >= 10 ? 1 : 0) + (f.gold ? Math.round(f.gold * imul) : 0),
+    par: 1 + (q >= 240 ? 0.3 : q >= 160 ? 0.2 : q >= 75 ? 0.1 : 0) + (f.par ? f.par * mul : 0),
+    freeUndo: (q >= 230 ? 7 : q >= 110 ? 5 : q >= 50 ? 4 : q >= 15 ? 3 : q >= 8 ? 2 : q >= 3 ? 1 : 0) + (f.freeUndo ? Math.round(f.freeUndo * imul) : 0),
+    freeHint: (q >= 275 ? 3 : q >= 165 ? 2 : q >= 85 ? 1 : 0) + (f.freeHint ? Math.round(f.freeHint * imul) : 0),
+    bonus: (q >= 300 ? 350 : q >= 295 ? 200 : q >= 190 ? 100 : q >= 95 ? 50 : q >= 45 ? 20 : 0) + (f.bonus ? Math.round(f.bonus * mul) : 0)
   };
 }
 // タイムの★：[★★★の上限秒, ★★の上限秒]。箱の数とむずかしさで決める

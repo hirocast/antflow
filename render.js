@@ -316,7 +316,7 @@ const G = {
   rc: new Map(), hudDirty: true, fromTitle: false, helpFrom: 'title', lastVib: 0, lastSay: -9, rewindTok: 0, rewindTo: -1,
   auto: false, autoNext: 0, autoClearT: 0, autoPath: null, autoAt: -1, genBusy: false, viewId: 1,
   // 育成・やりこみ
-  gold: new Set(), fever: { g: 0, t: 0 }, run: null, perk: perks(), par: null, spdMul: 1, fvShown: -1, timerShown: -1,
+  gold: new Set(), fever: { g: 0, t: 0 }, skill: { g: 0, max: 18, freezeT: 0, boostT: 0 }, run: null, perk: perks(), par: null, spdMul: 1, fvShown: -1, timerShown: -1,
   feeding: null, colAnts: null, colFlash: 0, gacha: null, sayT: -9, dailyP: null, scanId: 0
 };
 let CW = 0, CH = 0, dpr = 1, cs = 20, ox = 0, oy = 0, antPx = 20, antU = 10, nestR = 18, nestX = 0, nestY = 0;
@@ -643,6 +643,7 @@ function pickCube(a) {
     }
     // フィーバー：小さい面でも大きい面でも、1面で2〜3回たまるくらいの速さ
     if (!fev) { G.fever.g += 2.0 / G.level.total * (1 + Math.min(G.combo, 30) / 30) * G.perk.fever; if (G.fever.g >= 1) startFever(); }
+    if (typeof addSkillCharge === 'function') addSkillCharge(1);
     if (COMBO_MARK.indexOf(G.combo) >= 0) {
       popup(G.combo + ' コンボ！', bcx(), oy + G.s.H * cs * 0.22, G.combo >= 50 ? '#ffd23f' : '#ffffff');
       if (!said) { maybeSay(a, 'combo', 0.9); said = true; }
@@ -670,7 +671,7 @@ function startReturn(a) {
 }
 const _antVbs = [];
 function updateAnts(dt, rdt) {
-  const fm = G.fever.t > 0 ? 1.4 : 1, gap = gapCells();
+  const fm = (G.fever.t > 0 ? 1.4 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1), gap = gapCells();
   _antVbs.length = 0;
   for (let k = 0, len = G.ants.length; k < len; k++) {
     const a = G.ants[k];

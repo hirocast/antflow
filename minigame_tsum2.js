@@ -370,6 +370,11 @@
 .mta-gallery figcaption{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .mta-actions{display:flex;justify-content:center;gap:8px;margin-top:10px}
 .mta-root .mta-secondary{background:#34425c;color:#fff}
+.mta-root .mta-skill{position:relative;overflow:hidden;background:#20283b;color:#f8fafc;border:2px solid #475569;flex:none}
+.mta-root .mta-skill i{position:absolute;inset:0 auto 0 0;width:0%;background:linear-gradient(90deg,#f472b655,#fbbf2455);pointer-events:none;transition:width .18s}
+.mta-root .mta-skill span{position:relative}
+.mta-root .mta-skill.ready{border-color:#f472b6;background:#3b1f3a;color:#ffd166;box-shadow:0 0 12px #f472b666;animation:mtaSkPulse .85s ease-in-out infinite alternate}
+@keyframes mtaSkPulse{from{transform:scale(1)}to{transform:scale(1.05)}}
 `;
     document.head.appendChild(style);
   }
@@ -377,6 +382,15 @@
   window.openMiniTsum2 = function openMiniTsum2(onClose) {
     if (document.querySelector('.mta-root')) return;
     installStyle();
+
+    const activeSkin = (() => {
+      const k = (hostSave() && hostSave().skin) || 'none';
+      const s = (typeof SKINS !== 'undefined' && Array.isArray(SKINS) && SKINS.find(x => x.k === k)) || { k: 'none', n: 'すっぴん', e: '🐜' };
+      const sk = (typeof getSkinSkill === 'function')
+        ? getSkinSkill(s.k)
+        : { k: 'none', name: 'ありんこエール', type: 'random', lv: 1, need: 16, tsumDesc: 'ランダムに10こ消去！' };
+      return { skin: s, skill: sk };
+    })();
 
     const previousFocus = document.activeElement;
     const root = document.createElement('div');
@@ -409,8 +423,9 @@
           <div class="mta-banner" data-banner></div>
         </div>
         <div class="mta-foot">
+          <button type="button" class="mta-skill" data-skill disabled><i></i><span>${activeSkin.skin.e} 0%</span></button>
           <button type="button" data-shuffle>シャッフル</button>
-          <span class="mta-hint">同じ色・記号を3つ以上なぞると、その色のドットが塗られるよ。</span>
+          <span class="mta-hint">3つ以上なぞって塗ろう！</span>
         </div>
       </div>
       <canvas class="mta-fx" data-fx aria-hidden="true"></canvas>
@@ -422,7 +437,7 @@
     const el = {};
     for (const key of [
       'score', 'clock', 'best', 'exit', 'art', 'name', 'count', 'meter',
-      'chips', 'fever', 'wrap', 'board', 'banner', 'shuffle', 'fx', 'result'
+      'chips', 'fever', 'wrap', 'board', 'banner', 'skill', 'shuffle', 'fx', 'result'
     ]) el[key] = $(`[data-${key}]`);
     const meterFill = el.meter.querySelector('i');
     const meterText = el.meter.querySelector('span');
@@ -766,7 +781,7 @@
       return { indexes, group: target };
     }
 
-    function clearPieces(pieces) {
+    function clearPieces(pieces, fromSkill) {
       const removed = new Set(pieces);
       state.pieces = state.pieces.filter(p => !removed.has(p));
       let normal = 0;
@@ -790,6 +805,9 @@
           });
         });
       });
+      if (!fromSkill && normal) {
+        state.skillCharge = Math.min(activeSkin.skill.need, state.skillCharge + normal);
+      }
       if (state.feverTime <= 0 && normal) {
         state.fever += normal * CFG.FEVER_PER_PIECE;
         if (state.fever >= 100) {
@@ -839,7 +857,7 @@
       announce(`完成！ +${CFG.COMPLETE_SCORE}点 / +${CFG.COMPLETE_TIME}秒`, CFG.COMPLETE_PAUSE);
     }
 
-    const multiplier = () => state.feverTime > 0 ? 2 : 1;
+    const multiplier = () => (state.feverTime > 0 ? 2 : 1) * (state.skillRush > 0 ? state.skillRushMul : 1);
 
     function scoreAt(value, p) {
       const amount = Math.round(value);
@@ -848,6 +866,114 @@
         x: boardX + p.x, y: boardY + p.y, text: '+' + amount, age: 0,
         color: state.feverTime > 0 ? '#ffd166' : '#fff'
       });
+    }
+
+    function triggerSkill() {
+      if (state.phase !== 'play' || state.skillCharge < activeSkin.skill.need) return;
+      clearInput();
+      state.skillCharge = 0;
+      const sk = activeSkin.skill;
+      const lv = sk.lv;
+      announce(`${activeSkin.skin.e} ${sk.name}！`, 1.0);
+
+      const clearSkillSet = (list, anchor) => {
+        if (!list.length) return;
+        const p0 = anchor || list[0] || { x: width / 2, y: height / 2 };
+        scoreAt(list.length * 60 * multiplier(), p0);
+        clearPieces(list, true);
+      };
+      const pickRandom = n => {
+        const pool = state.pieces.filter(p => p.type >= 0 && p.y > 0);
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        return pool.slice(0, n);
+      };
+
+      switch (sk.type) {
+        case 'sweepH': {
+          const cy = height * 0.56, band = radius * (1.5 + lv * 0.55);
+          state.flashes.push({ x: boardX + width / 2, y: boardY + cy, color: '#f472b6', age: 0, reach: width * 0.5 });
+          clearSkillSet(state.pieces.filter(p => p.type >= 0 && Math.abs(p.y - cy) <= band), { x: width / 2, y: cy });
+          break;
+        }
+        case 'burst': {
+          const cx = width / 2, cy = height * 0.55, r = radius * (2.6 + lv * 0.65);
+          state.flashes.push({ x: boardX + cx, y: boardY + cy, color: '#ffd166', age: 0, reach: r });
+          clearSkillSet(state.pieces.filter(p => p.type >= 0 && Math.hypot(p.x - cx, p.y - cy) <= r), { x: cx, y: cy });
+          break;
+        }
+        case 'cross': {
+          const cx = width / 2, cy = height * 0.55, w = radius * (1.2 + lv * 0.4);
+          state.flashes.push({ x: boardX + cx, y: boardY + cy, color: '#67d8ef', age: 0, reach: width * 0.45 });
+          clearSkillSet(state.pieces.filter(p => p.type >= 0 && (Math.abs(p.x - cx) <= w || Math.abs(p.y - cy) <= w)), { x: cx, y: cy });
+          break;
+        }
+        case 'color': {
+          const counts = new Map();
+          for (const p of state.pieces) if (p.type >= 0 && p.y > 0) counts.set(p.type, (counts.get(p.type) || 0) + 1);
+          let bestType = 0, bestN = -1;
+          for (const [t, n] of counts) if (n > bestN) { bestN = n; bestType = t; }
+          clearSkillSet(state.pieces.filter(p => p.type === bestType && p.y > 0), { x: width / 2, y: height / 2 });
+          const bombs = lv >= 5 ? 2 : lv >= 3 ? 1 : 0;
+          for (let b = 0; b < bombs; b++) {
+            const bm = piece(width * (0.35 + b * 0.3), height * 0.45, -1);
+            bm.vy = -100;
+            state.pieces.push(bm);
+          }
+          break;
+        }
+        case 'bomb': {
+          const n = 1 + Math.floor(lv / 2) + (lv >= 4 ? 1 : 0);
+          for (let i = 0; i < n; i++) {
+            const bm = piece(width * (0.2 + 0.6 * ((i + 0.5) / n)), height * 0.45 + (i % 2) * radius, -1);
+            bm.vy = -100;
+            state.pieces.push(bm);
+          }
+          break;
+        }
+        case 'transform': {
+          const counts = new Map();
+          for (const p of state.pieces) if (p.type >= 0 && p.y > 0) counts.set(p.type, (counts.get(p.type) || 0) + 1);
+          let bestType = 0, bestN = -1;
+          for (const [t, n] of counts) if (n > bestN) { bestN = n; bestType = t; }
+          const others = state.pieces.filter(p => p.type >= 0 && p.type !== bestType && p.y > 0);
+          const n = Math.min(others.length, 7 + lv * 3);
+          for (let i = 0; i < n; i++) {
+            others[i].type = bestType;
+            burst(boardX + others[i].x, boardY + others[i].y, rgb(stage.groups[bestType].c), 4);
+          }
+          break;
+        }
+        case 'freeze': {
+          state.skillFreeze = Math.max(state.skillFreeze, 4 + lv);
+          clearSkillSet(pickRandom(5 + lv * 2), { x: width / 2, y: height / 2 });
+          break;
+        }
+        case 'timePlus': {
+          state.time += 2 + lv;
+          clearSkillSet(pickRandom(4 + lv * 2), { x: width / 2, y: height / 2 });
+          break;
+        }
+        case 'fever': {
+          if (state.feverTime > 0) state.feverTime += lv + 1;
+          else { state.fever = 0; state.feverTime = CFG.FEVER_TIME + (lv - 1) * 0.8; }
+          clearSkillSet(pickRandom(5 + lv * 2), { x: width / 2, y: height / 2 });
+          break;
+        }
+        case 'goldRush': {
+          state.skillRushMul = 1.4 + lv * 0.2;
+          state.skillRush = Math.max(state.skillRush, 6 + lv * 2);
+          clearSkillSet(pickRandom(4 + lv * 2), { x: width / 2, y: height / 2 });
+          break;
+        }
+        default: {
+          clearSkillSet(pickRandom(7 + lv * 3), { x: width / 2, y: height / 2 });
+          break;
+        }
+      }
+      updateHud();
     }
 
     function explode(bomb, depth) {
@@ -953,7 +1079,9 @@
           state.phase = 'play';
         }
       } else if (state.phase === 'play') {
-        state.time = Math.max(0, state.time - elapsed);
+        if (state.skillFreeze > 0) state.skillFreeze = Math.max(0, state.skillFreeze - elapsed);
+        else state.time = Math.max(0, state.time - elapsed);
+        if (state.skillRush > 0) state.skillRush = Math.max(0, state.skillRush - elapsed);
         if (state.time === 0) { finish(); return; }
 
         state.feverTime = Math.max(0, state.feverTime - elapsed);
@@ -1123,11 +1251,18 @@
 
     function updateHud() {
       setText(el.score, state.score.toLocaleString());
-      setText(el.clock, Math.ceil(state.time));
-      el.clock.classList.toggle('warn', state.time <= 10 && state.phase === 'play');
+      setText(el.clock, (state.skillFreeze > 0 ? '❄️' : '') + Math.ceil(state.time));
+      el.clock.classList.toggle('warn', state.time <= 10 && state.phase === 'play' && state.skillFreeze <= 0);
       setText(el.count, '完成 ' + state.completed.length);
       el.fever.style.width = (state.feverTime > 0
         ? 100 * state.feverTime / CFG.FEVER_TIME : state.fever) + '%';
+      const skNeed = activeSkin.skill.need;
+      const skPct = clamp(Math.round(100 * state.skillCharge / skNeed), 0, 100);
+      const skReady = state.phase === 'play' && state.skillCharge >= skNeed;
+      el.skill.disabled = !skReady;
+      el.skill.classList.toggle('ready', skReady);
+      el.skill.querySelector('i').style.width = skPct + '%';
+      setText(el.skill.querySelector('span'), skReady ? `${activeSkin.skin.e} スキルOK!` : `${activeSkin.skin.e} ${skPct}%`);
       el.shuffle.disabled = state.phase !== 'play' || state.shuffleCd > 0;
       setText(el.shuffle, state.shuffleCd > 0
         ? `シャッフル (${Math.ceil(state.shuffleCd)})` : 'シャッフル');
@@ -1273,6 +1408,7 @@
       state = {
         phase: 'ready', transition: .7, time: CFG.TIME, score: 0, completed: [],
         fever: 0, feverTime: 0, shuffleCd: 0, spawn: 0, moveCheck: 1.5,
+        skillCharge: 0, skillFreeze: 0, skillRush: 0, skillRushMul: 1,
         pieces: [], bombs: [], flyers: [], sparks: [], flashes: [], labels: [],
         pointer: null, chain: [], bombTap: null, lastPoint: null, bannerTime: 0
       };
@@ -1319,6 +1455,7 @@
       });
     }
     listen(el.board, 'contextmenu', e => e.preventDefault());
+    listen(el.skill, 'click', triggerSkill);
     listen(el.shuffle, 'click', () => shuffleBoard(false));
     listen(el.exit, 'click', close);
     listen(window, 'resize', resize);
