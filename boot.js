@@ -1,6 +1,6 @@
 // File: boot.js
 // 読み込みチェック：各 .js の最後の行で、自分のファイル名を AF_LOADED に登録する
-window.AF_APP_VER = '20261121y';
+window.AF_APP_VER = '20261121z';
 window.AF_LOADED = [];
 window.AF_ERR_LOG = [];
 window.AF_pushErr = function (msg) {
@@ -12,7 +12,7 @@ window.AF_pushErr = function (msg) {
     if (window.AF_ERR_LOG.length > 8) window.AF_ERR_LOG.shift();
   } catch (e) {}
 };
-window.AF_FILES = ['base.js', 'arts.js', 'raster.js', 'logic.js', 'sound.js', 'render.js', 'ui.js', 'maker.js', 'bgm_maker.js', 'minigame_tsum.js', 'measure.js'];
+window.AF_FILES = ['base.js', 'arts.js', 'raster.js', 'logic.js', 'sound.js', 'render.js', 'ui.js', 'maker.js', 'bgm_maker.js', 'minigame_tsum.js', 'minigame_drop.js', 'measure.js'];
 window.AF_bootErr = function (msg) {
   window.AF_pushErr(msg);
   var c = document.querySelector('#ov-title .card');
