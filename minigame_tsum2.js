@@ -15,7 +15,7 @@
     COIN_DIVISOR: 50,
     COINS_PER_ART: 5,
     SHUFFLE_COOLDOWN: 3,
-    LINK_RADIUS: 2.65,
+    LINK_RADIUS: 3.05,
     ART_LIMIT: 128,
     ART_IDS: []
   };
@@ -707,17 +707,18 @@
     function trace(pos) {
       const prev = state.lastPoint, chain = state.chain;
       if (!prev || !chain.length) return;
+      const targetType = chain[0].type;
       const steps = clamp(Math.ceil(Math.hypot(pos.x - prev.x, pos.y - prev.y) /
-        Math.max(1, radius * .4)), 1, 120);
+        Math.max(1, radius * .35)), 1, 120);
       for (let i = 1; i <= steps; i++) {
         const x = prev.x + (pos.x - prev.x) * i / steps;
         const y = prev.y + (pos.y - prev.y) * i / steps;
         const tail = chain[chain.length - 1];
-        const q = hit(x, y, .96);
+        const q = hit(x, y, 1.28, p => p.type === targetType);
         if (!q || q === tail) continue;
         if (chain.length > 1 && q === chain[chain.length - 2]) {
-          chain.pop();
-        } else if (q.type === chain[0].type && !chain.includes(q) &&
+          if (Math.hypot(x - q.x, y - q.y) <= radius * 0.95) chain.pop();
+        } else if (!chain.includes(q) &&
                    Math.hypot(q.x - tail.x, q.y - tail.y) <= radius * CFG.LINK_RADIUS) {
           chain.push(q);
         }

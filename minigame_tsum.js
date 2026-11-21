@@ -698,10 +698,11 @@
       }
     }
 
-    function hit(x, y) {
+    function hit(x, y, tolerance = 1.15, filter = null) {
       if (x < 0 || y < 0 || x > width || y > height) return null;
-      let best = null, bestSq = (radius * 1.08) ** 2;
+      let best = null, bestSq = (radius * tolerance) ** 2;
       for (const p of pieces) {
+        if (filter && !filter(p)) continue;
         const sq = (p.x - x) ** 2 + (p.y - y) ** 2;
         if (sq <= bestSq) { best = p; bestSq = sq; }
       }
@@ -723,19 +724,24 @@
       const dx = p.x - from.x, dy = p.y - from.y;
       const distance = Math.hypot(dx, dy);
       if (distance < 0.2) return;
-      const samples = clamp(Math.ceil(distance / Math.max(2, radius * 0.36)), 1, 180);
+      const samples = clamp(Math.ceil(distance / Math.max(2, radius * 0.34)), 1, 180);
       const chain = g.chain;
+      const linkSq = (radius * 3.15) ** 2;
+      const undoSq = (radius * 0.95) ** 2;
 
       for (let i = 1; i <= samples; i++) {
         const t = i / samples;
-        const next = hit(from.x + dx * t, from.y + dy * t);
+        const sx = from.x + dx * t, sy = from.y + dy * t;
         const last = chain[chain.length - 1];
-        if (!next || next === last || next.type !== last.type) continue;
+        const next = hit(sx, sy, 1.32, (cand) => cand.type === last.type);
+        if (!next || next === last) continue;
         if (chain.length > 1 && next === chain[chain.length - 2]) {
-          chain.pop();
-          sound('tap');
+          if ((sx - next.x) ** 2 + (sy - next.y) ** 2 <= undoSq) {
+            chain.pop();
+            sound('tap');
+          }
         } else if (!chain.includes(next)
-          && (next.x - last.x) ** 2 + (next.y - last.y) ** 2 <= (radius * 2.85) ** 2) {
+          && (next.x - last.x) ** 2 + (next.y - last.y) ** 2 <= linkSq) {
           chain.push(next);
           sound('tap');
         }
@@ -770,7 +776,7 @@
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       const p = point(event, rect);
-      const selected = hit(p.x, p.y);
+      const selected = hit(p.x, p.y, 1.18);
       if (!selected) return;
       event.preventDefault();
       gesture = {
