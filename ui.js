@@ -1114,6 +1114,7 @@ function applyLevel(id, L) {
   layout(); resetVisual();
   G.clearShown = false; G.loading = false;
   G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false; G.lastTapT = G.rt;
+  G.recCol = -1; G.maskAlpha = 0; G.pickFlashes = []; G.newReachFlashes = []; G.prevVisReach = null; G.tapFlash = null;
   Sound.setBgm(L.name, L.theme);
   if (!G.overlay) G.bgmBanner = save.settings.bgm !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   if (!L.custom) Tut.levelStart(id);
@@ -3239,6 +3240,7 @@ canvas.addEventListener('pointerdown', e => {
   const press = { j, id: e.pointerId, x: p.x, y: p.y, previewed: false };
   press.timer = setTimeout(() => { if (G.press === press) { showPreview(j); press.previewed = true; } }, 320);
   G.press = press;
+  if (G.s && G.s.heads[j] < G.s.cols[j].length) G.tapFlash = { c: headBox(G.s, j).c, t0: G.rt };
 });
 canvas.addEventListener('pointermove', e => {
   if (!G.press || e.pointerId !== G.press.id || G.press.previewed) return;

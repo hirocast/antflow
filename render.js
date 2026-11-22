@@ -626,7 +626,21 @@ function endFever() {
   if (typeof Sound.setFever === 'function') Sound.setFever(false);
 }
 function pickCube(a) {
-  if (G.vgrid[a.cell] >= 0) { G.vgrid[a.cell] = -1; G.vver++; G.vleft--; eraseCell(a.cell); G.boardSoft = true; }
+  if (G.vgrid[a.cell] >= 0) {
+    G.vgrid[a.cell] = -1; G.vver++; G.vleft--; eraseCell(a.cell); G.boardSoft = true;
+    if (G.pickFlashes) G.pickFlashes.push({ x: a.tx, y: a.ty, c: a.c, t0: G.rt, dur: 0.14 });
+    if (G.newReachFlashes && posOf(G.levelId) <= 3 && G.s) {
+      const W = G.s.W, H = G.s.H, ne = nestGate(), dist = visDist(ne.ex, ne.ey), nowSet = new Set();
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const idx = y * W + x;
+        if (G.vgrid[idx] >= 0 && cubeDist(dist, W, x, y) >= 0) {
+          nowSet.add(idx);
+          if (G.prevVisReach && !G.prevVisReach.has(idx)) G.newReachFlashes.push({ x, y, t0: G.rt, dur: 0.26 });
+        }
+      }
+      G.prevVisReach = nowSet;
+    }
+  }
   a.vb.picked++;
   if (Math.abs(a.tx - a.x) > 0.01) a.face = a.tx > a.x ? 1 : -1;
   const w = toW(a.tx, a.ty), R = G.run, fev = G.fever.t > 0;
@@ -1271,6 +1285,109 @@ function drawPreview() {
   ctx.fillStyle = '#fff'; roundRect(ctx, mx - tw / 2, ty - 14, tw, 28, 14); ctx.fill();
   ctx.fillStyle = '#5a3d5c'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(msg, mx, ty);
 }
+function getLv1RecCol() {
+  const s = G.s;
+  if (!s) return -1;
+  const rc = G.rc || reachableCounts(s);
+  if (G.recCol >= 0 && G.recCol < s.cols.length && s.heads[G.recCol] < s.cols[G.recCol].length && (rc.get(headBox(s, G.recCol).c) || 0) > 0) {
+    return G.recCol;
+  }
+  let j = followsSolution() ? G.level.solution[G.moves.length] : -1;
+  if (j == null || j < 0 || s.heads[j] >= s.cols[j].length || !(rc.get(headBox(s, j).c) > 0)) {
+    j = headsOf(s).find(k => (rc.get(headBox(s, k).c) || 0) > 0);
+    if (j == null) j = -1;
+  }
+  G.recCol = j;
+  return j;
+}
+function drawSpotlightAndFlashes() {
+  if (!G.s || G.overlay || G.preview) return;
+  const s = G.s, W = s.W, H = s.H, ne = nestGate();
+  const redMot = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let dist = null;
+  if (!G.prevVisReach && posOf(G.levelId) <= 3) {
+    dist = visDist(ne.ex, ne.ey);
+    G.prevVisReach = new Set();
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const idx = y * W + x;
+      if (G.vgrid[idx] >= 0 && cubeDist(dist, W, x, y) >= 0) G.prevVisReach.add(idx);
+    }
+  }
+  const lv1Guide = posOf(G.levelId) === 1 && (!save.cleared[G.levelId] || G.firstSim) && G.moves.length < 3;
+  const targetMask = lv1Guide ? (G.moves.length === 0 ? 0.34 : G.moves.length === 1 ? 0.14 : 0) : 0;
+  G.maskAlpha = (G.maskAlpha || 0) + (targetMask - (G.maskAlpha || 0)) * 0.18;
+  if (G.maskAlpha > 0.01) {
+    const ix = ox - cs, iy = oy - cs, iw = (W + 2) * cs, ih = (H + 2) * cs, ir = Math.max(6, cs * 0.8);
+    ctx.save();
+    ctx.fillStyle = 'rgba(28,14,38,' + G.maskAlpha.toFixed(3) + ')';
+    roundRect(ctx, ix, iy, iw, ih, ir); ctx.fill();
+    ctx.restore();
+  }
+  if (lv1Guide) {
+    const j = getLv1RecCol();
+    if (j >= 0) {
+      if (!dist) dist = visDist(ne.ex, ne.ey);
+      const c = headBox(s, j).c, pulse = Math.max(0, Math.sin(G.rt * 6.3)), sync = 1 + pulse * (redMot ? 0.02 : 0.07);
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const idx = y * W + x;
+        // 予約済み(G.s.gridで消えた)セルは除外し、論理盤面と完全一致させる
+        if (s.grid[idx] !== c || G.vgrid[idx] !== c || cubeDist(dist, W, x, y) < 0) continue;
+        const cx = ox + (x + 0.5) * cs, cy = oy + (y + 0.5) * cs, d = cs * sync;
+        ctx.drawImage(cubeSpr[c], cx - d / 2, cy - d / 2, d, d);
+        if (!redMot) {
+          ctx.strokeStyle = 'rgba(255,255,255,' + (0.35 + 0.55 * pulse) + ')';
+          ctx.lineWidth = Math.max(1.5, cs * 0.09);
+          ctx.strokeRect(cx - d / 2, cy - d / 2, d, d);
+        }
+      }
+      ctx.restore();
+    }
+  }
+  // どの箱を押しても、取れる同色キャンディを一瞬光らせる
+  if (G.tapFlash && G.rt - G.tapFlash.t0 < 0.25) {
+    if (!dist) dist = visDist(ne.ex, ne.ey);
+    const fa = 1 - (G.rt - G.tapFlash.t0) / 0.25, fc = G.tapFlash.c;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.75 * fa) + ')';
+    ctx.lineWidth = Math.max(1.5, cs * 0.1);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const idx = y * W + x;
+      if (s.grid[idx] !== fc || G.vgrid[idx] !== fc || cubeDist(dist, W, x, y) < 0) continue;
+      ctx.strokeRect(ox + x * cs, oy + y * cs, cs, cs);
+    }
+    ctx.restore();
+  }
+  // 新しく外から通れるようになったキャンディの白フラッシュ
+  if (G.newReachFlashes && G.newReachFlashes.length) {
+    ctx.save();
+    for (let i = G.newReachFlashes.length - 1; i >= 0; i--) {
+      const f = G.newReachFlashes[i], el = G.rt - f.t0;
+      if (el >= f.dur) { G.newReachFlashes.splice(i, 1); continue; }
+      const a = 1 - el / f.dur;
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * a) + ')';
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.9 * a) + ')';
+      ctx.lineWidth = Math.max(1.5, cs * 0.1);
+      ctx.fillRect(ox + f.x * cs, oy + f.y * cs, cs, cs);
+      ctx.strokeRect(ox + f.x * cs, oy + f.y * cs, cs, cs);
+    }
+    ctx.restore();
+  }
+  // アリがキャンディを拾った瞬間の光輪
+  if (G.pickFlashes && G.pickFlashes.length) {
+    ctx.save();
+    for (let i = G.pickFlashes.length - 1; i >= 0; i--) {
+      const f = G.pickFlashes[i], el = G.rt - f.t0;
+      if (el >= f.dur) { G.pickFlashes.splice(i, 1); continue; }
+      const k = el / f.dur, cx = ox + (f.x + 0.5) * cs, cy = oy + (f.y + 0.5) * cs;
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.9 * (1 - k)) + ')';
+      ctx.lineWidth = Math.max(2, cs * 0.14 * (1 - k * 0.5));
+      ctx.beginPath(); ctx.arc(cx, cy, cs * (0.45 + k * 0.55), 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
 function drawGuides() {
   if (G.hintCol >= 0) {
     const j = G.hintCol;
@@ -1286,51 +1403,28 @@ function drawGuides() {
   if (G.overlay || G.preview) return;
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   if (posOf(G.levelId) === 1 && (!save.cleared[G.levelId] || G.firstSim) && G.moves.length < 3 && G.s) {
-    const s = G.s, rc = G.rc || reachableCounts(s);
-    let j = followsSolution() ? G.level.solution[G.moves.length] : -1;
-    if (j == null || j < 0 || s.heads[j] >= s.cols[j].length || !(rc.get(headBox(s, j).c) > 0)) {
-      j = headsOf(s).find(k => (rc.get(headBox(s, k).c) || 0) > 0);
-      if (j == null) j = -1;
-    }
+    const j = getLv1RecCol();
     if (j >= 0) {
-      const box = headBox(s, j), c = box.c, W = s.W, H = s.H;
-      const pulse = Math.max(0, Math.sin(G.rt * 6.3)), sync = 1 + pulse * 0.14;
-      const maskA = G.moves.length === 0 ? 0.42 : G.moves.length === 1 ? 0.2 : 0;
-      if (maskA > 0) {
-        const ix = ox - cs, iy = oy - cs, iw = (W + 2) * cs, ih = (H + 2) * cs, ir = Math.max(6, cs * 0.8);
-        ctx.save();
-        ctx.fillStyle = 'rgba(28,14,38,' + maskA + ')';
-        roundRect(ctx, ix, iy, iw, ih, ir); ctx.fill();
-        ctx.restore();
-      }
-      // 外側から通れる同色キャンディだけを明るく共鳴させる
-      const ne = nestGate(), dist = visDist(ne.ex, ne.ey);
-      ctx.save();
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        const idx = y * W + x;
-        if (G.vgrid[idx] !== c || cubeDist(dist, W, x, y) < 0) continue;
-        const cx = ox + (x + 0.5) * cs, cy = oy + (y + 0.5) * cs, d = cs * sync;
-        ctx.drawImage(cubeSpr[c], cx - d / 2, cy - d / 2, d, d);
-        ctx.strokeStyle = 'rgba(255,255,255,' + (0.45 + 0.55 * pulse) + ')';
-        ctx.lineWidth = Math.max(1.5, cs * 0.1);
-        ctx.strokeRect(cx - d / 2, cy - d / 2, d, d);
-      }
-      ctx.restore();
-      // トレイのおすすめ箱を同じリズムで光らせる
-      const bx = trayX(j), by = trayHeadY, bs = headSize * (1 + pulse * 0.08);
+      const redMot = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion:reduce)').matches;
+      const pulse = Math.max(0, Math.sin(G.rt * 6.3));
+      const bx = trayX(j), by = trayHeadY, bs = headSize * (1 + pulse * (redMot ? 0.02 : 0.05));
       ctx.save();
       ctx.strokeStyle = 'rgba(255,245,160,' + (0.55 + 0.45 * pulse) + ')';
       ctx.lineWidth = 4;
       roundRect(ctx, bx - bs * 0.56, by - bs * 0.47, bs * 1.12, bs * 0.94, bs * 0.25); ctx.stroke();
-      // 0手目または3秒無操作時に指ゴーストを表示（触ったら即消える）
+      // 0手目は1.0秒後、1〜2手目は3秒無操作時（アリ運搬中は出さない）にクリーンな波紋＆ポインター表示
       const idleT = G.rt - (G.lastTapT || 0);
-      if ((G.moves.length === 0 || idleT >= 3.0) && !G.press) {
-        const rp = (G.rt % 1.2) / 1.2;
+      const showPtr = !G.press && G.ants.length === 0 && ((G.moves.length === 0 && idleT >= 1.0) || (G.moves.length > 0 && idleT >= 3.0));
+      if (showPtr) {
+        const rp = (G.rt % 1.2) / 1.2, pressY = rp < 0.45 ? 0 : 4;
         ctx.strokeStyle = 'rgba(255,255,255,' + (0.85 * (1 - rp)) + ')'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(bx, by, headSize * (0.28 + rp * 0.42), 0, Math.PI * 2); ctx.stroke();
-        ctx.globalAlpha = 0.92;
-        ctx.font = Math.round(headSize * 0.62) + 'px sans-serif';
-        ctx.fillText('👆', bx + headSize * 0.22, by + headSize * 0.36 + (rp < 0.45 ? 0 : 4));
+        // 端末依存の絵文字を避けたシンプルな白いタップポインター
+        const px = bx + headSize * 0.16, py = by + headSize * 0.16 + pressY, pr = Math.max(7, headSize * 0.14);
+        ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.strokeStyle = '#ff6f9f'; ctx.lineWidth = 2.2;
+        ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px, py + pr * 0.7); ctx.lineTo(px + pr * 0.9, py + pr * 1.9);
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = Math.max(4, pr * 0.55); ctx.lineCap = 'round'; ctx.stroke();
       }
       ctx.restore();
     }
@@ -2025,7 +2119,7 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(boardCv, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawGold(); drawFever(); drawNest(); drawSlots(); drawTray(); drawSlotBoxes(); drawSinger(); drawAnts(); drawFxLocal(); drawPopups(); drawPreview(); drawGuides(); drawBgmBanner();
+  drawSpotlightAndFlashes(); drawGold(); drawFever(); drawNest(); drawSlots(); drawTray(); drawSlotBoxes(); drawSinger(); drawAnts(); drawFxLocal(); drawPopups(); drawPreview(); drawGuides(); drawBgmBanner();
 }
 
 /* ================= 全画面エフェクト（紙吹雪・花火） ================= */
