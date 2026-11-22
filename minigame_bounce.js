@@ -154,9 +154,11 @@
       }
     }
 
-    const size = Math.min(360 / cols, 250 / rows, 30);
-    const x = (W - cols * size) / 2;
-    const y = 22 + (250 - rows * size) * 0.25;
+    const maxW = RIGHT - LEFT;
+    const maxH = 400;
+    const size = Math.min(maxW / cols, maxH / rows);
+    const x = LEFT + (maxW - cols * size) / 2;
+    const y = TOP + 2 + (maxH - rows * size) * 0.15;
     const inset = size >= 7 ? Math.min(0.65, size * 0.04) : 0;
     const lookup = new Array(pixels.length);
     const cells = [];
@@ -282,7 +284,7 @@
     const previewCtx = previewCanvas.getContext('2d');
     const stageCanvas = document.createElement('canvas');
     stageCanvas.width = W * 2;
-    stageCanvas.height = 300 * 2;
+    stageCanvas.height = PAD_Y * 2;
     const stageCtx = stageCanvas.getContext('2d');
     let stageDirty = true;
     const artInfo = element('div', 'bn-art-info');
@@ -1011,7 +1013,7 @@
           if (stageDirty) {
             stageDirty = false;
             stageCtx.setTransform(2, 0, 0, 2, 0, 0);
-            stageCtx.clearRect(0, 0, W, 300);
+            stageCtx.clearRect(0, 0, W, PAD_Y);
             for (const c of stage.cells) {
               if (c.broken || c.skipped) continue;
               stageCtx.fillStyle = color(c.color);
@@ -1025,7 +1027,7 @@
             }
           }
           ctx.globalAlpha = 1;
-          ctx.drawImage(stageCanvas, 0, 0, W, 300);
+          ctx.drawImage(stageCanvas, 0, 0, W, PAD_Y);
         }
         for (const c of stage.cells) {
           if (!revealAll && c.broken) {
