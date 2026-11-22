@@ -10,6 +10,12 @@
   const MAX_BOUNCES = 3;
   const RAINBOW = -1;
   const DEG = Math.PI / 180;
+  const ITEM_DURATION = 12;
+  const ITEM_DEFS = [
+    { kind: 'rapid', icon: '⚡', label: '連射', title: '⚡ 連射スピードUP！', color: '#ffd94a' },
+    { kind: 'wide', icon: '🟣', label: '太弾', title: '🟣 弾が太くなった！', color: '#c084fc' },
+    { kind: 'shotgun', icon: '💥', label: '散弾', title: '💥 散弾銃モード！', color: '#fb7185' }
+  ];
 
   const FALLBACK_HEX = [
     '#20232e', '#ffffff', '#ff575f', '#fd9c42', '#ffd75a',
@@ -223,6 +229,12 @@
       bottom:0;padding:4px 10px calc(6px + env(safe-area-inset-bottom,0px));
       display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:wrap
     }
+    .afisn-buffs{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;width:100%}
+    .afisn-buff{
+      display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;
+      background:#1d2e4dcc;border:1.5px solid #ffd94a;color:#fff;font-size:11px;font-weight:800;
+      font-variant-numeric:tabular-nums
+    }
     .afisn-hint{color:#c4d2ee;font-size:10px;text-align:center}
     .afisn-layer{
       position:absolute;inset:0;z-index:2;display:flex;overflow:auto;
@@ -294,7 +306,8 @@
           </div>
         </div>
         <div class="afisn-controls">
-          <span class="afisn-hint">左右ドラッグで照準／離して発射／タップでも発射</span>
+          <div class="afisn-buffs" aria-live="off"></div>
+          <span class="afisn-hint">長押しで連射／左右ドラッグで照準／タップでも発射</span>
           <button type="button" class="afisn-swap">⇄ 色交換</button>
         </div>
       </div>
@@ -303,9 +316,9 @@
         <div class="afisn-card">
           <h2 class="afisn-title">同じ色の塊をねらおう！</h2>
           <ul class="afisn-rules">
-            <li>60秒で何枚完成できるか挑戦。左右にドラッグして角度を変え、離すと発射。タップした方向にも撃てます。</li>
+            <li>60秒で何枚完成できるか挑戦。長押しで連射でき、左右にドラッグしながら狙いを動かせます。タップだけでも発射！</li>
             <li>同じ色なら上下左右につながる塊を一気にペイント。違う色でも、命中点と隣の数マスが塗れます。</li>
-            <li>壁で反射する照準線や色交換を活用。レインボー玉は、命中した塊と隣接する最大2つの塊を塗れます。</li>
+            <li>浮かぶアイテム（⚡連射・🟣太弾・💥散弾）を撃ち抜くとパワーアップ！レインボー玉は隣接する最大2塊も同時に塗れます。</li>
             <li>1枚完成で＋500点・＋8秒。100点につき1コイン。</li>
           </ul>
           <p class="afisn-text afisn-notice" hidden></p>
@@ -368,9 +381,10 @@
     let comboTime = 0, shots = 0, completed = 0;
     let angle = 0, pointer = null, art = null, bag = [], lastArtId = null;
     let current = null, next = null, rollsSinceRainbow = 0;
-    let bullets = [], particles = [], floats = [];
+    let bullets = [], particles = [], floats = [], items = [];
+    let itemTimer = 3.5, buffs = { rapid: 0, wide: 0, shotgun: 0 }, keyFireHeld = false;
     let gallery = new Map();
-    let run = null, statusMessage = '', lastAmmoLabel = '';
+    let run = null, statusMessage = '', lastAmmoLabel = '', lastBuffHtml = '';
 
     activeClose = close;
     document.head.appendChild(style);
@@ -409,6 +423,14 @@
       hudText('name', art ? 'お題 ' + art.number + '：' + art.name : 'お題を準備中');
       $('pause').disabled = (phase !== 'play' && phase !== 'clear') || paused;
       $('swap').disabled = phase !== 'play' || paused;
+
+      const buffHtml = ITEM_DEFS.filter(d => buffs[d.kind] > 0)
+        .map(d => `<span class="afisn-buff" style="border-color:${d.color}">${d.icon} ${d.label} ${Math.ceil(buffs[d.kind])}s</span>`)
+        .join('');
+      if (buffHtml !== lastBuffHtml) {
+        lastBuffHtml = buffHtml;
+        $('buffs').innerHTML = buffHtml;
+      }
 
       const ammoName = color => color === RAINBOW ? 'レインボー' :
         color === null ? 'なし' : '色番号 ' + (color + 1);
@@ -647,14 +669,17 @@
       };
     }
 
-    function newProjectile(color) {
-      const dx = Math.sin(angle), dy = -Math.cos(angle);
+    function newProjectile(color, offsetAngle = 0) {
+      const a = angle + offsetAngle;
+      const dx = Math.sin(a), dy = -Math.cos(a);
       const muzzle = Math.min(29, Math.max(9, width * 0.095));
+      const wide = buffs.wide > 0;
       return {
         x: clamp(layout.x + dx * muzzle, layout.left, layout.right),
         y: layout.y + dy * muzzle,
         vx: dx * layout.speed, vy: dy * layout.speed,
-        color, bounces: 0, life: 0
+        color, bounces: 0, life: 0,
+        wide, radius: wide ? 13 : 6.5
       };
     }
 
@@ -791,6 +816,48 @@
       if (floats.length > 14) floats.shift();
     }
 
+    function wideSplash(list, center, seen) {
+      const cx = center % art.w, cy = Math.floor(center / art.w);
+      const extra = [];
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= art.w || ny >= art.h) continue;
+          const j = ny * art.w + nx;
+          if (!seen[j] && !art.painted[j] && art.cells[j] >= 0) {
+            seen[j] = 1;
+            extra.push(j);
+          }
+        }
+      }
+      return list.concat(extra);
+    }
+
+    function spawnItem() {
+      if (items.length >= 2 || phase !== 'play') return;
+      const def = ITEM_DEFS[Math.floor(Math.random() * ITEM_DEFS.length)];
+      const span = Math.max(40, layout.right - layout.left - 56);
+      const x = layout.left + 28 + Math.random() * span;
+      const yMin = layout.top + 38;
+      const yMax = Math.max(yMin + 24, layout.y - 105);
+      const y = yMin + Math.random() * (yMax - yMin);
+      items.push({
+        def, x, baseY: y, y,
+        vx: (Math.random() < 0.5 ? -1 : 1) * (26 + Math.random() * 22),
+        r: 18, life: 9.5, phase: Math.random() * Math.PI * 2
+      });
+    }
+
+    function collectItem(item) {
+      const d = item.def;
+      buffs[d.kind] = ITEM_DURATION;
+      floatText(d.title, item.x, item.y - 14, d.color, 18);
+      burst(item.x, item.y, d.color, 18, 175);
+      sfx('albumIn');
+      announce(d.title);
+      updateHud();
+    }
+
     function handleHit(ball, hit) {
       const i = hit.index;
       const color = art.cells[i];
@@ -802,6 +869,7 @@
         const seen = new Uint8Array(art.cells.length);
         const main = flood(i, seen);
         indices = rainbow ? rainbowFill(main, seen) : main;
+        if (ball.wide) indices = wideSplash(indices, i, seen);
         combo = comboTime > 0 ? combo + 1 : 1;
         comboTime = 4;
         maxCombo = Math.max(maxCombo, combo);
@@ -816,11 +884,17 @@
           floatText('次はレインボー！', layout.x, layout.y - 51, '#ffe187', 16);
         }
       } else {
-        indices = [i, ...art.neighbors[i].filter(j => art.cells[j] >= 0 && !art.painted[j])];
+        const seen = new Uint8Array(art.cells.length);
+        seen[i] = 1;
+        indices = [i, ...art.neighbors[i].filter(j => {
+          if (art.cells[j] >= 0 && !art.painted[j]) { seen[j] = 1; return true; }
+          return false;
+        })];
+        if (ball.wide) indices = wideSplash(indices, i, seen);
         combo = 0;
         comboTime = 0;
         points = indices.length * 3;
-        floatText('ちょい塗り +' + points, hit.x, hit.y - 12, '#ffd0a5', 15);
+        floatText((ball.wide ? '太弾 ' : 'ちょい塗り ') + '+' + points, hit.x, hit.y - 12, '#ffd0a5', 15);
         sfx('deny');
       }
 
@@ -856,15 +930,16 @@
     }
 
     function fire() {
-      if (phase !== 'play' || paused || cooldown > 0 || bullets.length >= 3) return;
+      if (phase !== 'play' || paused || cooldown > 0 || bullets.length >= 30) return;
       repairAmmo();
       if (current === null) return;
-      bullets.push(newProjectile(current));
+      const offsets = buffs.shotgun > 0 ? [-0.15, 0, 0.15] : [0];
+      for (const off of offsets) bullets.push(newProjectile(current, off));
       shots++;
       current = next;
       next = rollColor(current, true);
       repairAmmo();
-      cooldown = 0.16;
+      cooldown = buffs.rapid > 0 ? 0.075 : 0.16;
       updateHud();
       sfx('tap');
     }
@@ -929,13 +1004,24 @@
       ctx.save();
       ctx.strokeStyle = match ? '#9af8be' : '#d7e4ff';
       ctx.globalAlpha = pointer ? 0.92 : 0.58;
-      ctx.lineWidth = pointer ? 2.4 : 1.5;
+      ctx.lineWidth = (pointer ? 2.4 : 1.5) * (buffs.wide > 0 ? 1.8 : 1);
       ctx.setLineDash([5, 7]);
       ctx.lineDashOffset = reducedMotion ? 0 : -effectsTime * 30;
       ctx.beginPath();
       ctx.moveTo(points[0][0], points[0][1]);
       for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
       ctx.stroke();
+      if (buffs.shotgun > 0) {
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 1.4;
+        for (const off of [-0.15, 0.15]) {
+          const a = angle + off;
+          ctx.beginPath();
+          ctx.moveTo(layout.x, layout.y);
+          ctx.lineTo(layout.x + Math.sin(a) * 140, layout.y - Math.cos(a) * 140);
+          ctx.stroke();
+        }
+      }
       if (hit) {
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
@@ -1018,18 +1104,40 @@
       if (phase === 'play' && !paused && current !== null) drawAim();
       if (phase === 'play' || phase === 'clear') drawLauncher();
 
-      for (const ball of bullets) {
+      for (const item of items) {
+        const pulse = reducedMotion ? 1 : 1 + 0.08 * Math.sin(effectsTime * 6 + item.phase);
         ctx.save();
-        ctx.globalAlpha = 0.38;
+        ctx.globalAlpha = item.life < 2 ? Math.max(0.25, (Math.sin(effectsTime * 18) + 1) * 0.45) : 0.96;
+        ctx.fillStyle = '#0e1b33d8';
+        ctx.strokeStyle = item.def.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, item.r * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = '16px system-ui,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.def.icon, item.x, item.y - 2);
+        ctx.font = '900 9px system-ui,sans-serif';
+        ctx.fillStyle = item.def.color;
+        ctx.fillText(item.def.label, item.x, item.y + 11);
+        ctx.restore();
+      }
+
+      for (const ball of bullets) {
+        const r = ball.radius || 6.5;
+        ctx.save();
+        ctx.globalAlpha = ball.wide ? 0.5 : 0.38;
         ctx.strokeStyle = ball.color === RAINBOW ? '#e6baff' : palette[ball.color];
-        ctx.lineWidth = 5;
+        ctx.lineWidth = ball.wide ? 11 : 5;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(ball.x, ball.y);
         ctx.lineTo(ball.x - ball.vx * 0.021, ball.y - ball.vy * 0.021);
         ctx.stroke();
         ctx.restore();
-        drawBall(ball.x, ball.y, 6.5, ball.color);
+        drawBall(ball.x, ball.y, r, ball.color);
       }
 
       for (const p of particles) {
@@ -1068,16 +1176,40 @@
       }
     }
 
+    function updateItems(dt) {
+      itemTimer -= dt;
+      if (itemTimer <= 0) {
+        spawnItem();
+        itemTimer = 6.5 + Math.random() * 3.5;
+      }
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.life -= dt;
+        if (item.life <= 0) { items.splice(i, 1); continue; }
+        item.x += item.vx * dt;
+        if (item.x < layout.left + 24) { item.x = layout.left + 24; item.vx = Math.abs(item.vx); }
+        else if (item.x > layout.right - 24) { item.x = layout.right - 24; item.vx = -Math.abs(item.vx); }
+        item.y = item.baseY + Math.sin(effectsTime * 3.2 + item.phase) * 7;
+      }
+    }
+
     function updateBalls(dt, from) {
       for (let i = 0; i < bullets.length;) {
         const ball = bullets[i];
         const result = advance(ball, dt, from);
+        for (let k = items.length - 1; k >= 0; k--) {
+          const item = items[k];
+          if (Math.hypot(ball.x - item.x, ball.y - item.y) <= item.r + (ball.radius || 6.5)) {
+            items.splice(k, 1);
+            collectItem(item);
+          }
+        }
         if (!result) { i++; continue; }
         bullets.splice(i, 1);
         if (result.hit) {
           handleHit(ball, result.hit);
           if (phase !== 'play') break;
-        } else {
+        } else if (buffs.shotgun <= 0) {
           combo = 0;
           comboTime = 0;
           floatText('MISS', ball.x, layout.top, '#ffb0b7', 14);
@@ -1113,6 +1245,19 @@
         cooldown = Math.max(0, cooldown - elapsed);
         comboTime = Math.max(0, comboTime - elapsed);
         if (comboTime === 0) combo = 0;
+        for (const k of ['rapid', 'wide', 'shotgun']) {
+          if (buffs[k] > 0) buffs[k] = Math.max(0, buffs[k] - elapsed);
+        }
+        updateItems(dt);
+        if (pointer && !pointer.swap) {
+          pointer.holdTime += dt;
+          if (pointer.holdTime >= 0.14 && cooldown <= 0) {
+            pointer.firedOnce = true;
+            fire();
+          }
+        } else if (keyFireHeld && cooldown <= 0) {
+          fire();
+        }
         flushPaint();
         updateBalls(dt, from);
       } else {
@@ -1150,10 +1295,14 @@
       focus(canvas);
       const p = point(event);
       const n = nextPosition();
+      const isSwap = Math.hypot(p.x - layout.x, p.y - layout.y) < 20 ||
+                     Math.hypot(p.x - n.x, p.y - n.y) < 18;
+      if (!isSwap && p.y < layout.y - 18) {
+        angle = clamp(Math.atan2(p.x - layout.x, layout.y - p.y), -MAX_ANGLE, MAX_ANGLE);
+      }
       pointer = {
         id: event.pointerId, x: p.x, y: p.y, base: angle, moved: false,
-        swap: Math.hypot(p.x - layout.x, p.y - layout.y) < 20 ||
-              Math.hypot(p.x - n.x, p.y - n.y) < 18
+        swap: isSwap, holdTime: 0, firedOnce: false
       };
       try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
     }
@@ -1183,7 +1332,7 @@
       if (!gesture.moved && p.y < layout.y - 18) {
         angle = clamp(Math.atan2(p.x - layout.x, layout.y - p.y), -MAX_ANGLE, MAX_ANGLE);
       }
-      fire();
+      if (!gesture.firedOnce) fire();
     }
 
     function onCancel(event) {
@@ -1194,6 +1343,7 @@
       if (closed || (phase !== 'play' && phase !== 'clear') || paused === value) return;
       paused = value;
       cancelPointer();
+      keyFireHeld = false;
       if (paused) {
         stopLoop();
         setPanel('pause-panel', 'resume');
@@ -1235,6 +1385,7 @@
         angle = clamp(angle + direction * (event.shiftKey ? 0.012 : 0.05), -MAX_ANGLE, MAX_ANGLE);
       } else if (event.code === 'Space' || event.key === 'Enter') {
         event.preventDefault();
+        keyFireHeld = true;
         fire();
       } else if (event.key.toLowerCase() === 's') {
         event.preventDefault();
@@ -1324,7 +1475,9 @@
       paused = false;
       stopLoop();
       cancelPointer();
+      keyFireHeld = false;
       bullets = [];
+      items = [];
       commit(endingRun);
       if (closed || run !== endingRun) return;
 
@@ -1349,12 +1502,16 @@
       if (closed || (phase !== 'intro' && phase !== 'results')) return;
       sfx('init');
       cancelPointer();
+      keyFireHeld = false;
       time = GAME_TIME;
       score = combo = maxCombo = comboTime = shots = completed = 0;
       angle = effectsTime = transition = cooldown = rollsSinceRainbow = 0;
       bullets = [];
       particles = [];
       floats = [];
+      items = [];
+      itemTimer = 3.5;
+      buffs = { rapid: 0, wide: 0, shotgun: 0 };
       gallery = new Map();
       paused = false;
       statusMessage = '';
@@ -1397,6 +1554,9 @@
     listen(canvas, 'pointerup', onUp, { passive: false });
     listen(canvas, 'pointercancel', onCancel);
     listen(canvas, 'lostpointercapture', onCancel);
+    listen(window, 'keyup', e => {
+      if (e.code === 'Space' || e.key === 'Enter') keyFireHeld = false;
+    });
     listen(canvas, 'contextmenu', e => e.preventDefault());
     listen($('start'), 'click', start);
     listen($('retry'), 'click', start);
