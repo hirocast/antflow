@@ -1371,7 +1371,10 @@
       '.inbox-new{flex:0 0 auto;background:#ff4d6d;color:#fff;font:900 9px var(--rf);padding:2px 6px;border-radius:8px}' +
       '.inbox-det{border-top:1.5px dashed #ffd3e2;padding:9px 11px 11px;text-align:left;font-size:12px;line-height:1.6;background:rgba(255,255,255,.72)}' +
       '.inbox-det .rw{margin-top:7px;padding:6px 9px;background:#fff9e6;border:1.5px solid #ffd166;border-radius:10px;font:900 11.5px var(--rf);color:#c26a00}' +
-      '.inbox-btn-home{position:relative;width:100%;margin:6px 0 2px;padding:7px 12px;border:2px solid #fff;border-radius:14px;background:linear-gradient(#fff7fb,#ffe5f0);box-shadow:0 3px 0 #e6bfd0;font:900 12px var(--rf);color:#c0507a;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}';
+      '.inbox-btn-home{position:relative;width:100%;margin:6px 0 2px;padding:7px 12px;border:2px solid #fff;border-radius:14px;background:linear-gradient(#fff7fb,#ffe5f0);box-shadow:0 3px 0 #e6bfd0;font:900 12px var(--rf);color:#c0507a;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}' +
+      '.inbox-cf{position:fixed;inset:0;z-index:20;background:rgba(90,61,92,.45);display:flex;align-items:center;justify-content:center;padding:16px}' +
+      '.inbox-cf[hidden]{display:none}' +
+      '.inbox-cf-box{width:min(90vw,330px);background:#fffdf8;border:3px solid #ffd3e2;border-radius:20px;padding:16px;text-align:center;box-shadow:0 10px 24px rgba(90,61,92,.26)}';
     document.head.appendChild(style);
 
     const cov = document.createElement('div');
@@ -1429,23 +1432,33 @@
       '<h2>📬 おしらせ・受賞メール</h2>' +
       '<div class="inbox-meta" id="inboxMeta"></div>' +
       '<div class="inbox-list" id="inboxList"></div>' +
-      '<button class="big sec" id="bInboxClose" style="margin-top:0">とじる</button>' +
-      '</div>';
+      '<div class="cfrow" style="margin-top:0">' +
+        '<button class="big sec" id="bInboxClose" style="margin-top:0">とじる</button>' +
+        '<button class="big mint" id="bInboxReadAll" style="margin-top:0">✓ すべて既読</button>' +
+      '</div>' +
+      '</div>' +
+      '<div class="inbox-cf" id="inboxConfirm" hidden><div class="inbox-cf-box">' +
+        '<h3 style="margin:0 0 8px;font-size:17px;color:#e46a92">✓ すべて既読にする</h3>' +
+        '<p class="fine" id="inboxCfMsg" style="margin:0 0 12px;font-size:13px;line-height:1.5"></p>' +
+        '<div class="cfrow"><button class="big sec" id="bInboxCfNo">やめる</button><button class="big mint" id="bInboxCfYes">既読にする</button></div>' +
+      '</div></div>';
     document.body.appendChild(mov);
 
     let selInboxId = null;
     function renderInbox() {
-      const metaEl = $('#inboxMeta'), listEl = $('#inboxList');
+      const metaEl = $('#inboxMeta'), listEl = $('#inboxList'), readAllBtn = $('#bInboxReadAll');
       if (!listEl) return;
       const prevTop = listEl.scrollTop;
       const arr = loadInbox();
       listEl.innerHTML = '';
       if (!arr.length) {
         if (metaEl) metaEl.textContent = '';
+        if (readAllBtn) readAllBtn.disabled = true;
         listEl.innerHTML = '<p class="fine" style="text-align:center;margin:20px 0">まだメッセージはありません。<br>運営からのお知らせやコンテスト受賞メールがここに届きます。</p>';
         return;
       }
       const unreadCnt = arr.filter(x => !x.read).length;
+      if (readAllBtn) readAllBtn.disabled = unreadCnt === 0;
       if (metaEl) {
         metaEl.innerHTML = '<span>全 ' + arr.length + '件' + (unreadCnt ? '（未読 ' + unreadCnt + '件）' : '') + '</span><span>タップで開閉 ↕</span>';
       }
@@ -1502,6 +1515,7 @@
     function openInbox() {
       seedOfficialNews();
       selInboxId = null;
+      if ($('#inboxConfirm')) $('#inboxConfirm').hidden = true;
       renderInbox();
       showOv('inbox');
     }
@@ -1509,6 +1523,31 @@
     $('#bAwClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
     $('#bAwInbox').addEventListener('click', () => { Sound.tap(); openInbox(); });
     $('#bInboxClose').addEventListener('click', () => { Sound.tap(); showOv('title'); });
+    $('#bInboxReadAll').addEventListener('click', () => {
+      const unreadCnt = loadInbox().filter(x => !x.read).length;
+      if (!unreadCnt) return;
+      Sound.tap();
+      const msgEl = $('#inboxCfMsg');
+      if (msgEl) msgEl.textContent = '未読のメッセージ（' + unreadCnt + '件）をすべて既読にしますか？';
+      const cf = $('#inboxConfirm');
+      if (cf) cf.hidden = false;
+    });
+    $('#bInboxCfNo').addEventListener('click', () => {
+      Sound.tap();
+      const cf = $('#inboxConfirm');
+      if (cf) cf.hidden = true;
+    });
+    $('#bInboxCfYes').addEventListener('click', () => {
+      Sound.tap();
+      const arr = loadInbox();
+      arr.forEach(x => { x.read = true; });
+      saveInbox(arr);
+      updateInboxBadge();
+      const cf = $('#inboxConfirm');
+      if (cf) cf.hidden = true;
+      renderInbox();
+      toast('✓ すべて既読にしたよ！');
+    });
 
     const pov = document.createElement('div');
     pov.className = 'ov';
