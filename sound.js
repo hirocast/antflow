@@ -413,11 +413,23 @@ const Sound = {
   },
   bgmKey: 'samba',
   sceneKey: 'home',
+  feverOn: false,
   _playingKey: 'home',
-  activeKey() { return this.sceneKey || this.bgmKey; },
+  activeKey() { return this.sceneKey || (this.feverOn ? 'fever' : null) || this.bgmKey; },
   setScene(key) {
     const next = key || null;
     this.sceneKey = next;
+    const ef = this.activeKey();
+    if (this._playingKey !== ef) {
+      this._playingKey = ef;
+      this.step = 0;
+      this.lyricQ = [];
+    }
+  },
+  setFever(on) {
+    const next = !!on;
+    if (this.feverOn === next) return;
+    this.feverOn = next;
     const ef = this.activeKey();
     if (this._playingKey !== ef) {
       this._playingKey = ef;
@@ -462,7 +474,7 @@ const Sound = {
     else if (theme === 'おまつり') k = 'matsuri';
     else if (theme === 'はな' || theme === 'しぜん') k = 'breeze';
     this.bgmKey = k;
-    if (!this.sceneKey && this._playingKey !== k) {
+    if (!this.sceneKey && !this.feverOn && this._playingKey !== k) {
       this._playingKey = k;
       this.step = 0;
       this.lyricQ = [];
@@ -472,6 +484,7 @@ const Sound = {
     home: 'ようこそアントフロー',
     result: 'クリア・セレブレーション',
     queen: '女王さまのロイヤルワルツ',
+    fever: 'フィーバー・カーニバル',
     samba: 'ありんこサンバ',
     tulip: 'チューリップ',
     katatsumuri: 'かたつむり',
@@ -509,7 +522,7 @@ const Sound = {
   useCustomBgm: false,
   stageBgm: null,
   activeCustomBgm() {
-    if (this.sceneKey) return null;
+    if (this.sceneKey || this.feverOn) return null;
     return this.stageBgm || (this.useCustomBgm && this.customBgm ? this.customBgm : null);
   },
   playCustomNote(inst, semi, w, dur) {
@@ -697,7 +710,7 @@ const Sound = {
     const c = this.ctx;
     if (!c || !ch || !ch.length) return;
     const t = c.currentTime + w, f = c.createBiquadFilter(), g = c.createGain();
-    const isStrings = style === 'royal' || style === 'waltz' || style === 'result';
+    const isStrings = style === 'royal' || style === 'waltz' || style === 'result' || style === 'fever';
     f.type = 'lowpass'; f.Q.value = 0.55;
     const fPeak = isStrings ? 1850 : style === 'celesta' ? 1450 : 1600;
     f.frequency.setValueAtTime(fPeak * 0.65, t);
@@ -856,7 +869,7 @@ const Sound = {
     }
     const o1 = c.createOscillator(), o2 = c.createOscillator(), o3 = c.createOscillator(), m2 = c.createGain(), m3 = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(), fl = c.createBiquadFilter(), g = c.createGain();
     const isRoyal = style === 'royal';
-    const isBrass = style === 'result' || style === 'march';
+    const isBrass = style === 'result' || style === 'march' || style === 'fever';
     const isWa = style === 'sakura' || style === 'matsuri';
     o1.type = isRoyal ? 'sawtooth' : 'triangle';
     o2.type = isBrass ? 'sawtooth' : isWa ? 'sine' : 'square';
@@ -956,6 +969,16 @@ const Sound = {
       '♪ キラキラ〜',
       '♪ すてきな ワルツ',
       '♪ おどろ〜'
+    ],
+    fever: [
+      '♪ フィーバー タイムが きた',
+      '♪ どんどん はこぼう〜',
+      '♪ キラキラ キャンディだ',
+      '♪ エサも にばいだ',
+      '♪ スピード アップで',
+      '♪ みんなで もりあがろ',
+      '♪ おまつり さわぎ〜',
+      '♪ さいこう フィーバー！'
     ],
     tulip: [
       '♪ さいた〜 さいた〜',
@@ -1213,6 +1236,20 @@ const Sound = {
         { r: 0, ch: [-5, 0, 4, 7], r2: 9, ch2: [-3, 0, 4, 9], m: [[0, 26, 4], [4, 24, 4], [8, 21, 4]] },
         { r: 2, ch: [-3, 0, 2, 6], m: [[0, 23, 4], [4, 21, 2], [6, 19, 2], [8, 18, 2], [10, 21, 2]] },
         { r: 7, ch: [-5, -1, 2, 7], m: [[0, 19, 4], [4, 14, 4], [8, 19, 4]] }
+      ]
+    },
+    fever: {
+      bpm: 132,
+      style: 'fever',
+      bars: [
+        { r: 5, ch: [-3, 0, 4, 7], m: [[0, 21, 2], [2, 24, 2], [4, 28, 3], [7, 26, 1], [8, 24, 2], [10, 21, 2], [12, 24, 4]] },
+        { r: 7, ch: [-5, -1, 2, 5], m: [[0, 23, 2], [2, 26, 2], [4, 29, 3], [7, 26, 1], [8, 24, 2], [10, 23, 2], [12, 24, 4]] },
+        { r: 4, ch: [-5, -1, 2, 7], r2: 9, ch2: [-3, 0, 4, 7], m: [[0, 28, 2], [2, 26, 2], [4, 24, 2], [6, 23, 2], [8, 21, 3], [11, 24, 1], [12, 28, 4]] },
+        { r: 2, ch: [-7, -3, 0, 5], r2: 7, ch2: [-5, -1, 2, 5], m: [[0, 26, 2], [2, 24, 2], [4, 21, 2], [6, 19, 2], [8, 23, 4], [12, 26, 4]] },
+        { r: 5, ch: [-3, 0, 4, 7], m: [[0, 24, 2], [2, 26, 2], [4, 28, 2], [6, 29, 2], [8, 31, 4], [12, 28, 4]] },
+        { r: 7, ch: [-5, -1, 2, 5], r2: 4, ch2: [-5, -1, 2, 8], m: [[0, 29, 2], [2, 28, 2], [4, 26, 2], [6, 24, 2], [8, 23, 3], [11, 24, 1], [12, 28, 4]] },
+        { r: 9, ch: [-3, 0, 4, 7], r2: 2, ch2: [-6, -3, 0, 6], m: [[0, 24, 2], [2, 21, 2], [4, 24, 2], [6, 28, 2], [8, 26, 4], [12, 24, 4]] },
+        { r: 2, ch: [-7, -3, 0, 5], r2: 7, ch2: [-5, -1, 2, 5], m: [[0, 21, 2], [2, 23, 2], [4, 24, 2], [6, 26, 2], [8, 28, 4], [12, 31, 4]] }
       ]
     },
     tulip: {
@@ -1738,7 +1775,7 @@ const Sound = {
     if (style === 'royal') this.harpsi(f, w, s16 * 1.9, 0.022, this.musR);
     else if (style === 'sakura') this.koto(f, w, s16 * 2.2, 0.024, this.musR);
     else if (style === 'celesta' || style === 'waltz') this.celesta(f, w, s16 * 2.1, 0.024, this.musR);
-    else if (style === 'result' || style === 'home' || style === 'march') this.celesta(f, w, s16 * 1.8, 0.022, this.musR);
+    else if (style === 'result' || style === 'home' || style === 'march' || style === 'fever') this.celesta(f, w, s16 * 1.8, 0.022, this.musR);
     else if (sec >= 1) this.mallet(f, w, 0.02, this.musR);
   },
   // 伴奏専用アレンジ（周回 sec=0..3 で多層オーケストレーションを展開し、メインメロディは原曲通り固定）
@@ -1748,10 +1785,36 @@ const Sound = {
     // 1. 持続ストリングス／アンサンブル和音パッド（小節前半・後半の頭で空間を豊かに満たす）
     if (st === 0 || (st === halfSt && C.r2 != null)) {
       const padSteps = C.r2 != null ? halfSt : (bSteps || 16);
-      const padVol = (style === 'royal' || style === 'waltz' || style === 'result' || style === 'home') ? 0.016 : 0.012;
+      const padVol = (style === 'royal' || style === 'waltz' || style === 'result' || style === 'home' || style === 'fever') ? 0.016 : 0.012;
       this.padChord(ch, w, padSteps * s16 * 0.96, padVol * (1 + sec * 0.1), style);
     }
     // 2. スタイル別の多層リズム・コード・対旋律アレンジ
+    if (style === 'fever') {
+      // フィーバータイム：4つ打ちカーニバル・ディスコ（オクターブベース＋ブラススタブ＋キラキラチェレスタ＋手拍子＆アゴゴ）
+      if (st === 0 || st === 4 || st === 8 || st === 12) {
+        this.pluckBass(this.hz(r), w, 1.8 * s16, 0.95);
+        this.surdo(w, 0.68, false);
+      } else if (st === 2 || st === 6 || st === 10 || st === 14) {
+        this.pluckBass(this.hz(oct), w, 1.5 * s16, 0.78);
+      }
+      if (st === 4 || st === 12) { this.brushSnare(w, 0.82); this.clap(w); }
+      if (st === 0 || st === 3 || st === 6 || st === 8 || st === 11 || st === 14) {
+        ch.forEach((n, i) => this.epiano(this.hz(n), w + i * 0.004, s16 * 1.3, 0.022, (st & 1) ? this.musR : this.musL));
+      }
+      if (st === 0 || st === 6 || st === 10) {
+        this.warmBrass(ch, w, s16 * 1.6, st === 0 ? 0.023 : 0.017, (st & 2) ? this.musR : this.musL);
+      }
+      if (st % 2 === 0) {
+        const n = ch[((st >> 1) + bar) % ch.length] + ((st & 2) ? 24 : 12);
+        this.celesta(this.hz(n), w, s16 * 1.5, 0.02, (st & 2) ? this.musR : this.musL);
+      }
+      if (this.TAMB[st]) this.tamb(w, (st & 3) ? 0.65 : 0.45);
+      if (this.AGO[st]) this.agogo(w, this.AGO[st] === 2);
+      this.shaker(w, [0.55, 0.3, 0.45, 0.75][st & 3]);
+      if (st === 0 && (bar & 1) === 0) this.triChime(w, 0.95);
+      if (bar === len - 1 && st >= 12) { this.brushSnare(w, 0.55 + (st - 12) * 0.14); this.stab(ch, w); }
+      return;
+    }
     if (style === 'home') {
       // ホーム画面：陽気で温かいガーデン・オーケストラ（ウォーキングベース＋エレピ＋チェレスタ＋軽快ブラシ）
       if (st === 0 || st === 8) this.pluckBass(this.hz(r), w, 3.5 * s16, 0.9);
@@ -2055,10 +2118,10 @@ const Sound = {
         } else {
           this.lead(f, w, dur, 0.072, style);
           // 3度〜6度下のハモリパート＆キラキラ倍音レイヤーでメロディを重厚に彩る
-          if (inIntro || sec >= 1 || style === 'home' || style === 'result' || style === 'royal') {
+          if (inIntro || sec >= 1 || style === 'home' || style === 'result' || style === 'royal' || style === 'fever') {
             this.harmonyLead(m[1], C, w, dur, 0.026, style);
           }
-          if (style === 'result' || style === 'home' || sec === 3) {
+          if (style === 'result' || style === 'home' || style === 'fever' || sec === 3) {
             this.celesta(f * (m[1] < 24 ? 2 : 1), w, Math.min(0.32, dur), 0.018, this.musR);
           }
           if (lyr) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: true });

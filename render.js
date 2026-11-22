@@ -611,14 +611,20 @@ function startFever() {
   G.fever.g = 0; G.fever.t = G.perk.feverT;
   if (R) R.fevers++;
   document.body.classList.add('fever');
-  Sound.BPM = 124; Sound.fever(); haptic(25);
+  if (typeof Sound.setFever === 'function') Sound.setFever(true);
+  if (!G.overlay && save.settings.bgm !== false) G.bgmBanner = { title: Sound.bgmTitle(), t0: null };
+  Sound.fever(); haptic(25);
   popup('FEVER!!', bcx(), oy + G.s.H * cs * 0.4, '#ff5a9a', true);
   const r = canvas.getBoundingClientRect();
   Fx.burst(r.left + bcx(), r.top + oy + G.s.H * cs / 2, 40, 360, ['star', 'dot']);
   const a = G.ants[G.ants.length - 1];
   if (a) maybeSay(a, 'fever', 1, true);
 }
-function endFever() { G.fever.t = 0; document.body.classList.remove('fever'); Sound.BPM = 108; }
+function endFever() {
+  G.fever.t = 0;
+  document.body.classList.remove('fever');
+  if (typeof Sound.setFever === 'function') Sound.setFever(false);
+}
 function pickCube(a) {
   if (G.vgrid[a.cell] >= 0) { G.vgrid[a.cell] = -1; G.vver++; G.vleft--; eraseCell(a.cell); G.boardSoft = true; }
   a.vb.picked++;
