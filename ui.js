@@ -294,6 +294,11 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .sk-detail b{color:var(--pinkd);font-size:12px}
 .sk-detail .sk-tag{display:inline-block;background:#fff1d6;color:#9a5b13;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:900;margin-left:4px}
 #skCv{display:block;width:104px;height:104px;margin:0 auto}
+.sk-wallet{display:flex;justify-content:center;gap:8px;margin:4px 0 6px;flex-wrap:wrap}
+.sk-pill{display:inline-flex;align-items:center;gap:4px;background:#fff;border:2px solid #ffd3e2;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:900;color:var(--ink);box-shadow:0 2px 0 #f0d7e3}
+.sk-pill.coin{background:#fffbe6;border-color:#ffe082;color:#7a4b00;box-shadow:0 2px 0 #eed68a}
+.sk-pill b{color:var(--pinkd);font-size:13px}
+.sk-pill.coin b{color:#b45309}
 #bSkill{position:relative;flex:1.15;max-width:120px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 4px 2px;border:2.5px solid #fff;border-radius:20px;background:#fffdf8;color:var(--ink);font:900 10.5px var(--rf);box-shadow:0 4px 0 #e6cbd8;cursor:pointer;overflow:hidden;transition:transform .15s,box-shadow .15s}
 #bSkill:active{transform:translateY(3px);box-shadow:none!important}
 #bSkill .sk-fill{position:absolute;left:0;bottom:0;top:0;width:0%;background:linear-gradient(90deg,rgba(255,143,179,.28),rgba(255,207,74,.38));transition:width .2s;pointer-events:none}
@@ -591,7 +596,7 @@ function handleTalkLikeClick(e) {
       '<div class="bg-det" id="bgDet"></div><button class="big mint" id="bBingoClaim" style="display:none"></button>' +
       '<button class="big sec" id="bBingoClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-skins"><div class="card">' +
-      '<h2>🎀 きせかえ</h2><canvas id="skCv"></canvas><div class="sk-detail" id="skDetail"></div><p class="fine" id="skSum"></p><div class="skgrid" id="skGrid"></div>' +
+      '<h2>🎀 きせかえ</h2><div class="sk-wallet" id="skWallet"></div><canvas id="skCv"></canvas><div class="sk-detail" id="skDetail"></div><p class="fine" id="skSum"></p><div class="skgrid" id="skGrid"></div>' +
       '<div class="gacha-row"><button class="big" id="bGacha"></button><button class="big gold" id="bGacha10"></button></div><button class="big sec" id="bSkClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-gacha"><div class="card">' +
       '<h2 id="gachaTitle">🎁 おたからばこ</h2>' +
@@ -1921,7 +1926,13 @@ function renderSkins() {
       '<div style="opacity:.75">・パッシブ：' + curS.d + (curLv > 1 && curKey !== 'none' ? '（SLv.' + curLv + '強化中！）' : '') + '</div>';
   }
   const maxCnt = SKINS.filter(s => s.k !== 'none' && skinLv(s.k) >= SKIN_MAX_LV).length;
-  $('#skSum').textContent = '所持 ' + save.skins.length + '/' + SKINS.length + '（MAX ' + maxCnt + '）　🎟️×' + save.tickets + '　🪙' + save.coins;
+  const walletEl = $('#skWallet');
+  if (walletEl) {
+    walletEl.innerHTML =
+      '<span class="sk-pill">🎟️ チケット <b>' + save.tickets.toLocaleString() + '</b> まい</span>' +
+      '<span class="sk-pill coin">🪙 コイン <b>' + save.coins.toLocaleString() + '</b></span>';
+  }
+  $('#skSum').textContent = '所持 ' + save.skins.length + '/' + SKINS.length + '（MAX ' + maxCnt + '）';
   const g1 = gachaCost(1), g10 = gachaCost(10);
   $('#bGacha').innerHTML = '🎁 1回あける<small>' + g1.short + '</small>';
   $('#bGacha10').innerHTML = '✨ 10連あける<small>' + g10.short + '</small>';
@@ -1986,7 +1997,7 @@ function showGachaResult(results, count) {
   const dupOnly = results.length - newCnt - upCnt - (refCoins ? results.filter(x => x.kind === 'refund').length : 0);
   if (dupOnly > 0) sumParts.push('🎀 きせかえ ×' + dupOnly);
   if (refCoins > 0) sumParts.push('🪙 おかえし +' + refCoins.toLocaleString());
-  sumEl.textContent = (sumParts.join(' ／ ') || 'きせかえをゲット！') + '　（所持🪙' + save.coins.toLocaleString() + '）';
+  sumEl.textContent = (sumParts.join(' ／ ') || 'きせかえをゲット！') + '　（所持 🎟️' + save.tickets.toLocaleString() + ' / 🪙' + save.coins.toLocaleString() + '）';
   const g1 = gachaCost(1), g10 = gachaCost(10);
   $('#bGachaAgain1').innerHTML = '🎁 もう1回<small>' + g1.short + '</small>';
   $('#bGachaAgain10').innerHTML = '✨ もう10連<small>' + g10.short + '</small>';
