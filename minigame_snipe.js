@@ -246,6 +246,19 @@
       border:1px solid #4d638d;border-radius:17px;padding:17px;box-shadow:0 12px 34px #0008
     }
     .afisn-title{margin:0 0 8px;font-size:22px;text-align:center;color:#b4ffe7}
+    .afisn-org{
+      display:inline-block;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;
+      background:#223a63;border:1px solid #ffd23f;color:#ffe68a;font-size:10px;font-weight:800
+    }
+    .afisn-story{
+      margin:0 0 10px;padding:9px 11px;border-radius:12px;
+      background:#111c33;border:1px solid #3c5480;color:#e5eeff;font-size:12px;line-height:1.55
+    }
+    .afisn-story b{color:#ffd23f}
+    .afisn-coach-rank{
+      margin:8px 0 10px;padding:8px 10px;border-radius:10px;text-align:center;
+      background:#111c33;border:1px solid #73e8c4;color:#b4ffe7;font-size:13px;font-weight:800
+    }
     .afisn-rules{padding-left:20px;margin:10px 0 15px;font-size:13px}
     .afisn-rules li{margin:5px 0}
     .afisn-text{margin:8px 0;color:#d2def5;text-align:center}
@@ -290,7 +303,7 @@
           aria-label="ゲーム盤。左右キーで照準、スペースで発射、Sキーで色交換。"></canvas>
         <div class="afisn-hud">
           <div class="afisn-line">
-            <div class="afisn-heading">ピクセルスナイプ<div class="afisn-best"></div></div>
+            <div class="afisn-heading">ピクセルスナイプ<span class="afisn-org">🛡️ 色彩防衛隊</span><div class="afisn-best"></div></div>
             <button type="button" class="afisn-pause" aria-label="一時停止">Ⅱ</button>
             <button type="button" class="afisn-exit" aria-label="終了して結果を見る">×</button>
           </div>
@@ -314,7 +327,12 @@
       <div class="afisn-sr" role="status" aria-live="polite"></div>
       <section class="afisn-layer afisn-intro">
         <div class="afisn-card">
-          <h2 class="afisn-title">同じ色の塊をねらおう！</h2>
+          <h2 class="afisn-title">🐜 あり王国 色彩防衛隊</h2>
+          <p class="afisn-story">
+            あり王国の大切な「思い出アート」から色がぬけ落ちてしまった！<br>
+            女王アリさまの命を受けた精鋭部隊<b>〈アント・スナイパーズ〉</b>に出動命令！<br>
+            <b>あり教官</b>のナビゲートのもと、色弾を撃ち込んで王国の色彩を取り戻そう！
+          </p>
           <ul class="afisn-rules">
             <li>60秒で何枚完成できるか挑戦。長押しで連射でき、左右にドラッグしながら狙いを動かせます。タップだけでも発射！</li>
             <li>同じ色なら上下左右につながる塊を一気にペイント。違う色でも、命中点と隣の数マスが塗れます。</li>
@@ -323,7 +341,7 @@
           </ul>
           <p class="afisn-text afisn-notice" hidden></p>
           <div class="afisn-actions">
-            <button type="button" class="afisn-primary afisn-start">スタート</button>
+            <button type="button" class="afisn-primary afisn-start">出動する！</button>
             <button type="button" class="afisn-close">閉じる</button>
           </div>
         </div>
@@ -344,6 +362,7 @@
           <div class="afisn-result-score"></div>
           <p class="afisn-text afisn-reward"></p>
           <p class="afisn-text afisn-summary"></p>
+          <div class="afisn-coach-rank"></div>
           <p class="afisn-text afisn-save-status" role="status" hidden></p>
           <h3>完成ギャラリー</h3>
           <div class="afisn-gallery"></div>
@@ -383,8 +402,26 @@
     let current = null, next = null, rollsSinceRainbow = 0;
     let bullets = [], particles = [], floats = [], items = [];
     let itemTimer = 3.5, buffs = { rapid: 0, wide: 0, shotgun: 0 }, keyFireHeld = false;
+    let coach = { text: '準備はいいか！', mood: 'normal', timer: 3, priority: 0, idleTimer: 5, lowWarned: false, fewWarned: false };
     let gallery = new Map();
     let run = null, statusMessage = '', lastAmmoLabel = '', lastBuffHtml = '';
+
+    const COACH_TIPS = [
+      '同色の塊を狙うと高得点だ！',
+      '長押し＋ドラッグで掃射できるぞ！',
+      '女王アリさまも見守っているぞ！',
+      '壁の反射も使って狙い撃て！',
+      '〈アント・スナイパーズ〉出動中！'
+    ];
+
+    function setCoach(text, mood = 'normal', dur = 2.6, priority = 1) {
+      if (coach.timer > 0 && coach.priority > priority) return;
+      coach.text = text;
+      coach.mood = mood;
+      coach.timer = dur;
+      coach.priority = priority;
+      coach.idleTimer = 5.5;
+    }
 
     activeClose = close;
     document.head.appendChild(style);
@@ -537,6 +574,8 @@
       motion = Math.random() * Math.PI * 2;
       current = rollColor(null, false);
       next = rollColor(current, true);
+      coach.fewWarned = false;
+      setCoach(art.number === 1 ? `任務開始！${art.name}を塗れ！` : `次の任務だ！${art.name}！`, 'nav', 2.8, 2);
       updateHud();
     }
 
@@ -861,6 +900,7 @@
         vx: (Math.random() < 0.5 ? -1 : 1) * (26 + Math.random() * 22),
         r: 18, life: 9.5, phase: Math.random() * Math.PI * 2
       });
+      setCoach(`${def.icon}${def.label}アイテム出現！撃て！`, 'alert', 2.4, 2);
     }
 
     function collectItem(item) {
@@ -870,6 +910,9 @@
       burst(item.x, item.y, d.color, 18, 175);
       sfx('albumIn');
       announce(d.title);
+      const msg = d.kind === 'rapid' ? '⚡高速連射だ！逃すな！' :
+        d.kind === 'wide' ? '🟣太弾装填！まとめて塗れ！' : '💥散弾モード！広範囲を狙え！';
+      setCoach(msg, 'cheer', 2.8, 3);
       updateHud();
     }
 
@@ -894,10 +937,13 @@
           hit.x, hit.y - 10, rainbow ? '#ffe187' : '#a3ffe2',
           indices.length >= 8 ? 18 : 13, rainbow || indices.length >= 8 ? 0.78 : 0.52);
         sfx(rainbow ? 'boom' : indices.length >= 8 ? 'starPing' : 'pop');
+        if (combo === 3) setCoach('いいぞ！3コンボ突破！', 'cheer', 2.2, 2);
+        else if (combo >= 10 && combo % 5 === 0) setCoach(`神業${combo}コンボ！完璧だ！`, 'cheer', 2.5, 3);
         if (combo % 6 === 0 && next !== RAINBOW) {
           next = RAINBOW;
           rollsSinceRainbow = 0;
           floatText('次はレインボー！', layout.x, layout.y - 51, '#ffe187', 14, 0.85);
+          setCoach('🌈次はレインボー弾だぞ！', 'cheer', 2.6, 3);
         }
       } else {
         const seen = new Uint8Array(art.cells.length);
@@ -920,7 +966,13 @@
         Math.min(30, 5 + indices.length), matching ? 145 : 90);
 
       if (art.left === 0) complete();
-      else repairAmmo();
+      else {
+        repairAmmo();
+        if (!coach.fewWarned && art.left <= Math.max(6, Math.floor(art.total * 0.08))) {
+          coach.fewWarned = true;
+          setCoach(`残り${art.left}マス！点滅リングを狙え！`, 'nav', 3.2, 3);
+        }
+      }
       updateHud();
     }
 
@@ -942,6 +994,7 @@
         burst(width / 2, box.y + box.h / 2, color, 8, 230);
       }
       announce('完成。500点と8秒を追加しました。');
+      setCoach('任務完了！見事な腕前だ！', 'cheer', 2.5, 4);
       sfx('fanfare');
     }
 
@@ -1099,6 +1152,107 @@
       ctx.fillText('NEXT', p.x, p.y + 17);
     }
 
+    function drawInstructor() {
+      const ix = layout.left + 20, iy = layout.y + 2;
+      const cheer = coach.mood === 'cheer' && coach.timer > 0;
+      const bob = reducedMotion ? 0 : (cheer ? -Math.abs(Math.sin(effectsTime * 11)) * 4 : Math.sin(effectsTime * 2.8) * 1.4);
+      const y = iy + bob;
+
+      ctx.save();
+      // 足元の影
+      ctx.fillStyle = 'rgba(0,0,0,0.32)';
+      ctx.beginPath();
+      ctx.ellipse(ix, iy + 16, 13, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 体・足（デフォルメあり教官）
+      ctx.strokeStyle = '#3b211f';
+      ctx.lineWidth = 1.8;
+      for (const sx of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(ix + sx * 4, y + 7);
+        ctx.lineTo(ix + sx * 9, y + 14);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#5a3430';
+      ctx.beginPath();
+      ctx.ellipse(ix, y + 6, 7.5, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // 頭
+      ctx.fillStyle = '#6c3f39';
+      ctx.beginPath();
+      ctx.arc(ix, y - 3, 9.5, 0, Math.PI * 2);
+      ctx.fill();
+      // 触角
+      ctx.strokeStyle = '#4a2a27';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(ix - 3, y - 11); ctx.lineTo(ix - 7, y - 17);
+      ctx.moveTo(ix + 3, y - 11); ctx.lineTo(ix + 7, y - 17);
+      ctx.stroke();
+      // 防衛隊ベレー帽＋王冠エンブレム
+      ctx.fillStyle = '#254373';
+      ctx.beginPath();
+      ctx.ellipse(ix + 1, y - 11, 10.5, 5, -0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffd23f';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.fillStyle = '#ffd23f';
+      ctx.beginPath();
+      ctx.arc(ix + 3, y - 11, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      // 目＆タクティカルバイザー
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(ix - 3.2, y - 3.5, 2.4, 0, Math.PI * 2);
+      ctx.arc(ix + 3.8, y - 3.5, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#182438';
+      ctx.beginPath();
+      ctx.arc(ix - 2.6, y - 3.5, 1.2, 0, Math.PI * 2);
+      ctx.arc(ix + 4.4, y - 3.5, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(115, 232, 196, 0.42)';
+      ctx.fillRect(ix + 0.5, y - 6.2, 7.5, 4.8);
+      // 教官ヒゲ
+      ctx.fillStyle = '#f2e4cf';
+      ctx.beginPath();
+      ctx.ellipse(ix - 2.5, y + 1.2, 3.2, 1.4, 0.25, 0, Math.PI * 2);
+      ctx.ellipse(ix + 3.2, y + 1.2, 3.2, 1.4, -0.25, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 吹き出し（砲台の左側の空きスペースに収める）
+      const bx = ix + 15;
+      const maxW = Math.max(76, layout.x - 34 - bx);
+      if (maxW >= 68 && coach.text) {
+        const bh = 24, by = iy - 2;
+        ctx.font = '800 10px system-ui,sans-serif';
+        const tw = ctx.measureText(coach.text).width;
+        const bw = Math.min(maxW, Math.max(52, tw + 14));
+        ctx.fillStyle = 'rgba(255, 253, 245, 0.94)';
+        ctx.strokeStyle = coach.mood === 'cheer' ? '#ffd23f' :
+          coach.mood === 'alert' ? '#ff9da9' : '#73e8c4';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.roundRect(bx, by - bh / 2, bw, bh, 9);
+        ctx.fill();
+        ctx.stroke();
+        // しっぽ
+        ctx.beginPath();
+        ctx.moveTo(bx + 1, by - 3.5);
+        ctx.lineTo(bx - 5, by);
+        ctx.lineTo(bx + 1, by + 3.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#1b2b48';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(coach.text, bx + 7, by + 0.5, bw - 13);
+      }
+      ctx.restore();
+    }
+
     function drawLabel(text, x, y, color, size) {
       ctx.font = '900 ' + size + 'px system-ui,sans-serif';
       ctx.textAlign = 'center';
@@ -1133,7 +1287,10 @@
       const box = artPosition(motion);
       drawArt(box);
       if (phase === 'play' && !paused && current !== null) drawAim();
-      if (phase === 'play' || phase === 'clear') drawLauncher();
+      if (phase === 'play' || phase === 'clear') {
+        drawLauncher();
+        drawInstructor();
+      }
 
       for (const item of items) {
         const pulse = reducedMotion ? 1 : 1 + 0.08 * Math.sin(effectsTime * 6 + item.phase);
@@ -1280,6 +1437,17 @@
         if (comboTime === 0) combo = 0;
         for (const k of ['rapid', 'wide', 'shotgun']) {
           if (buffs[k] > 0) buffs[k] = Math.max(0, buffs[k] - elapsed);
+        }
+        if (coach.timer > 0) {
+          coach.timer = Math.max(0, coach.timer - elapsed);
+          if (coach.timer === 0) coach.priority = 0;
+        }
+        coach.idleTimer -= elapsed;
+        if (!coach.lowWarned && time <= 10) {
+          coach.lowWarned = true;
+          setCoach('残り10秒！最後まで撃ち抜け！', 'alert', 3, 3);
+        } else if (coach.idleTimer <= 0 && coach.timer <= 0) {
+          setCoach(COACH_TIPS[Math.floor(Math.random() * COACH_TIPS.length)], 'normal', 2.8, 0);
         }
         updateItems(dt);
         if (pointer && !pointer.swap) {
@@ -1522,6 +1690,11 @@
       $('summary').textContent =
         '完成 ' + completed + '枚 ／ 最大 ' + maxCombo + 'コンボ ／ 発射 ' + shots + '回' +
         (record ? ' ／ 新記録！' : ' ／ ベスト ' + format(best) + '点');
+      const rank = completed >= 5 || score >= 15000 ? '🎖️ 教官「伝説のエース隊員だ！王国も安泰だな！」' :
+        completed >= 3 || score >= 7000 ? '🎖️ 教官「見事な射撃だったぞ！色彩防衛隊の誇りだ！」' :
+        completed >= 1 ? '🎖️ 教官「よくやった！王国の宝がまたひとつ戻ったぞ！」' :
+        '🎖️ 教官「まずは1枚完成を目指そう！長押し連射がコツだぞ！」';
+      $('coach-rank').textContent = rank;
       showSaveStatus(statusMessage, endingRun);
       renderGallery();
       updateHud();
@@ -1545,6 +1718,7 @@
       items = [];
       itemTimer = 3.5;
       buffs = { rapid: 0, wide: 0, shotgun: 0 };
+      coach = { text: '出動だ！', mood: 'normal', timer: 2.2, priority: 1, idleTimer: 5, lowWarned: false, fewWarned: false };
       gallery = new Map();
       paused = false;
       statusMessage = '';
