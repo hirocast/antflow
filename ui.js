@@ -1949,7 +1949,7 @@ function showGachaResult(results, count) {
   if (results.length === 1) {
     const r = results[0];
     if (r.kind === 'refund') {
-      stage.innerHTML = '<div class="gacha-hero"><span class="gh-ico">🪙</span><div class="gh-name">ぜんぶスキルMAX！</div><div class="gh-sk">🪙 ' + r.coins + ' コイン おかえし</div></div>';
+      stage.innerHTML = '<div class="gacha-hero"><span class="gh-ico">🪙</span><div class="gh-name">ぜんぶスキルMAX！</div><div class="gh-sk">🪙 ' + r.coins.toLocaleString() + ' コイン おかえし</div></div>';
     } else {
       const sk = getSkinSkill(r.s.k, r.newLv);
       const badge = r.kind === 'new'
@@ -1968,7 +1968,7 @@ function showGachaResult(results, count) {
   } else {
     stage.innerHTML = '<div class="gacha-grid">' + results.map((r, i) => {
       if (r.kind === 'refund') {
-        return '<div class="gacha-item" style="--i:' + i + '"><span class="gi-e">🪙</span><div class="gi-b"><div class="gi-n">MAXおかえし</div><div class="gi-s"><span class="gacha-badge ref">+' + r.coins + '🪙</span></div></div></div>';
+        return '<div class="gacha-item" style="--i:' + i + '"><span class="gi-e">🪙</span><div class="gi-b"><div class="gi-n">MAXおかえし</div><div class="gi-s"><span class="gacha-badge ref">+' + r.coins.toLocaleString() + '🪙</span></div></div></div>';
       }
       const badge = r.kind === 'new'
         ? '<span class="gacha-badge new">NEW!</span>SLv.1'
@@ -1983,7 +1983,7 @@ function showGachaResult(results, count) {
   if (upCnt) sumParts.push('🔥 SLv.UP ×' + upCnt);
   const dupOnly = results.length - newCnt - upCnt - (refCoins ? results.filter(x => x.kind === 'refund').length : 0);
   if (dupOnly > 0) sumParts.push('🎀 きせかえ ×' + dupOnly);
-  if (refCoins > 0) sumParts.push('🪙 おかえし +' + refCoins);
+  if (refCoins > 0) sumParts.push('🪙 おかえし +' + refCoins.toLocaleString());
   sumEl.textContent = (sumParts.join(' ／ ') || 'きせかえをゲット！') + '　（所持🪙' + save.coins.toLocaleString() + '）';
   const g1 = gachaCost(1), g10 = gachaCost(10);
   $('#bGachaAgain1').innerHTML = '🎁 もう1回<small>' + g1.short + '</small>';
@@ -1997,7 +1997,7 @@ function doGacha(count) {
   if (!info.ok) { toast('🪙 コインが足りないよ（' + info.c.toLocaleString() + 'こ必要）'); Sound.deny(); return; }
   confirmSpend({
     title: n === 10 ? '✨ 10連おたからばこ' : '🎁 おたからばこ',
-    desc: '「きせかえ」がランダムで' + n + 'つ手に入ります。同じきせかえを集めるとスキルレベル（SLv.1〜5）が上がり、スキルの効果がパワーアップ！（すべてSLv.MAX時は🪙150かえってきます）',
+    desc: '「きせかえ」がランダムで' + n + 'つ手に入ります。同じきせかえを集めるとスキルレベル（SLv.1〜5）が上がり、スキルの効果がパワーアップ！（すべてSLv.MAX時は🪙' + PRICE.box.toLocaleString() + 'かえってきます）',
     cost: info.detail,
     okLabel: n === 10 ? '10連を開ける！' : '開ける！'
   }, () => {
@@ -2010,8 +2010,8 @@ function doGacha(count) {
     for (let i = 0; i < n; i++) {
       const pool = SKINS.filter(s => s.k !== 'none' && skinLv(s.k) < SKIN_MAX_LV);
       if (!pool.length) {
-        save.coins += 150;
-        results.push({ kind: 'refund', coins: 150 });
+        save.coins += PRICE.box;
+        results.push({ kind: 'refund', coins: PRICE.box });
         continue;
       }
       const s = pick(pool);
