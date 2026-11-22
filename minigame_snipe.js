@@ -522,9 +522,13 @@
         const color = art.cells[i];
         if (color < 0) continue;
         const x = (i % art.w) * 12, y = Math.floor(i / art.w) * 12;
-        g.globalAlpha = 0.24;
-        g.fillStyle = '#b6c8ee';
+        g.globalAlpha = 0.62;
+        g.fillStyle = '#dbe7ff';
         g.fillRect(x + 1, y + 1, 10, 10);
+        g.globalAlpha = 0.85;
+        g.strokeStyle = '#ffffff';
+        g.lineWidth = 1;
+        g.strokeRect(x + 1.5, y + 1.5, 9, 9);
         g.globalAlpha = 1;
         g.fillStyle = palette[color];
         g.fillRect(x + 3, y + 3, 6, 6);
@@ -985,15 +989,30 @@
       ctx.drawImage(art.solid, box.x, box.y, box.w, box.h);
 
       if (phase !== 'play' || current === null || box.cell < 4) return;
+      const fewLeft = art.left <= Math.max(8, Math.floor(art.total * 0.1));
+      const pulse = reducedMotion ? 0.75 : 0.55 + 0.42 * Math.sin(effectsTime * 7);
       ctx.save();
-      ctx.strokeStyle = current === RAINBOW ? '#ffdf85' : '#ffffff';
-      ctx.globalAlpha = reducedMotion ? 0.56 : 0.43 + 0.24 * Math.sin(effectsTime * 6);
-      ctx.lineWidth = 1;
       for (let i = 0; i < art.cells.length; i++) {
-        if (art.painted[i] || art.cells[i] < 0 ||
-            (current !== RAINBOW && art.cells[i] !== current)) continue;
-        ctx.strokeRect(box.x + (i % art.w) * box.cell + 0.5,
-          box.y + Math.floor(i / art.w) * box.cell + 0.5, box.cell - 1, box.cell - 1);
+        if (art.painted[i] || art.cells[i] < 0) continue;
+        const isMatch = current === RAINBOW || art.cells[i] === current;
+        if (!isMatch && !fewLeft) continue;
+        const cx = box.x + (i % art.w) * box.cell;
+        const cy = box.y + Math.floor(i / art.w) * box.cell;
+        if (isMatch) {
+          ctx.strokeStyle = current === RAINBOW ? '#ffdf85' : '#ffffff';
+          ctx.globalAlpha = pulse;
+          ctx.lineWidth = Math.max(1.5, box.cell * 0.13);
+          ctx.strokeRect(cx + 0.5, cy + 0.5, box.cell - 1, box.cell - 1);
+        }
+        if (fewLeft) {
+          const r = box.cell * (0.62 + (reducedMotion ? 0 : 0.18 * Math.sin(effectsTime * 8)));
+          ctx.strokeStyle = isMatch ? '#ffe187' : '#93f5df';
+          ctx.globalAlpha = pulse * 0.85;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(cx + box.cell / 2, cy + box.cell / 2, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       }
       ctx.restore();
     }
