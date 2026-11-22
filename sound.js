@@ -353,6 +353,85 @@ const Sound = {
       if (i >= 3) this.bell(f, i * 0.055, 0.05, 0.45);
     });
   },
+  bounceLaunch() {
+    if (!this.ok()) return;
+    this.tone(330 * this.vary(), 0.13, { vol: 0.14, glide: 1.85, attack: 0.004 });
+    this.noise(0, 0.035, 0.035, 1800, 'bandpass', 1.1);
+  },
+  bounceWall() {
+    if (!this.ok()) return;
+    const now = this.ctx.currentTime;
+    if (this.lastBounceWall && now - this.lastBounceWall < 0.04) return;
+    this.lastBounceWall = now;
+    this.tone(240 * this.vary(), 0.045, { vol: 0.055, glide: 0.72, type: 'triangle', attack: 0.002 });
+  },
+  bouncePaddle(spin) {
+    if (!this.ok()) return;
+    const now = this.ctx.currentTime;
+    if (this.lastBouncePad && now - this.lastBouncePad < 0.055) return;
+    this.lastBouncePad = now;
+    const f = 310 * (1 + Math.min(0.25, Math.abs(spin || 0) * 0.2)) * this.vary();
+    this.tone(f, 0.09, { vol: 0.14, glide: 1.38, attack: 0.003 });
+    this.tone(f * 2, 0.04, { vol: 0.04, type: 'triangle', attack: 0.002 });
+    this.noise(0, 0.02, 0.03, 1500, 'bandpass', 1.2);
+  },
+  bounceHit(chain, combo) {
+    if (!this.ok()) return;
+    const now = this.ctx.currentTime;
+    if (this.lastBounceHit && now - this.lastBounceHit < 0.036) return;
+    this.lastBounceHit = now;
+    const c = Math.max(0, (chain | 0) - 1);
+    const scale = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
+    const step = Math.min(scale.length - 1, c > 0 ? c + 2 : Math.floor((combo | 0) / 4));
+    const f = 392 * Math.pow(2, scale[step] / 12) * this.vary();
+    this.mallet(f, 0, 0.11);
+    if (c >= 1) this.bell(f * 2, 0, Math.min(0.06, 0.024 + c * 0.006), 0.16);
+    this.noise(0, 0.024, 0.032, 2400, 'bandpass', 1.3);
+  },
+  bounceBomb() {
+    if (!this.ok()) return;
+    this.tone(92, 0.28, { glide: 0.4, vol: 0.25, attack: 0.003 });
+    this.noise(0, 0.22, 0.095, 700, 'lowpass', 0.8);
+    [523.25, 659.25, 783.99].forEach((f, i) => this.bell(f, 0.04 + i * 0.03, 0.045, 0.22));
+  },
+  bounceItem(kind) {
+    if (!this.ok()) return;
+    if (kind === 'multi') [523.25, 659.25, 783.99].forEach((f, i) => this.mallet(f, i * 0.04, 0.1));
+    else if (kind === 'wide') { this.mallet(440, 0, 0.1); this.mallet(659.25, 0.05, 0.1); }
+    else if (kind === 'bomb') { this.tone(220, 0.14, { vol: 0.14, glide: 1.8 }); this.mallet(587.33, 0.06, 0.09); }
+    else if (kind === 'shield') { this.bell(783.99, 0, 0.09, 0.28); this.bell(1046.5, 0.05, 0.07, 0.3); }
+    else [659.25, 987.77].forEach((f, i) => this.bell(f, i * 0.055, 0.08, 0.24));
+  },
+  bounceShield() {
+    if (!this.ok()) return;
+    this.bell(880, 0, 0.1, 0.26);
+    this.tone(523.25, 0.14, { vol: 0.11, glide: 1.5, attack: 0.003 });
+  },
+  bounceMiss() {
+    if (!this.ok()) return;
+    this.tone(290, 0.16, { vol: 0.09, glide: 0.52, type: 'triangle', attack: 0.004 });
+  },
+  bounceRouletteTick(idx) {
+    if (!this.ok()) return;
+    const f = 523.25 * Math.pow(2, [0, 2, 4, 7][Math.abs(idx | 0) % 4] / 12);
+    this.mallet(f, 0, 0.085);
+  },
+  bounceRouletteDone(count) {
+    if (!this.ok()) return;
+    this.whoosh();
+    for (let i = 0; i < Math.min(3, Math.max(1, count | 0)); i++) {
+      this.bell(659.25 * Math.pow(2, i * 2 / 12), 0.06 + i * 0.05, 0.06, 0.24);
+    }
+  },
+  bounceClear(noMiss) {
+    if (!this.ok()) return;
+    this.fanfare();
+    if (noMiss) [1046.5, 1318.51, 1567.98].forEach((f, i) => this.bell(f, 0.9 + i * 0.07, 0.055, 0.55));
+  },
+  bounceGameOver() {
+    if (!this.ok()) return;
+    [329.63, 293.66, 246.94, 196].forEach((f, i) => this.mallet(f, i * 0.1, 0.1));
+  },
   // アリの足音：歩いている間だけ小さなサラサラ音を鳴らし、止まったらノードをスリープさせる
   initWalk() {
     if (!this.ctx || this.walkG) return;

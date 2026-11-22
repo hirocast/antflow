@@ -341,13 +341,13 @@
     let observer = null;
     const soundTimes = Object.create(null);
 
-    function sound(type, gap = 65) {
+    function sound(type, gap = 65, ...args) {
       const now = performance.now();
       if (now - (soundTimes[type] ?? -Infinity) < gap) return;
       soundTimes[type] = now;
       try {
         if (typeof Sound !== 'undefined' && Sound && typeof Sound[type] === 'function') {
-          const result = Sound[type]();
+          const result = Sound[type](...args);
           if (result && typeof result.catch === 'function') result.catch(() => {});
         }
       } catch (_) { /* 音がなくても続行 */ }
@@ -477,7 +477,7 @@
       stage.total = kept;
       stage.left = kept;
       stageDirty = true;
-      sound('starPing');
+      sound('bounceRouletteDone', 80, roulette.targets.length);
       message(`${roulette.targets.length}色が抜けた！`);
       announce(`ルーレットの結果、${roulette.targets.length}色が抜けました。残り${kept}ブロック。`);
     }
@@ -548,7 +548,7 @@
       ball.vx = Math.sin(angle) * speed();
       ball.vy = -Math.cos(angle) * speed();
       serveLeft = 0;
-      sound('tap');
+      sound('bounceLaunch', 60);
     }
 
     function normalize(ball) {
@@ -624,7 +624,7 @@
         const c = stage.cells[i];
         burst(c.x + c.w / 2, c.y + c.h / 2, color(c.color), 4, 235);
       }
-      sound('fanfare');
+      sound('bounceClear', 120, stageMisses === 0);
       announce(`${stage.name}をクリア。${CLEAR_POINTS + lastClearBonus}点を獲得。`);
     }
 
@@ -653,7 +653,7 @@
           colorChain >= 2 ? `+${pts} 同色×${colorChain}` : `+${pts}`,
           colorChain >= 2 ? '#d47a00' : '#5a3d5c'
         );
-        sound('pop', 44);
+        sound('bounceHit', 38, colorChain, combo);
       }
       if (!fromSplash) {
         const maxDim = Math.max(stage.cols, stage.rows);
@@ -665,7 +665,7 @@
           const bombR2 = bombR * bombR + 1;
           addRing(cx, cy, '#ff7e47', 54);
           addPopup(cx, cy - 16, 'BOOM!', '#e0531f');
-          sound('boom', 60);
+          sound('bounceBomb', 60);
           for (let dr = -bombR; dr <= bombR; dr++) {
             for (let dc = -bombR; dc <= bombR; dc++) {
               if (!dr && !dc) continue;
@@ -748,7 +748,7 @@
       addRing(item.x, item.y, def.color, 30);
       addPopup(item.x, item.y - 10, label, def.color);
       message(label);
-      sound('starPing');
+      sound('bounceItem', 60, def.id);
     }
 
     function advance(ball, dt) {
@@ -807,7 +807,7 @@
           addRing(ball.x, PAD_Y + 24, '#b8a6ff', 36);
           addPopup(ball.x, PAD_Y + 12, 'バリア防御！', '#d9ccff');
           message(shields ? `バリア発動（残り${shields}）` : 'バリア発動！');
-          sound('starPing', 80);
+          sound('bounceShield', 80);
         } else if (collision.type === 'paddle') {
           dryBounces++;
           const offset = clamp((ball.x - paddle.x) / (paddle.w / 2), -1, 1);
@@ -833,11 +833,13 @@
           ball.vy = -Math.cos(angle) * speed();
           paddle.bump = 1;
           addRing(ball.x, PAD_Y, '#a6e8ff', 22);
-          sound('tap', 80);
+          sound('bouncePaddle', 60, spin);
         } else {
           if (collision.cell) {
             paint(collision.cell);
             if (phase !== 'play') return true;
+          } else if (collision.type === 'wall') {
+            sound('bounceWall', 45);
           }
           const { nx, ny, push } = collision;
           const dot = vx * nx + vy * ny;
@@ -896,11 +898,12 @@
         if (!alive) {
           balls.splice(i, 1);
           stageMisses++;
+          if (balls.length) sound('bounceMiss', 120);
         }
       }
       if (!balls.length) {
         combo = 0; colorChain = 0; lastColor = -1; lastHit = -Infinity;
-        sound('deny');
+        sound('bounceGameOver', 120);
         finish('ゲームオーバー！');
         return;
       }
@@ -1246,7 +1249,7 @@
         for (let i = 0; i < roulette.targets.length; i++) {
           if (!roulette.stopped[i] && roulette.elapsed >= roulette.stopTimes[i]) {
             roulette.stopped[i] = true;
-            sound('tap', 40);
+            sound('bounceRouletteTick', 40, i);
           }
         }
         if (!roulette.applied && roulette.stopped.every(Boolean)) {
@@ -1366,7 +1369,7 @@
 
       showCard(title, content, [button('もう一度', start, true), button('閉じる', destroy)]);
       announce(`${title} スコア${score}点。${result.warning || `コイン報酬${result.reward}。`}`);
-      sound(result.record ? 'fanfare' : 'boom', 180);
+      sound(result.record ? 'fanfare' : 'albumIn', 180);
       hud();
       draw();
     }
