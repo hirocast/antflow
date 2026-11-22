@@ -1936,29 +1936,33 @@ function drawSinger() {
 }
 function drawBgmBanner() {
   const b = G.bgmBanner;
-  if (!b || G.overlay) return;
+  if (!b || G.overlay !== '') return;
   if (b.t0 === null) b.t0 = G.rt;
   const age = G.rt - b.t0;
   if (age > 2.9) { G.bgmBanner = null; return; }
   const a = age < 0.25 ? age / 0.25 : age > 2.3 ? Math.max(0, (2.9 - age) / 0.6) : 1;
   ctx.save();
-  ctx.globalAlpha = a;
-  const text = '🎵 ' + b.title;
-  ctx.font = fnt(800, 12.5);
-  const w = Math.min(CW - 24, ctx.measureText(text).width + 24), h = 26;
-  const x = (panelL + panelR) / 2 - w / 2, y = Math.max(8, boardY + 6) - (1 - a) * 4;
-  ctx.fillStyle = 'rgba(255,255,255,.92)';
-  ctx.strokeStyle = '#ff8fb3';
-  ctx.lineWidth = 1.6;
-  roundRect(ctx, x, y, w, h, h / 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#5a3d5c';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(text, (panelL + panelR) / 2, y + h / 2 + 0.5, w - 16);
-  ctx.restore();
+  try {
+    ctx.globalAlpha = a;
+    const text = '🎵 ' + b.title;
+    ctx.font = fnt(800, 12.5);
+    const w = Math.min(CW - 24, ctx.measureText(text).width + 24), h = 26;
+    const x = (panelL + panelR) / 2 - w / 2, y = Math.max(8, (typeof oy === 'number' ? oy : 8) + 6) - (1 - a) * 4;
+    ctx.fillStyle = 'rgba(255,255,255,.92)';
+    ctx.strokeStyle = '#ff8fb3';
+    ctx.lineWidth = 1.6;
+    roundRect(ctx, x, y, w, h, h / 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#5a3d5c';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, (panelL + panelR) / 2, y + h / 2 + 0.5, w - 16);
+  } finally {
+    ctx.restore();
+  }
 }
 function draw() {
   if (G.boardDirty) renderBoard();
   else if (G.boardSoft && G.rt - (G.boardT || 0) > 0.8) updateSoilHoles();
+  ctx.globalAlpha = 1;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(boardCv, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

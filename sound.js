@@ -728,24 +728,40 @@ const Sound = {
   bassStep(B, st, w, s16) {
     let p = null;
     if (st === 0 || st === 8) p = [0, 3, 1];
-    else if (st === 3 || st === 11) p = [0, 1, 0.65];
-    else if (st === 4 || st === 12) p = [1, 3, 0.92];
-    else if (st === 15) p = [1, 1, 0.52];
+    else if (st === 3 || st === 11) p = [0, 1, 0.6];
+    else if (st === 4 || st === 12) p = [1, 3, 0.9];
     if (!p) return;
     const r = B.r - 24, n = p[0] ? r + (B.r >= 5 ? -5 : 7) : r;
     this.pluckBass(this.hz(n), w, p[1] * s16, p[2]);
   },
-  // カヴァキーニョ＋エレピ：和音を少しずつずらして弾き（ストローク）、弦をはじく「チャッ」という音を足す
+  // カヴァキーニョ：和音を少しずつずらして弾き（ストローク）、弦をはじく「チャッ」という音を足す
   compStep(B, st, w, s16) {
     const v = this.CAV[st];
     if (!v) return;
-    const dest = (st & 2) ? this.musR : this.musL;
-    B.ch.forEach((n, i) => this.epiano(this.hz(n), w + i * 0.006, s16 * 0.95, 0.026 * v, dest));
-    this.mnoise(w, 0.025, 0.011 * v, 3200, 'bandpass', 2, dest);
+    B.ch.forEach((n, i) => this.tone(this.hz(n), s16 * 0.95, { type: 'triangle', vol: 0.03 * v, when: w + i * 0.006, attack: 0.002, dest: this.mus }));
+    this.mnoise(w, 0.025, 0.012 * v, 3200, 'bandpass', 2);
   },
-  // メロディ：曲調（style）に合わせて木管・バイオリン・金管・篠笛・オルゴール等の倍音と表現を切り替える主旋律
+  // メロディ：サンバでは前の歯切れよい笛（ホイッスル）の音をそのまま維持し、他の曲調では倍音と表現を切り替える
   lead(f, w, dur, vol, style) {
     const c = this.ctx, t = c.currentTime + w;
+    if (!style || style === 'samba') {
+      const o1 = c.createOscillator(), o2 = c.createOscillator(), m2 = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(), fl = c.createBiquadFilter(), g = c.createGain();
+      o1.type = 'triangle'; o2.type = 'square'; o1.frequency.value = f; o2.frequency.value = f; o2.detune.value = 6; m2.gain.value = 0.16;
+      lfo.frequency.value = 5.8;
+      lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.3, dur));
+      lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
+      fl.type = 'lowpass'; fl.frequency.value = 3400; fl.Q.value = 0.6;
+      const dEnd = t + Math.min(0.12, dur * 0.8);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(vol * 0.6, dEnd);
+      g.gain.setValueAtTime(vol * 0.6, t + dur);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.12);
+      o1.connect(fl); o2.connect(m2); m2.connect(fl); fl.connect(g); g.connect(this.mus);
+      const end = t + dur + 0.18;
+      o1.start(t); o2.start(t); lfo.start(t); o1.stop(end); o2.stop(end); lfo.stop(end);
+      return;
+    }
     if (style === 'celesta') {
       this.celesta(f, w, dur * 1.15, vol * 1.05, this.mus);
       this.tone(f, dur * 0.95, { type: 'triangle', vol: vol * 0.45, when: w, attack: 0.01, dest: this.mus });
@@ -1917,17 +1933,11 @@ const Sound = {
         this.accompEx(style, C, st, w, s16, sec, bar, ex.bars.length, bSteps, inIntro);
         this.obligatoStep(style, C, B, st, bSteps, w, s16, sec);
       } else {
-        // サンバもストリングス／ブラスパッドとオブリガートを加えてリッチ化
-        if (st === 0 || (st === 8 && B.r2 != null)) {
-          this.padChord(C.ch, w, (B.r2 != null ? 8 : 16) * s16 * 0.95, 0.013 * (1 + sec * 0.1), 'samba');
-        }
         this.perc(st, w, { fill: bar === 7 && st >= 12, ago: sec > 0, clap: sec === 2 });
         this.bassStep(C, st, w, s16);
         this.compStep(C, st, w, s16);
-        this.obligatoStep('samba', C, B, st, 16, w, s16, sec);
         // 金管のアクセント：サビでは食い気味の位置で、A'の最後ではサビへの合図として鳴らす
         if ((sec === 2 && (st === 11 || (st === 3 && (bar & 3) === 0))) || (sec === 1 && bar === 7 && (st === 12 || st === 14))) this.stab(C.ch, w);
-        if (sec === 2 && st === 0 && (bar & 1) === 0) this.warmBrass(C.ch, w, s16 * 3.5, 0.018, this.musL);
         // ホイッスル：サビに入る直前と、曲の最初に戻る直前
         if (bar === 7 && (sec === 1 || sec === 3) && (st === 4 || st === 8)) this.whistle(w, st === 4 ? 0.28 : 0.1);
       }
@@ -1951,17 +1961,21 @@ const Sound = {
       for (const m of B.m) {
         if (m[0] !== st) continue;
         const f = this.hz(m[1]), dur = m[2] * s16 * 0.92;
-        this.lead(f, w, dur, 0.072, style);
-        // 3度〜6度下のハモリパート＆キラキラ倍音レイヤーでメロディを重厚に彩る
-        if (inIntro || sec >= 1 || style === 'home' || style === 'result' || style === 'royal') {
-          this.harmonyLead(m[1], C, w, dur, 0.026, style);
+        if (!ex) {
+          this.lead(f, w, dur, 0.07);
+          if (lyr) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: true });
+          if (sec === 1 || sec === 3) this.mallet(f, w, 0.025, this.mus);
+        } else {
+          this.lead(f, w, dur, 0.072, style);
+          // 3度〜6度下のハモリパート＆キラキラ倍音レイヤーでメロディを重厚に彩る
+          if (inIntro || sec >= 1 || style === 'home' || style === 'result' || style === 'royal') {
+            this.harmonyLead(m[1], C, w, dur, 0.026, style);
+          }
+          if (style === 'result' || style === 'home' || sec === 3) {
+            this.celesta(f * (m[1] < 24 ? 2 : 1), w, Math.min(0.32, dur), 0.018, this.musR);
+          }
+          if (lyr) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: true });
         }
-        if (style === 'result' || style === 'home' || sec === 3) {
-          this.celesta(f * (m[1] < 24 ? 2 : 1), w, Math.min(0.32, dur), 0.018, this.musR);
-        } else if (!ex && (sec === 1 || sec === 3)) {
-          this.mallet(f, w, 0.026, this.musR);
-        }
-        if (lyr) this.lyricQ.push({ t: c.currentTime + w, text: lyrTxt, note: true });
       }
       this.nextT += s16; this.step++;
     }
