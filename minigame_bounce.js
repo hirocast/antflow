@@ -2,9 +2,9 @@
 (() => {
   'use strict';
 
-  const W = 420, H = 680;
-  const R = 5.3, LEFT = 10, RIGHT = W - 10, TOP = 10;
-  const PAD_Y = 506, PAD_H = 12;
+  const W = 420, H = 760;
+  const R = 5.3, LEFT = 10, RIGHT = W - 10, TOP = 6;
+  const PAD_Y = 590, PAD_H = 12;
   const STEP = 1 / 120, EPS = 1e-7, SEPARATION = 0.03;
   const CLEAR_POINTS = 500, MAX_BALLS = 7;
   const FALLBACK_COLORS = [
@@ -34,26 +34,29 @@
     .afibn-game .bn-primary{background:#ff8fb3;color:#fff;border-color:#e46a92;box-shadow:0 2px 0 #e46a92}
     .afibn-game .bn-shell{width:100%;max-width:540px;height:100%;display:flex;
       flex-direction:column;min-height:0;background:#fff6fa}
-    .afibn-game .bn-head{flex:none;padding:6px 10px 5px;
-      padding-top:calc(6px + env(safe-area-inset-top,0px))}
-    .afibn-game .bn-top,.afibn-game .bn-buttons{display:flex;align-items:center;gap:8px}
-    .afibn-game .bn-title{flex:1;margin:0;font-size:17px;color:#e46a92}
+    .afibn-game .bn-head{flex:none;padding:4px 8px 3px;
+      padding-top:calc(4px + env(safe-area-inset-top,0px))}
+    .afibn-game .bn-top,.afibn-game .bn-buttons{display:flex;align-items:center;gap:6px}
+    .afibn-game .bn-top button{min-height:36px;padding:4px 10px;font-size:13px;border-radius:10px}
+    .afibn-game .bn-title{flex:1;margin:0;font-size:16px;color:#e46a92}
+    .afibn-game .bn-hud-row{display:flex;align-items:center;gap:7px;margin-top:4px}
+    .afibn-game .bn-hud-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
     .afibn-game .bn-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:6px;margin:5px 0;font-variant-numeric:tabular-nums}
-    .afibn-game .bn-stat{min-width:0;padding:4px 7px;background:#fff;border:1px solid #f6d5e2;
-      box-shadow:0 2px 0 #f3c6d6;border-radius:10px}
-    .afibn-game .bn-stat small{display:block;color:#8c6b8e;font-size:10px}
+      gap:4px;margin:0;font-variant-numeric:tabular-nums}
+    .afibn-game .bn-stat{display:flex;align-items:baseline;justify-content:space-between;gap:3px;
+      min-width:0;padding:2px 6px;background:#fff;border:1px solid #f6d5e2;
+      box-shadow:0 1px 0 #f3c6d6;border-radius:8px}
+    .afibn-game .bn-stat small{flex:none;color:#8c6b8e;font-size:9.5px}
     .afibn-game .bn-stat b{display:block;overflow:hidden;text-overflow:ellipsis;
-      white-space:nowrap;font-size:16px;color:#5a3d5c}
+      white-space:nowrap;font-size:12.5px;color:#5a3d5c}
     .afibn-game .bn-low{color:#e04868}
-    .afibn-game .bn-art-row{display:flex;align-items:center;gap:8px;margin-top:4px}
-    .afibn-game .bn-preview{flex:none;width:42px;height:42px;border-radius:8px;
+    .afibn-game .bn-art-row{display:flex;align-items:center;gap:6px;margin-top:0}
+    .afibn-game .bn-preview{flex:none;width:36px;height:36px;border-radius:7px;
       background:#f3eaf5;border:1px solid #e7c6d8;image-rendering:pixelated}
-    .afibn-game .bn-art-info{flex:1;min-width:0}
-    .afibn-game .bn-progress{height:6px;background:#f5dde7;border-radius:6px;overflow:hidden}
+    .afibn-game .bn-progress{flex:none;width:54px;height:6px;background:#f5dde7;border-radius:6px;overflow:hidden}
     .afibn-game .bn-progress i{display:block;width:0;height:100%;
       background:linear-gradient(90deg,#ff8fb3,#ffcf4a)}
-    .afibn-game .bn-art{margin-top:4px;overflow:hidden;white-space:nowrap;
+    .afibn-game .bn-art{flex:1;min-width:0;margin-top:0;overflow:hidden;white-space:nowrap;
       text-overflow:ellipsis;color:#7c5b7e;font-size:11px;font-weight:700}
     .afibn-game .bn-field{position:relative;flex:1;min-height:0;overflow:hidden}
     .afibn-game .bn-canvas{display:block;width:100%;height:100%;touch-action:none;
@@ -160,7 +163,7 @@
     const maxH = 400;
     const size = Math.min(maxW / cols, maxH / rows);
     const x = LEFT + (maxW - cols * size) / 2;
-    const y = TOP + 2 + (maxH - rows * size) * 0.15;
+    const y = TOP + 2 + (maxH - rows * size) * 0.05;
     const inset = size >= 7 ? Math.min(0.65, size * 0.04) : 0;
     const lookup = new Array(pixels.length);
     const cells = [];
@@ -278,7 +281,6 @@
       return value;
     }
     const scoreEl = stat('スコア'), timeEl = stat('完成枚数'), bestEl = stat('ベスト');
-    const artRow = element('div', 'bn-art-row');
     const previewCanvas = element('canvas', 'bn-preview');
     previewCanvas.width = 64;
     previewCanvas.height = 64;
@@ -289,15 +291,18 @@
     stageCanvas.height = PAD_Y * 2;
     const stageCtx = stageCanvas.getContext('2d');
     let stageDirty = true;
-    const artInfo = element('div', 'bn-art-info');
+    const hudRow = element('div', 'bn-hud-row');
+    const hudMain = element('div', 'bn-hud-main');
+    const artRow = element('div', 'bn-art-row');
     const progress = element('div', 'bn-progress');
     const fill = element('i');
     progress.setAttribute('aria-hidden', 'true');
     progress.appendChild(fill);
     const artEl = element('div', 'bn-art');
-    artInfo.append(progress, artEl);
-    artRow.append(previewCanvas, artInfo);
-    head.append(top, stats, artRow);
+    artRow.append(progress, artEl);
+    hudMain.append(stats, artRow);
+    hudRow.append(previewCanvas, hudMain);
+    head.append(top, hudRow);
 
     const field = element('div', 'bn-field');
     const canvas = element('canvas', 'bn-canvas');
