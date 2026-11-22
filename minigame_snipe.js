@@ -815,9 +815,20 @@
       if (particles.length > 220) particles.splice(0, particles.length - 220);
     }
 
-    function floatText(text, x, y, color, size) {
-      floats.push({ text, x: clamp(x, 32, Math.max(32, width - 32)), y, color, size, life: 1 });
-      if (floats.length > 14) floats.shift();
+    function floatText(text, x, y, color, size, life = 0.55) {
+      const fx = clamp(x, 32, Math.max(32, width - 32));
+      const near = floats.find(f => !f.important && Math.hypot(f.x - fx, f.y - y) < 42);
+      if (near && life <= 0.65) {
+        near.text = text;
+        near.x = fx;
+        near.y = y;
+        near.color = color;
+        near.size = size;
+        near.life = life;
+        return;
+      }
+      floats.push({ text, x: fx, y, color, size, life, important: life > 0.65 });
+      if (floats.length > 5) floats.shift();
     }
 
     function wideSplash(list, center, seen) {
@@ -855,7 +866,7 @@
     function collectItem(item) {
       const d = item.def;
       buffs[d.kind] = ITEM_DURATION;
-      floatText(d.title, item.x, item.y - 14, d.color, 18);
+      floatText(d.title, item.x, item.y - 14, d.color, 16, 0.85);
       burst(item.x, item.y, d.color, 18, 175);
       sfx('albumIn');
       announce(d.title);
@@ -880,12 +891,13 @@
         const multiplier = 1 + Math.min(combo - 1, 12) * 0.15;
         points = Math.round(indices.length * (rainbow ? 17 : 12) * multiplier);
         floatText((rainbow ? 'RAINBOW! ' : '') + '+' + format(points),
-          hit.x, hit.y - 12, rainbow ? '#ffe187' : '#a3ffe2', indices.length >= 8 ? 23 : 17);
+          hit.x, hit.y - 10, rainbow ? '#ffe187' : '#a3ffe2',
+          indices.length >= 8 ? 18 : 13, rainbow || indices.length >= 8 ? 0.78 : 0.52);
         sfx(rainbow ? 'boom' : indices.length >= 8 ? 'starPing' : 'pop');
         if (combo % 6 === 0 && next !== RAINBOW) {
           next = RAINBOW;
           rollsSinceRainbow = 0;
-          floatText('次はレインボー！', layout.x, layout.y - 51, '#ffe187', 16);
+          floatText('次はレインボー！', layout.x, layout.y - 51, '#ffe187', 14, 0.85);
         }
       } else {
         const seen = new Uint8Array(art.cells.length);
@@ -898,7 +910,7 @@
         combo = 0;
         comboTime = 0;
         points = indices.length * 3;
-        floatText((ball.wide ? '太弾 ' : 'ちょい塗り ') + '+' + points, hit.x, hit.y - 12, '#ffd0a5', 15);
+        floatText('+' + points, hit.x, hit.y - 10, '#ffd0a5', 11.5, 0.44);
         sfx('deny');
       }
 
@@ -1165,7 +1177,7 @@
         ctx.fillRect(p.x, p.y, p.size, p.size);
       }
       for (const f of floats) {
-        ctx.globalAlpha = Math.min(1, f.life * 3);
+        ctx.globalAlpha = Math.min(0.88, f.life * 3.5);
         drawLabel(f.text, f.x, f.y, f.color, f.size);
       }
       ctx.globalAlpha = 1;
@@ -1191,7 +1203,7 @@
         const f = floats[i];
         f.life -= dt;
         if (f.life <= 0) { floats.splice(i, 1); continue; }
-        if (!reducedMotion) f.y -= 27 * dt;
+        if (!reducedMotion) f.y -= 36 * dt;
       }
     }
 
@@ -1231,7 +1243,9 @@
         } else if (buffs.shotgun <= 0) {
           combo = 0;
           comboTime = 0;
-          floatText('MISS', ball.x, layout.top, '#ffb0b7', 14);
+          if (!floats.some(f => f.text === 'MISS')) {
+            floatText('MISS', ball.x, layout.top, '#ffb0b7', 12, 0.45);
+          }
         }
       }
     }
