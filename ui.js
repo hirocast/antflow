@@ -67,7 +67,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
 #ov-title .home-h2{display:none}
 #ov-title .card p{margin:4px 0;font-size:13px;line-height:1.5}
-#ov-title.first-run #homeUpdateBox,#ov-title.first-run .fine,#ov-title.first-run #titleInfo,#ov-title.first-run #homeHub,#ov-title.first-run #bTitleHelp,#ov-title.first-run #bTitleAlbum{display:none!important}
+#ov-title.first-run #homeUpdateBox,#ov-title.first-run .fine,#ov-title.first-run #titleInfo,#ov-title.first-run #homeHub,#ov-title.first-run #bTitleHelp,#ov-title.first-run #bTitleAlbum,#ov-title.first-run #bTitleDev{display:none!important}
 #ov-title.first-run #bPlay{width:84%;max-width:300px;padding:18px 20px;font-size:20px;margin:16px auto 8px;animation:afBreathe 1.4s ease-in-out infinite}
 @keyframes afBreathe{0%,100%{transform:scale(1);box-shadow:0 6px 0 #d4507c,0 0 0 0 rgba(255,140,180,.55)}50%{transform:scale(1.06);box-shadow:0 6px 0 #d4507c,0 0 0 14px rgba(255,140,180,0)}}
 .upd-bar{background:#fff8fb;border:2px solid #ffd3e2;border-radius:16px;padding:6px 9px;margin:0 0 6px;text-align:left;box-shadow:0 2px 0 #f3d5e0}
@@ -1109,7 +1109,8 @@ function applyLevel(id, L) {
   G.skill = { g: 0, max: Math.min(sk.pNeed, Math.max(10, Math.round(L.total * 0.35))), freezeT: 0, boostT: 0 };
   if (typeof updateSkillBtn === 'function') updateSkillBtn();
   G.gold = pickGold(L);
-  if (!L.custom) { save.level = id; persist(); }
+  if (posOf(id) !== 1) G.firstSim = false;
+  if (!L.custom && !G.firstSim) { save.level = id; persist(); }
   layout(); resetVisual();
   G.clearShown = false; G.loading = false;
   G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false; G.lastTapT = G.rt;
@@ -1693,14 +1694,16 @@ function updateClearQueenBtn() {
   else btn.textContent = '👑 女王さまにエサをあげる（🍬' + save.food + '）';
 }
 function renderTitle() {
+  const isFirst = !save.cleared[1] || !!G.firstSim;
   const ovT = $('#ov-title');
-  if (ovT) ovT.classList.toggle('first-run', !save.cleared[1]);
+  if (ovT) ovT.classList.toggle('first-run', isFirst);
   const el = $('#titleInfo');
   if (!el) return;
   const playBtn = $('#bPlay');
   if (playBtn) {
     const willLoadNext = G.clearShown || !G.level || (G.run && G.run.done);
-    if (willLoadNext) playBtn.textContent = 'あそぶ（Lv.' + posOf(save.level) + '）';
+    if (isFirst) playBtn.textContent = 'あそぶ';
+    else if (willLoadNext) playBtn.textContent = 'あそぶ（Lv.' + posOf(save.level) + '）';
     else if (!G.level.custom) playBtn.textContent = 'あそぶ（Lv.' + posOf(G.levelId) + '）';
   }
   misCheck();
@@ -3656,6 +3659,13 @@ on('#bDevNext', () => devStep(1));
 on('#bDevClose', back);
 on('#bDevGen', devPregen);
 on('#bDevAuto', () => { const v = !G.auto; setAuto(v); if (v) hideOv(); });
+on('#bDevFirstRun', () => {
+  G.firstSim = true;
+  loadLevel(idAt(1));
+  showOv('title');
+  renderTitle();
+  toast('🌱 初回起動テストを開始します（セーブは変更されません）', 2200);
+});
 on('#bDevClear', () => {
   if (!confirm('生成済みステージのデータを削除しますか？')) return;
   G.genBusy = false;

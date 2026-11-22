@@ -1285,7 +1285,7 @@ function drawGuides() {
   }
   if (G.overlay || G.preview) return;
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  if (posOf(G.levelId) === 1 && !save.cleared[G.levelId] && G.moves.length < 3 && G.s) {
+  if (posOf(G.levelId) === 1 && (!save.cleared[G.levelId] || G.firstSim) && G.moves.length < 3 && G.s) {
     const s = G.s, rc = G.rc || reachableCounts(s);
     let j = followsSolution() ? G.level.solution[G.moves.length] : -1;
     if (j == null || j < 0 || s.heads[j] >= s.cols[j].length || !(rc.get(headBox(s, j).c) > 0)) {
