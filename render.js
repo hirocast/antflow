@@ -1063,13 +1063,13 @@ function renderTrayTo(g, needHc) {
     const off = G.trayOff[j], fr = trayGap > 0 ? off / trayGap : 0;
     for (let k = Math.min(maxShow, rest) - 1; k >= 0; k--) {
       const b = col[h + k];
-      let s = lerp(TSC[k], TSC[k + 1], fr) * headSize;
-      if (k === 0 && G.press && G.press.j === j && !G.press.previewed) s *= 0.92;
+      let s = lerp(TSC[k], TSC[k + 1], fr) * headSize, sx = 1, sy = 1;
+      if (k === 0 && G.press && G.press.j === j && !G.press.previewed) { sx = 1.18; sy = 0.8; }
       if (k === 0 && G.queued && G.queued.j === j) s *= 1 + 0.05 * Math.sin(G.rt * 20);
       if (k === 0 && needHc && !G.hc) G.hc = headCounts(G.s);
       const y = trayHeadY + lerp(TY[k], TY[k + 1], fr) * headSize, dim = k === 0 && save.settings.dim && !G.hc[j];
       const al = (k === maxShow - 1 ? 1 - fr : 1) * (dim ? 0.5 : 1);
-      drawBox(x, y, s, b.c, b.n, { alpha: al, numY: k > 0 ? 0.22 : 0.1 }, g);
+      drawBox(x, y, s, b.c, b.n, { alpha: al, numY: k > 0 ? 0.22 : 0.1, sx, sy }, g);
       if (dim && g === ctx) drawZz(x + s * 0.42, y - s * 0.4, s);
       if (k === 0 && G.scanId === G.levelId && (G.hc[j] || 0) >= b.n) {
         const p = 0.5 + 0.5 * Math.sin(G.rt * 6);
@@ -1142,13 +1142,20 @@ function drawSlotBoxes() {
     if (b.state === 'fly') {
       const t = clamp(b.t / 0.24, 0, 1), e = easeOutCubic(t);
       x = lerp(b.fx, x, e); y = lerp(b.fy, y, e) - Math.sin(Math.PI * t) * Math.min(70, CH * 0.09); sz = lerp(b.fs, slotSize, e);
+      o.sx = 0.86; o.sy = 1.16;
     } else if (b.state === 'land') {
       const k = Math.sin(Math.PI * clamp(b.t / 0.14, 0, 1));
-      o.sx = 1 + 0.12 * k; o.sy = 1 - 0.18 * k;
+      o.sx = 1 + 0.14 * k; o.sy = 1 - 0.18 * k;
     } else if (b.state === 'leave') o.sx = o.sy = Math.max(0, 1 - easeInBack(clamp(b.t / 0.22, 0, 1)));
     if (G.jamShake > 0) x += Math.sin(G.rt * 60 + b.slot) * 3 * (G.jamShake / 0.4);
     o.peek = b.state === 'slot' && num > 0;
     drawBox(x, y, sz, b.c, b.state === 'fly' ? b.total : num, o);
+    if (b.state === 'land' && b.t < 0.09) {
+      const fa = 1 - b.t / 0.09;
+      ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,' + (0.85 * fa) + ')'; ctx.lineWidth = 3.5;
+      roundRect(ctx, x - sz * 0.56, y - sz * 0.48, sz * 1.12, sz * 0.96, sz * 0.24); ctx.stroke();
+      ctx.restore();
+    }
     if (b.state === 'slot' && num > 0 && !b.queue.length) drawZz(x + sz * 0.45, y - sz * 0.45, sz);
   }
 }
@@ -1278,9 +1285,55 @@ function drawGuides() {
   }
   if (G.overlay || G.preview) return;
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  if (G.levelId === 1 && G.moves.length < 3 && followsSolution()) {
-    const j = G.level.solution[G.moves.length];
-    if (j != null) { ctx.font = Math.round(headSize * 0.6) + 'px sans-serif'; ctx.fillText('👆', trayX(j) + headSize * 0.25, trayHeadY + headSize * 0.5 + Math.sin(G.rt * 6) * 6); }
+  if (posOf(G.levelId) === 1 && !save.cleared[G.levelId] && G.moves.length < 3 && G.s) {
+    const s = G.s, rc = G.rc || reachableCounts(s);
+    let j = followsSolution() ? G.level.solution[G.moves.length] : -1;
+    if (j == null || j < 0 || s.heads[j] >= s.cols[j].length || !(rc.get(headBox(s, j).c) > 0)) {
+      j = headsOf(s).find(k => (rc.get(headBox(s, k).c) || 0) > 0);
+      if (j == null) j = -1;
+    }
+    if (j >= 0) {
+      const box = headBox(s, j), c = box.c, W = s.W, H = s.H;
+      const pulse = Math.max(0, Math.sin(G.rt * 6.3)), sync = 1 + pulse * 0.14;
+      const maskA = G.moves.length === 0 ? 0.42 : G.moves.length === 1 ? 0.2 : 0;
+      if (maskA > 0) {
+        const ix = ox - cs, iy = oy - cs, iw = (W + 2) * cs, ih = (H + 2) * cs, ir = Math.max(6, cs * 0.8);
+        ctx.save();
+        ctx.fillStyle = 'rgba(28,14,38,' + maskA + ')';
+        roundRect(ctx, ix, iy, iw, ih, ir); ctx.fill();
+        ctx.restore();
+      }
+      // 外側から通れる同色キャンディだけを明るく共鳴させる
+      const ne = nestGate(), dist = visDist(ne.ex, ne.ey);
+      ctx.save();
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const idx = y * W + x;
+        if (G.vgrid[idx] !== c || cubeDist(dist, W, x, y) < 0) continue;
+        const cx = ox + (x + 0.5) * cs, cy = oy + (y + 0.5) * cs, d = cs * sync;
+        ctx.drawImage(cubeSpr[c], cx - d / 2, cy - d / 2, d, d);
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.45 + 0.55 * pulse) + ')';
+        ctx.lineWidth = Math.max(1.5, cs * 0.1);
+        ctx.strokeRect(cx - d / 2, cy - d / 2, d, d);
+      }
+      ctx.restore();
+      // トレイのおすすめ箱を同じリズムで光らせる
+      const bx = trayX(j), by = trayHeadY, bs = headSize * (1 + pulse * 0.08);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,245,160,' + (0.55 + 0.45 * pulse) + ')';
+      ctx.lineWidth = 4;
+      roundRect(ctx, bx - bs * 0.56, by - bs * 0.47, bs * 1.12, bs * 0.94, bs * 0.25); ctx.stroke();
+      // 0手目または3秒無操作時に指ゴーストを表示（触ったら即消える）
+      const idleT = G.rt - (G.lastTapT || 0);
+      if ((G.moves.length === 0 || idleT >= 3.0) && !G.press) {
+        const rp = (G.rt % 1.2) / 1.2;
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.85 * (1 - rp)) + ')'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(bx, by, headSize * (0.28 + rp * 0.42), 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 0.92;
+        ctx.font = Math.round(headSize * 0.62) + 'px sans-serif';
+        ctx.fillText('👆', bx + headSize * 0.22, by + headSize * 0.36 + (rp < 0.45 ? 0 : 4));
+      }
+      ctx.restore();
+    }
   }
   if (G.levelId === 2 && !save.flags.lp && G.moves.length < 4) {
     const h = headsOf(G.s);

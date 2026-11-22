@@ -67,6 +67,9 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
 #ov-title .home-h2{display:none}
 #ov-title .card p{margin:4px 0;font-size:13px;line-height:1.5}
+#ov-title.first-run #homeUpdateBox,#ov-title.first-run .fine,#ov-title.first-run #titleInfo,#ov-title.first-run #homeHub,#ov-title.first-run #bTitleHelp,#ov-title.first-run #bTitleAlbum{display:none!important}
+#ov-title.first-run #bPlay{width:84%;max-width:300px;padding:18px 20px;font-size:20px;margin:16px auto 8px;animation:afBreathe 1.4s ease-in-out infinite}
+@keyframes afBreathe{0%,100%{transform:scale(1);box-shadow:0 6px 0 #d4507c,0 0 0 0 rgba(255,140,180,.55)}50%{transform:scale(1.06);box-shadow:0 6px 0 #d4507c,0 0 0 14px rgba(255,140,180,0)}}
 .upd-bar{background:#fff8fb;border:2px solid #ffd3e2;border-radius:16px;padding:6px 9px;margin:0 0 6px;text-align:left;box-shadow:0 2px 0 #f3d5e0}
 .upd-bar.has-new{background:linear-gradient(180deg,#fff3f8,#ffe4ef);border-color:#ff7aa6;box-shadow:0 3px 0 #e46a92}
 .upd-top{display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap}
@@ -1109,7 +1112,7 @@ function applyLevel(id, L) {
   if (!L.custom) { save.level = id; persist(); }
   layout(); resetVisual();
   G.clearShown = false; G.loading = false;
-  G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false;
+  G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false; G.lastTapT = G.rt;
   Sound.setBgm(L.name, L.theme);
   if (!G.overlay) G.bgmBanner = save.settings.bgm !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   if (!L.custom) Tut.levelStart(id);
@@ -1189,7 +1192,7 @@ function onTapCol(j) {
   G.trayOff[j] = trayGap;
   G.rc = reachableCounts(s);
   G.hc = null;
-  G.hintCol = -1; G.boardDirty = true;
+  G.hintCol = -1; G.boardDirty = true; G.lastTapT = G.rt;
   Sound.tap(); haptic(8);
   if (s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
   else if (isJam(s)) G.pendingJam = true;
@@ -1690,6 +1693,8 @@ function updateClearQueenBtn() {
   else btn.textContent = '👑 女王さまにエサをあげる（🍬' + save.food + '）';
 }
 function renderTitle() {
+  const ovT = $('#ov-title');
+  if (ovT) ovT.classList.toggle('first-run', !save.cleared[1]);
   const el = $('#titleInfo');
   if (!el) return;
   const playBtn = $('#bPlay');
@@ -2147,6 +2152,7 @@ function toast(msg, ms) {
   toastTimer = setTimeout(() => t.classList.remove('show'), ms || 2200);
 }
 function startPlay() {
+  if (typeof Sound !== 'undefined' && Sound.unlock) Sound.unlock();
   if (G.loading) { showOv('load'); return; }
   if (G.clearShown || !G.level || (G.run && G.run.done)) {
     G.reveal = null; G.clearTok++;
@@ -2671,7 +2677,7 @@ const Tut = {
   },
   levelStart(id) {
     this.levelReset();
-    const n = { 1: 'basic', 2: 'hold', 3: 'star', 4: 'read' }[posOf(id)];
+    const n = { 2: 'hold', 3: 'star', 4: 'read' }[posOf(id)];
     if (n && (!save.cleared[id] || save.tut.replay)) this.add(n);
   },
   // ステージが変わったら、そのステージ用の説明は取り消す（見ていない扱いのまま）
