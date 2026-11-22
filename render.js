@@ -1409,9 +1409,12 @@ function drawGuides() {
       const pulse = Math.max(0, Math.sin(G.rt * 6.3));
       const bx = trayX(j), by = trayHeadY, bs = headSize * (1 + pulse * (redMot ? 0.02 : 0.05));
       ctx.save();
-      ctx.strokeStyle = 'rgba(255,245,160,' + (0.55 + 0.45 * pulse) + ')';
-      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(255,90,138,' + (0.65 + 0.35 * pulse) + ')';
+      ctx.lineWidth = 5.5;
       roundRect(ctx, bx - bs * 0.56, by - bs * 0.47, bs * 1.12, bs * 0.94, bs * 0.25); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.7 + 0.3 * pulse) + ')';
+      ctx.lineWidth = 2.2;
+      roundRect(ctx, bx - bs * 0.53, by - bs * 0.44, bs * 1.06, bs * 0.88, bs * 0.23); ctx.stroke();
       // 0手目は1.0秒後、1〜2手目は3秒無操作時（アリ運搬中は出さない）にクリーンな波紋＆ポインター表示
       const idleT = G.rt - (G.lastTapT || 0);
       const showPtr = !G.press && G.ants.length === 0 && ((G.moves.length === 0 && idleT >= 1.0) || (G.moves.length > 0 && idleT >= 3.0));
