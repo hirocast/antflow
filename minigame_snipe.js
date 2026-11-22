@@ -5,7 +5,7 @@
   const GAME_TIME = 60;
   const CLEAR_SCORE = 500;
   const CLEAR_TIME = 8;
-  const MAX_ART = 26;
+  const MAX_ART = 64;
   const MAX_ANGLE = 1.28;
   const MAX_BOUNCES = 3;
   const RAINBOW = -1;
@@ -874,9 +874,12 @@
 
     function wideSplash(list, center, seen) {
       const cx = center % art.w, cy = Math.floor(center / art.w);
+      const r = art.w >= 40 ? 2 : 1;
+      const rSq = r * r + 1;
       const extra = [];
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy > rSq) continue;
           const nx = cx + dx, ny = cy + dy;
           if (nx < 0 || ny < 0 || nx >= art.w || ny >= art.h) continue;
           const j = ny * art.w + nx;
@@ -1055,7 +1058,7 @@
       ctx.drawImage(art.ghost, box.x, box.y, box.w, box.h);
       ctx.drawImage(art.solid, box.x, box.y, box.w, box.h);
 
-      if (phase !== 'play' || current === null || box.cell < 4) return;
+      if (phase !== 'play' || current === null || box.cell < 2.5) return;
       const fewLeft = art.left <= Math.max(8, Math.floor(art.total * 0.1));
       const pulse = reducedMotion ? 0.75 : 0.55 + 0.42 * Math.sin(effectsTime * 7);
       ctx.save();
