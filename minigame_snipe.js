@@ -645,11 +645,13 @@
       const wall = Math.min(9, width * 0.04);
       const bottom = $('controls').offsetHeight;
       const hudBottom = $('hud').offsetHeight;
+      const coachH = Math.min(40, Math.max(32, height * 0.055));
       const y = Math.max(height * 0.55, height - bottom - 32);
-      const top = Math.min(hudBottom + 7, height * 0.38);
+      const top = Math.min(hudBottom + coachH + 4, height * 0.42);
       layout = {
         x: width / 2, y, top,
-        artH: Math.max(8, Math.min(height * 0.42, y - top - 40)),
+        coachY: hudBottom + coachH * 0.52,
+        artH: Math.max(8, Math.min(height * 0.40, y - top - 40)),
         left: wall, right: width - wall, speed: Math.max(620, height * 1.65)
       };
       render();
@@ -1153,7 +1155,7 @@
     }
 
     function drawInstructor() {
-      const ix = layout.left + 20, iy = layout.y + 2;
+      const ix = layout.left + 20, iy = layout.coachY || (layout.top - 18);
       const cheer = coach.mood === 'cheer' && coach.timer > 0;
       const bob = reducedMotion ? 0 : (cheer ? -Math.abs(Math.sin(effectsTime * 11)) * 4 : Math.sin(effectsTime * 2.8) * 1.4);
       const y = iy + bob;
@@ -1222,14 +1224,14 @@
       ctx.ellipse(ix + 3.2, y + 1.2, 3.2, 1.4, -0.25, 0, Math.PI * 2);
       ctx.fill();
 
-      // 吹き出し（砲台の左側の空きスペースに収める）
-      const bx = ix + 15;
-      const maxW = Math.max(76, layout.x - 34 - bx);
-      if (maxW >= 68 && coach.text) {
-        const bh = 24, by = iy - 2;
-        ctx.font = '800 10px system-ui,sans-serif';
+      // 吹き出し（上部の空きスペースに大きく見やすく表示）
+      const bx = ix + 16;
+      const maxW = Math.max(90, layout.right - 10 - bx);
+      if (maxW >= 72 && coach.text) {
+        const bh = 25, by = iy - 1;
+        ctx.font = '800 11px system-ui,sans-serif';
         const tw = ctx.measureText(coach.text).width;
-        const bw = Math.min(maxW, Math.max(52, tw + 14));
+        const bw = Math.min(maxW, Math.max(64, tw + 16));
         ctx.fillStyle = 'rgba(255, 253, 245, 0.94)';
         ctx.strokeStyle = coach.mood === 'cheer' ? '#ffd23f' :
           coach.mood === 'alert' ? '#ff9da9' : '#73e8c4';
