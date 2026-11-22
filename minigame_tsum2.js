@@ -404,6 +404,7 @@
           <div class="mta-stat"><small>SCORE</small><b data-score>0</b></div>
           <div class="mta-clock" data-clock>60</div>
           <div class="mta-stat" style="text-align:right"><small>BEST</small><b data-best>0</b></div>
+          <button type="button" class="mta-close" data-pause aria-label="一時停止">Ⅱ</button>
           <button type="button" class="mta-close" data-exit aria-label="閉じる">×</button>
         </div>
         <div class="mta-dock">
@@ -429,6 +430,17 @@
         </div>
       </div>
       <canvas class="mta-fx" data-fx aria-hidden="true"></canvas>
+      <section class="mta-result" data-pause-panel hidden aria-label="一時停止">
+        <div class="mta-card">
+          <h2>一時停止中</h2>
+          <p>タイマーは止まっています。</p>
+          <div class="mta-actions">
+            <button type="button" data-resume>再開</button>
+            <button type="button" class="mta-secondary" data-pause-retry>やり直す</button>
+            <button type="button" class="mta-secondary" data-pause-close>とじる</button>
+          </div>
+        </div>
+      </section>
       <section class="mta-result" data-result hidden aria-label="結果"></section>
     `;
     document.body.appendChild(root);
@@ -436,9 +448,9 @@
     const $ = selector => root.querySelector(selector);
     const el = {};
     for (const key of [
-      'score', 'clock', 'best', 'exit', 'art', 'name', 'count', 'meter',
-      'chips', 'fever', 'wrap', 'board', 'banner', 'skill', 'shuffle', 'fx', 'result'
-    ]) el[key] = $(`[data-${key}]`);
+      'score', 'clock', 'best', 'pause', 'exit', 'art', 'name', 'count', 'meter',
+      'chips', 'fever', 'wrap', 'board', 'banner', 'skill', 'shuffle', 'fx', 'pausePanel', 'result'
+    ]) el[key] = $(key === 'pausePanel' ? '[data-pause-panel]' : `[data-${key}]`);
     const meterFill = el.meter.querySelector('i');
     const meterText = el.meter.querySelector('span');
     const ctx = el.board.getContext('2d');
@@ -467,7 +479,7 @@
     let state, stage, bag = [], lastArt = null;
     let width = 1, height = 1, radius = 20, targetCount = 40, dpr = 1;
     let boardX = 0, boardY = 0, artBox;
-    let sprites = [], chips = [], raf = 0, last = 0, closed = false, observer;
+    let sprites = [], chips = [], raf = 0, last = 0, closed = false, paused = false, observer;
     let artUiDirty = true;
 
     const setText = (node, text) => {
@@ -1416,21 +1428,47 @@
 
     function frame(now) {
       raf = 0;
-      if (closed || document.hidden) return;
+      if (closed || paused || document.hidden) return;
       const elapsed = last ? Math.max(0, (now - last) / 1000) : 0;
       last = now;
       update(Math.min(.05, elapsed), elapsed);
       if (closed) return;
       draw();
       updateHud();
-      if (state.phase !== 'result') raf = requestAnimationFrame(frame);
+      if (state.phase !== 'result' && !paused) raf = requestAnimationFrame(frame);
+    }
+
+    function pauseGame() {
+      if (closed || paused || !state || state.phase === 'result') return;
+      clearInput();
+      paused = true;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      sound('tap');
+      el.pause.disabled = true;
+      el.pausePanel.hidden = false;
+      $('[data-resume]').focus();
+    }
+
+    function resumeGame() {
+      if (closed || !paused) return;
+      paused = false;
+      sound('tap');
+      el.pausePanel.hidden = true;
+      el.pause.disabled = false;
+      last = performance.now();
+      el.exit.focus();
+      if (!document.hidden && state.phase !== 'result') raf = requestAnimationFrame(frame);
     }
 
     function start() {
       if (closed) return;
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
+      paused = false;
       clearInput();
+      el.pausePanel.hidden = true;
+      el.pause.disabled = false;
       el.result.hidden = true;
       el.result.replaceChildren();
       state = {
@@ -1455,6 +1493,7 @@
     function close() {
       if (closed) return;
       closed = true;
+      paused = false;
       clearInput();
       if (raf) cancelAnimationFrame(raf);
       if (observer) observer.disconnect();
@@ -1472,7 +1511,7 @@
 
     listen(el.board, 'pointerdown', pointerDown);
     listen(el.board, 'pointermove', e => {
-      if (state.phase === 'play' && state.pointer === e.pointerId) trace(localPoint(e));
+      if (!paused && state.phase === 'play' && state.pointer === e.pointerId) trace(localPoint(e));
     });
     listen(el.board, 'pointerup', pointerUp);
     for (const type of ['pointercancel', 'lostpointercapture', 'pointerleave']) {
@@ -1485,22 +1524,28 @@
     listen(el.board, 'contextmenu', e => e.preventDefault());
     listen(el.skill, 'click', triggerSkill);
     listen(el.shuffle, 'click', () => shuffleBoard(false));
+    listen(el.pause, 'click', pauseGame);
+    listen($('[data-resume]'), 'click', resumeGame);
+    listen($('[data-pause-retry]'), 'click', () => { sound('init'); sound('tap'); start(); });
+    listen($('[data-pause-close]'), 'click', () => { sound('tap'); close(); });
     listen(el.exit, 'click', close);
     listen(window, 'resize', resize);
     listen(window, 'blur', clearInput);
     listen(document, 'visibilitychange', () => {
       clearInput();
-      if (raf) cancelAnimationFrame(raf);
-      raf = 0;
-      last = performance.now();
-      if (!document.hidden && state.phase !== 'result') raf = requestAnimationFrame(frame);
+      if (document.hidden) pauseGame();
+      else if (!paused && state.phase !== 'result') {
+        last = performance.now();
+        if (!raf) raf = requestAnimationFrame(frame);
+      }
     });
     listen(document, 'keydown', e => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        close();
+        if (paused) resumeGame();
+        else close();
       } else if (e.key === 'Tab') {
-        const scope = state.phase === 'result' ? el.result : root;
+        const scope = paused ? el.pausePanel : state.phase === 'result' ? el.result : root;
         const buttons = [...scope.querySelectorAll('button:not(:disabled)')]
           .filter(button => !button.closest('[hidden]'));
         if (!buttons.length) return;

@@ -314,6 +314,7 @@
         <header class="afits-top">
           <h2 id="afits-title">ありんこチェイン</h2>
           <div class="afits-actions">
+            <button type="button" data-ui="pause" aria-label="一時停止" disabled>Ⅱ</button>
             <button type="button" data-ui="shuffle" disabled>シャッフル</button>
             <button type="button" data-ui="close" aria-label="ゲームを閉じる">×</button>
           </div>
@@ -370,6 +371,15 @@
               <button type="button" class="afits-primary" data-ui="retry">もう一度</button>
             </div>
           </div>
+          <div class="afits-card" data-ui="pauseCard" hidden>
+            <h3>一時停止中</h3>
+            <p>タイマーは止まっています。</p>
+            <div class="afits-actions">
+              <button type="button" data-ui="pauseClose">閉じる</button>
+              <button type="button" data-ui="pauseRetry">やり直す</button>
+              <button type="button" class="afits-primary" data-ui="resume">再開</button>
+            </div>
+          </div>
         </div>
       </section>`;
 
@@ -387,6 +397,7 @@
     }
 
     let phase = 'intro';
+    let paused = false, pausedAt = 0;
     let width = 0, height = 0, radius = 20, target = 40;
     let pieces = [], effects = [], gesture = null;
     let score = 0, combo = 0, maxCombo = 0, maxChain = 0;
@@ -418,7 +429,8 @@
       text(ui.fever, hot ? 'フィーバー ×2' : 'フィーバー');
       ui.time.classList.toggle('afits-low', phase === 'playing' && seconds <= 10 && !frozen);
       panel.classList.toggle('afits-hot', hot);
-      ui.shuffle.disabled = phase !== 'playing' || now < shuffleAt;
+      ui.pause.disabled = paused || (phase !== 'ready' && phase !== 'playing');
+      ui.shuffle.disabled = paused || phase !== 'playing' || now < shuffleAt;
 
       const skNeed = activeSkin.skill.need;
       const skPct = clamp(Math.round(100 * skillCharge / skNeed), 0, 100);
@@ -1081,7 +1093,7 @@
 
     function tick(now) {
       frame = 0;
-      if (phase !== 'ready' && phase !== 'playing') return;
+      if (paused || (phase !== 'ready' && phase !== 'playing')) return;
       if (phase === 'ready' && now >= startAt) {
         phase = 'playing';
         text(ui.banner, '');
@@ -1110,12 +1122,52 @@
       frame = requestAnimationFrame(tick);
     }
 
+    function pauseGame() {
+      if (paused || (phase !== 'ready' && phase !== 'playing')) return;
+      clearGesture();
+      paused = true;
+      pausedAt = performance.now();
+      cancelAnimationFrame(frame);
+      frame = 0;
+      sound('tap');
+      ui.intro.hidden = true;
+      ui.result.hidden = true;
+      ui.pauseCard.hidden = false;
+      ui.screen.hidden = false;
+      hud(pausedAt);
+      ui.resume.focus({ preventScroll: true });
+    }
+
+    function resumeGame() {
+      if (!paused || phase === 'closed') return;
+      const now = performance.now();
+      const delta = now - pausedAt;
+      startAt += delta;
+      endAt += delta;
+      if (feverUntil) feverUntil += delta;
+      if (shuffleAt) shuffleAt += delta;
+      if (skillFreezeUntil) skillFreezeUntil += delta;
+      if (skillRushUntil) skillRushUntil += delta;
+      if (lastClear > 0) lastClear += delta;
+      lastFrame = now;
+      paused = false;
+      pausedAt = 0;
+      sound('tap');
+      ui.pauseCard.hidden = true;
+      ui.screen.hidden = true;
+      hud(now);
+      ui.close.focus({ preventScroll: true });
+      frame = requestAnimationFrame(tick);
+    }
+
     function startRound() {
-      if (phase !== 'intro' && phase !== 'result') return;
+      if (phase !== 'intro' && phase !== 'result' && !paused) return;
       round++;
       sound('init');
       sound('tap');
       clearGesture();
+      paused = false;
+      pausedAt = 0;
       phase = 'ready';
       pieces = [];
       effects = [];
@@ -1127,6 +1179,7 @@
       startAt = now + READY_MS;
       endAt = startAt + ROUND_MS;
       lastFrame = now;
+      ui.pauseCard.hidden = true;
       ui.screen.hidden = true;
       ui.result.hidden = true;
       text(ui.banner, 'よーい…');
@@ -1139,7 +1192,7 @@
     }
 
     function focusGame() {
-      const button = phase === 'intro' ? ui.start : phase === 'result' ? ui.retry : ui.close;
+      const button = paused ? ui.resume : phase === 'intro' ? ui.start : phase === 'result' ? ui.retry : ui.close;
       button.focus({ preventScroll: true });
     }
 
@@ -1147,14 +1200,16 @@
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        close();
+        if (paused) resumeGame();
+        else close();
         return;
       }
       if (event.key !== 'Tab') return;
 
-      const buttons = phase === 'intro' ? [ui.leave, ui.start]
+      const buttons = paused ? [ui.pauseClose, ui.pauseRetry, ui.resume]
+        : phase === 'intro' ? [ui.leave, ui.start]
         : phase === 'result' ? [ui.done, ui.retry]
-        : ui.shuffle.disabled ? [ui.close] : [ui.shuffle, ui.close];
+        : [ui.pause, ui.shuffle, ui.close].filter(b => !b.disabled);
 
       const index = buttons.indexOf(document.activeElement);
       const next = index < 0 ? (event.shiftKey ? buttons.length - 1 : 0)
@@ -1164,18 +1219,22 @@
     }
 
     function visibilityChange() {
-      if (document.hidden) clearGesture();
+      if (document.hidden) {
+        clearGesture();
+        pauseGame();
+      }
     }
 
     function close() {
       if (phase === 'closed') return;
       const now = performance.now();
       // 締切を過ぎた直後に閉じても、終了済みラウンドは一度だけ精算する。
-      if ((phase === 'ready' || phase === 'playing') && now >= endAt) {
+      if (!paused && (phase === 'ready' || phase === 'playing') && now >= endAt) {
         phase = 'playing';
         finishRound(now);
       }
       phase = 'closed';
+      paused = false;
       clearGesture();
       cancelAnimationFrame(frame);
       if (observer) observer.disconnect();
@@ -1196,9 +1255,12 @@
 
     ui.start.addEventListener('click', startRound);
     ui.retry.addEventListener('click', startRound);
+    ui.pause.addEventListener('click', pauseGame);
+    ui.resume.addEventListener('click', resumeGame);
+    ui.pauseRetry.addEventListener('click', startRound);
     ui.skill.addEventListener('click', triggerSkill);
     ui.shuffle.addEventListener('click', shuffleBoard);
-    for (const button of [ui.close, ui.leave, ui.done]) button.addEventListener('click', close);
+    for (const button of [ui.close, ui.leave, ui.done, ui.pauseClose]) button.addEventListener('click', close);
     canvas.addEventListener('pointerdown', pointerDown);
     canvas.addEventListener('pointermove', pointerMove);
     canvas.addEventListener('pointerup', pointerUp);

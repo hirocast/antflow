@@ -424,6 +424,7 @@
           <span data-el="score">0点</span>
           <span data-el="done">完成 0</span>
           <i class="afdrop-spacer"></i>
+          <button type="button" class="secondary" data-act="pause" aria-label="一時停止" disabled>Ⅱ</button>
           <button type="button" class="secondary" data-act="gallery">図鑑</button>
           <button type="button" class="secondary" data-act="close" aria-label="閉じる">×</button>
         </div>
@@ -439,13 +440,14 @@
     document.body.appendChild(root);
 
     const el = Object.fromEntries([...root.querySelectorAll('[data-el]')].map((n) => [n.dataset.el, n]));
+    const pauseBtn = root.querySelector('button[data-act="pause"]');
     const canvas = root.querySelector('.afdrop-stage canvas');
     const ctx = canvas.getContext('2d');
     const cols = CFG.cols, rows = CFG.rows, cells = cols * rows;
     const timings = new Map();
     let raf = 0, observer = null, closed = false;
     let g = { w: 1, h: 1, cell: 1, bx: 0, by: 0, pp: 1, ax: 0, ay: 0 };
-    let phase = 'title', galleryFrom = null, pausedAt = 0;
+    let phase = 'title', galleryFrom = null, pausedAt = 0, userPaused = false;
     let level = null, board = [], drag = null, cursor = Math.floor(cells / 2);
     let showCursor = false, deadline = 0, readyAt = 0;
     let score = 0, completed = 0, clearCoinsPaid = 0, settled = true;
@@ -800,6 +802,7 @@
       result = null;
       galleryFrom = null;
       pausedAt = 0;
+      userPaused = false;
       notices = [];
       cursor = Math.floor(cells / 2);
       showCursor = false;
@@ -872,7 +875,7 @@
     }
 
     function openGallery() {
-      if (closed || drag || !['title', 'play', 'result'].includes(phase) || galleryFrom !== null) return;
+      if (closed || drag || userPaused || !['title', 'play', 'result'].includes(phase) || galleryFrom !== null) return;
       if (phase === 'play' && now() >= deadline) {
         endGame();
         return;
@@ -912,6 +915,27 @@
       else showTitle();
     }
 
+    function pauseGame() {
+      if (closed || userPaused || phase !== 'play' || galleryFrom !== null) return;
+      if (drag) stopDrag(false);
+      if (now() >= deadline) { endGame(); return; }
+      userPaused = true;
+      pausedAt = now();
+      audio.tap();
+      showPanel('一時停止中', ['タイマーは止まっています。'],
+        [['再開', 'resume'], ['やり直す', 'restart', true], ['閉じる', 'close', true]]);
+    }
+
+    function resumeGame() {
+      if (!userPaused || closed) return;
+      deadline += now() - pausedAt;
+      pausedAt = 0;
+      userPaused = false;
+      audio.tap();
+      hidePanel();
+      canvas.focus();
+    }
+
     function point(e) {
       const rect = canvas.getBoundingClientRect();
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -926,7 +950,7 @@
 
     function canGrab() {
       const t = now();
-      return phase === 'play' && galleryFrom === null && !drag && t >= readyAt && t < deadline;
+      return phase === 'play' && galleryFrom === null && !userPaused && !drag && t >= readyAt && t < deadline;
     }
 
     function grab(p, pointerId, pt) {
@@ -1008,7 +1032,8 @@
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        if (galleryFrom !== null) closeGallery();
+        if (userPaused) resumeGame();
+        else if (galleryFrom !== null) closeGallery();
         else close();
         return;
       }
@@ -1022,7 +1047,7 @@
         }
         return;
       }
-      if (phase !== 'play' || galleryFrom !== null || document.activeElement !== canvas) return;
+      if (phase !== 'play' || galleryFrom !== null || userPaused || document.activeElement !== canvas) return;
       const dirs = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
       if (dirs[e.key]) {
         e.preventDefault();
@@ -1047,10 +1072,18 @@
     root.addEventListener('click', (e) => {
       const a = e.target.closest('button[data-act]')?.dataset.act;
       if (a === 'close') close();
+      else if (a === 'pause') pauseGame();
+      else if (a === 'resume') resumeGame();
+      else if (a === 'restart') { userPaused = false; pausedAt = 0; startGame(); }
       else if (a === 'gallery') openGallery();
       else if (a === 'back') closeGallery();
       else if (a === 'start' && (phase === 'title' || phase === 'result')) startGame();
     });
+
+    function onVisibility() {
+      if (document.hidden && phase === 'play' && !userPaused && galleryFrom === null) pauseGame();
+    }
+    document.addEventListener('visibilitychange', onVisibility);
 
     function close() {
       if (closed) return;
@@ -1066,6 +1099,7 @@
       window.removeEventListener('pointerup', pointerEnd);
       window.removeEventListener('pointercancel', pointerEnd);
       window.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('visibilitychange', onVisibility);
       stopDrag(false);
       audio.close();
       root.remove();
@@ -1281,12 +1315,13 @@
       if (closed) return;
       const t = now(), dt = clamp(t - lastFrame, 0, 50);
       lastFrame = t;
-      if (phase === 'play' && galleryFrom === null) {
+      if (phase === 'play' && galleryFrom === null && !userPaused) {
         if (t >= deadline) {
           if (drag) stopDrag(true);
           if (phase === 'play') endGame();
         } else if (drag?.until && t >= drag.until) stopDrag(true);
       }
+      if (pauseBtn) pauseBtn.disabled = phase !== 'play' || galleryFrom !== null || userPaused;
 
       const left = phase === 'title' ? CFG.gameMs : Math.max(0, deadline - (pausedAt || t));
       const timeText = `${(left / 1000).toFixed(1)}秒`;

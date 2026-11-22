@@ -446,6 +446,7 @@
           <header class="afid-row">
             <h1>ドロップぬりえ</h1>
             <span class="afid-score" data-ui="score">0 pt</span>
+            <button type="button" data-ui="pause">一時停止</button>
             <button type="button" data-ui="end">集計する</button>
           </header>
           <div class="afid-row afid-hud" data-ui="hud">
@@ -472,6 +473,16 @@
                 矢印キーで移動、Space / Enterでつかむ・離す。Escで操作を取り消す。
               </p>
             </section>
+          </div>
+        </section>
+
+        <section class="afid-card" data-pane="pause" hidden>
+          <h2>一時停止中</h2>
+          <p>タイマーは止まっています。</p>
+          <div class="afid-actions">
+            <button class="afid-primary" type="button" data-ui="resume">再開</button>
+            <button type="button" data-ui="pause-end">集計して終わる</button>
+            <button type="button" data-ui="close-pause">閉じる</button>
           </div>
         </section>
 
@@ -531,13 +542,14 @@
     let board, art, drag = null, cursor = 0, keyboardMode = false;
     let score = 0, maxCombo = 0, completed = [], sessionBest = 0;
     let deadline = 0, ending = false, timer = 0, run = 0, lastSecond = -1;
+    let paused = false, pausedAt = 0;
 
     function listen(target, type, handler, options = {}) {
       target.addEventListener(type, handler, { ...options, signal:controller.signal });
     }
 
     function showPane(name) {
-      for (const key of ['title', 'game', 'result']) pane(key).hidden = key !== name;
+      for (const key of ['title', 'game', 'pause', 'result']) pane(key).hidden = key !== name;
       root.scrollTop = 0;
     }
 
@@ -906,7 +918,7 @@
     });
 
     function tick() {
-      if (ending || !['ready', 'drag', 'resolving'].includes(phase)) return;
+      if (paused || ending || !['ready', 'drag', 'resolving'].includes(phase)) return;
       const now = performance.now(), remaining = Math.max(0, deadline - now);
       const seconds = Math.ceil(remaining / 1000);
       ui['time-bar'].style.transform = `scaleX(${Math.min(1, remaining / GAME_MS)})`;
@@ -923,8 +935,34 @@
       }
     }
 
+    function pauseGame() {
+      if (paused || ending || !['ready', 'drag', 'resolving'].includes(phase)) return;
+      paused = true;
+      pausedAt = performance.now();
+      window.clearInterval(timer);
+      playSound('tap');
+      showPane('pause');
+      ui.resume.focus({ preventScroll:true });
+    }
+
+    function resumeGame() {
+      if (!paused || phase === 'closed') return;
+      const delta = performance.now() - pausedAt;
+      deadline += delta;
+      if (drag?.until) drag.until += delta;
+      paused = false;
+      pausedAt = 0;
+      playSound('tap');
+      showPane('game');
+      timer = window.setInterval(tick, 40);
+      tick();
+      gridEl.focus({ preventScroll:true });
+    }
+
     function requestEnd() {
       if (ending || !['ready', 'drag', 'resolving'].includes(phase)) return;
+      paused = false;
+      pausedAt = 0;
       ending = true;
       window.clearInterval(timer);
       ui.end.disabled = true;
@@ -1024,6 +1062,8 @@
       completed = [];
       lastSecond = -1;
       ending = false;
+      paused = false;
+      pausedAt = 0;
       cursor = 0;
       drag = null;
       keyboardMode = true;
@@ -1062,6 +1102,10 @@
 
     listen(ui.start, 'click', startGame);
     listen(ui.retry, 'click', startGame);
+    listen(ui.pause, 'click', pauseGame);
+    listen(ui.resume, 'click', resumeGame);
+    listen(ui['pause-end'], 'click', () => { paused = false; showPane('game'); requestEnd(); });
+    listen(ui['close-pause'], 'click', () => cleanup(true));
     listen(ui.end, 'click', requestEnd);
     listen(ui['close-title'], 'click', () => cleanup(true));
     listen(ui['close-result'], 'click', () => cleanup(true));
@@ -1069,12 +1113,17 @@
     listen(root, 'cancel', e => {
       e.preventDefault();
       if (phase === 'title' || phase === 'result') cleanup(true);
+      else if (paused) resumeGame();
       else if (drag && checkTime()) finishDrag(false);
-      else if (phase === 'ready') ui.end.focus();
+      else if (phase === 'ready') pauseGame();
     });
     listen(document, 'visibilitychange', () => {
-      tick();
-      if (document.hidden && drag && checkTime()) finishDrag(false);
+      if (document.hidden) {
+        if (drag && checkTime()) finishDrag(false);
+        pauseGame();
+      } else {
+        tick();
+      }
     });
 
     ui['best-title'].textContent = `ハイスコア：${nf.format(savedBest())} pt`;
