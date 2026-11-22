@@ -23,63 +23,65 @@
 
   const CSS = `
     .afibn-game{position:fixed;inset:0;z-index:2147483000;display:flex;
-      justify-content:center;background:#080e1b;color:#edf5ff;
-      font:14px system-ui,-apple-system,sans-serif;overscroll-behavior:contain}
+      justify-content:center;background:#fff0f5;color:#5a3d5c;
+      font:14px 'Hiragino Maru Gothic ProN','M PLUS Rounded 1c',system-ui,-apple-system,sans-serif;overscroll-behavior:contain}
     .afibn-game,.afibn-game *{box-sizing:border-box}
-    .afibn-game button{min-height:44px;border:1px solid #53668a;border-radius:10px;
-      padding:6px 12px;background:#233653;color:#fff;font:inherit;font-weight:700;
-      cursor:pointer;touch-action:manipulation}
-    .afibn-game button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+    .afibn-game button{min-height:44px;border:1px solid #f0bfd0;border-radius:12px;
+      padding:6px 12px;background:#fff;color:#5a3d5c;font:inherit;font-weight:700;
+      box-shadow:0 2px 0 #f3c6d6;cursor:pointer;touch-action:manipulation}
+    .afibn-game button:focus-visible{outline:3px solid #e46a92;outline-offset:2px}
     .afibn-game button:disabled{opacity:.45;cursor:default}
-    .afibn-game .bn-primary{background:#a6e8ff;color:#14283b;border-color:#a6e8ff}
+    .afibn-game .bn-primary{background:#ff8fb3;color:#fff;border-color:#e46a92;box-shadow:0 2px 0 #e46a92}
     .afibn-game .bn-shell{width:100%;max-width:540px;height:100%;display:flex;
-      flex-direction:column;min-height:0;background:#111b2f}
+      flex-direction:column;min-height:0;background:#fff6fa}
     .afibn-game .bn-head{flex:none;padding:6px 10px 5px;
       padding-top:calc(6px + env(safe-area-inset-top,0px))}
     .afibn-game .bn-top,.afibn-game .bn-buttons{display:flex;align-items:center;gap:8px}
-    .afibn-game .bn-title{flex:1;margin:0;font-size:17px}
+    .afibn-game .bn-title{flex:1;margin:0;font-size:17px;color:#e46a92}
     .afibn-game .bn-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
       gap:6px;margin:5px 0;font-variant-numeric:tabular-nums}
-    .afibn-game .bn-stat{min-width:0;padding:4px 7px;background:#1c2b45;border-radius:7px}
-    .afibn-game .bn-stat small{display:block;color:#becde3;font-size:10px}
+    .afibn-game .bn-stat{min-width:0;padding:4px 7px;background:#fff;border:1px solid #f6d5e2;
+      box-shadow:0 2px 0 #f3c6d6;border-radius:10px}
+    .afibn-game .bn-stat small{display:block;color:#8c6b8e;font-size:10px}
     .afibn-game .bn-stat b{display:block;overflow:hidden;text-overflow:ellipsis;
-      white-space:nowrap;font-size:16px}
-    .afibn-game .bn-low{color:#ffacaa}
+      white-space:nowrap;font-size:16px;color:#5a3d5c}
+    .afibn-game .bn-low{color:#e04868}
     .afibn-game .bn-art-row{display:flex;align-items:center;gap:8px;margin-top:4px}
-    .afibn-game .bn-preview{flex:none;width:42px;height:42px;border-radius:6px;
-      background:#0d182b;border:1px solid #3c537a;image-rendering:pixelated}
+    .afibn-game .bn-preview{flex:none;width:42px;height:42px;border-radius:8px;
+      background:#f3eaf5;border:1px solid #e7c6d8;image-rendering:pixelated}
     .afibn-game .bn-art-info{flex:1;min-width:0}
-    .afibn-game .bn-progress{height:4px;background:#263752;border-radius:4px;overflow:hidden}
+    .afibn-game .bn-progress{height:6px;background:#f5dde7;border-radius:6px;overflow:hidden}
     .afibn-game .bn-progress i{display:block;width:0;height:100%;
-      background:linear-gradient(90deg,#74dfff,#c3a7ff)}
+      background:linear-gradient(90deg,#ff8fb3,#ffcf4a)}
     .afibn-game .bn-art{margin-top:4px;overflow:hidden;white-space:nowrap;
-      text-overflow:ellipsis;color:#c9daf1;font-size:11px}
+      text-overflow:ellipsis;color:#7c5b7e;font-size:11px;font-weight:700}
     .afibn-game .bn-field{position:relative;flex:1;min-height:0;overflow:hidden}
     .afibn-game .bn-canvas{display:block;width:100%;height:100%;touch-action:none;
       user-select:none;-webkit-user-select:none}
     .afibn-game .bn-layer{position:absolute;inset:0;display:grid;place-items:center;
-      padding:10px;background:rgba(6,11,24,.8)}
+      padding:10px;background:rgba(110,60,100,.32)}
     .afibn-game .bn-layer[hidden]{display:none}
     .afibn-game .bn-card{width:100%;max-width:410px;max-height:100%;min-height:0;
-      overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:15px;
-      background:#17263f;border:1px solid #4a6087;border-radius:14px}
-    .afibn-game .bn-card h3{margin:0 0 8px;font-size:22px}
-    .afibn-game .bn-card p,.afibn-game .bn-card ul{margin:8px 0;line-height:1.45}
+      overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:16px;
+      background:#fffdf8;border:3px solid #ffd3e2;border-radius:22px;
+      box-shadow:0 10px 24px rgba(110,60,100,.24)}
+    .afibn-game .bn-card h3{margin:0 0 8px;font-size:21px;color:#e46a92}
+    .afibn-game .bn-card p,.afibn-game .bn-card ul{margin:8px 0;line-height:1.5}
     .afibn-game .bn-card ul{padding-left:20px}
     .afibn-game .bn-buttons{flex-wrap:wrap;margin-top:10px}
-    .afibn-game .bn-chips{display:flex;flex-wrap:wrap;gap:4px}
-    .afibn-game .bn-chip{border:1px solid currentColor;border-radius:8px;padding:3px 6px;
-      font-size:11px}
-    .afibn-game .bn-result{font-size:30px;font-weight:800}
+    .afibn-game .bn-chips{display:flex;flex-wrap:wrap;gap:5px}
+    .afibn-game .bn-chip{border:1px solid rgba(90,61,92,.16);border-radius:10px;padding:3px 7px;
+      font-size:11px;font-weight:700}
+    .afibn-game .bn-result{font-size:30px;font-weight:800;color:#e46a92}
     .afibn-game .bn-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(75px,1fr));
       gap:6px;margin-top:8px}
     .afibn-game .bn-gallery figure{min-width:0;margin:0;padding:5px;text-align:center;
-      border-radius:7px;background:#0d182b}
+      border-radius:10px;background:#fff5f9;border:1px solid #f4d3e0}
     .afibn-game .bn-gallery canvas{display:block;width:64px;max-width:100%;height:auto;
       margin:auto;image-rendering:pixelated}
     .afibn-game .bn-gallery figcaption{font-size:11px;overflow-wrap:anywhere}
     .afibn-game .bn-footer{flex:none;padding:3px 8px calc(5px + env(safe-area-inset-bottom,0px));
-      text-align:center;color:#c9ddf4;font-size:11px;min-height:24px}
+      text-align:center;color:#7c5b7e;font-size:11px;font-weight:700;min-height:24px}
     .afibn-game .bn-sr{position:absolute;width:1px;height:1px;overflow:hidden;
       clip-path:inset(50%);white-space:nowrap}
   `;
@@ -259,14 +261,14 @@
     root.tabIndex = -1;
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
-    root.setAttribute('aria-label', 'バウンドぬりえ');
+    root.setAttribute('aria-label', 'ピクセルアート崩し');
     const style = element('style', '', CSS);
     const shell = element('div', 'bn-shell');
     const head = element('header', 'bn-head');
     const top = element('div', 'bn-top');
     const pauseBtn = button('一時停止', () => phase === 'paused' ? resume() : pause());
     const closeBtn = button('閉じる', requestClose);
-    top.append(element('h2', 'bn-title', 'バウンドぬりえ'), pauseBtn, closeBtn);
+    top.append(element('h2', 'bn-title', 'ピクセルアート崩し'), pauseBtn, closeBtn);
     const stats = element('div', 'bn-stats');
     function stat(label) {
       const box = element('div', 'bn-stat');
@@ -644,7 +646,7 @@
         addPopup(
           cx, cy - 4,
           colorChain >= 2 ? `+${pts} 同色×${colorChain}` : `+${pts}`,
-          colorChain >= 2 ? '#ffe399' : '#edf5ff'
+          colorChain >= 2 ? '#d47a00' : '#5a3d5c'
         );
         sound('pop', 44);
       }
@@ -656,8 +658,8 @@
           bombReady = false;
           const bombR = maxDim >= 43 ? 4 : maxDim >= 25 ? 2 : 1;
           const bombR2 = bombR * bombR + 1;
-          addRing(cx, cy, '#ff9e6d', 54);
-          addPopup(cx, cy - 16, 'BOOM!', '#ff9e6d');
+          addRing(cx, cy, '#ff7e47', 54);
+          addPopup(cx, cy - 16, 'BOOM!', '#e0531f');
           sound('boom', 60);
           for (let dr = -bombR; dr <= bombR; dr++) {
             for (let dc = -bombR; dc <= bombR; dc++) {
@@ -977,7 +979,7 @@
       const { dpr, scale, x, y, w, h } = view;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.globalAlpha = 1;
-      ctx.fillStyle = '#0c1526';
+      ctx.fillStyle = '#fff0f5';
       ctx.fillRect(0, 0, w, h);
       ctx.save();
       ctx.translate(x, y);
@@ -986,9 +988,9 @@
       ctx.rect(0, 0, W, H);
       ctx.clip();
 
-      ctx.fillStyle = '#14213a';
+      ctx.fillStyle = '#f7edf4';
       ctx.fillRect(LEFT, TOP, RIGHT - LEFT, H - TOP);
-      ctx.strokeStyle = 'rgba(130,165,220,0.06)';
+      ctx.strokeStyle = 'rgba(210,150,185,0.14)';
       ctx.beginPath();
       for (let gx = LEFT + 24; gx < RIGHT; gx += 24) {
         ctx.moveTo(gx, TOP); ctx.lineTo(gx, PAD_Y + 26);
@@ -998,13 +1000,15 @@
       }
       ctx.stroke();
 
-      ctx.strokeStyle = '#364968';
+      ctx.strokeStyle = '#e8b8ce';
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(LEFT, H - 15);
       ctx.lineTo(LEFT, TOP);
       ctx.lineTo(RIGHT, TOP);
       ctx.lineTo(RIGHT, H - 15);
       ctx.stroke();
+      ctx.lineWidth = 1;
 
       if (stage) {
         const showLast = phase === 'play' && stage.left > 0 && stage.left <= 8;
@@ -1021,7 +1025,7 @@
               if (c.w >= 7) {
                 stageCtx.fillStyle = 'rgba(255,255,255,0.22)';
                 stageCtx.fillRect(c.x, c.y, c.w, Math.max(1, c.h * 0.18));
-                stageCtx.strokeStyle = 'rgba(255,255,255,0.14)';
+                stageCtx.strokeStyle = 'rgba(90,61,92,0.12)';
                 stageCtx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
               }
             }
@@ -1059,31 +1063,31 @@
             if (c.w >= 7) {
               ctx.fillStyle = 'rgba(255,255,255,0.22)';
               ctx.fillRect(c.x, c.y, c.w, Math.max(1, c.h * 0.18));
-              ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+              ctx.strokeStyle = 'rgba(90,61,92,0.12)';
               ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
             }
           }
           if (showLast) {
             ctx.globalAlpha = reduceMotion ? 0.95 : 0.73 + 0.25 * Math.sin(clock * 6);
-            ctx.strokeStyle = '#ffe699';
+            ctx.strokeStyle = '#ff5a7a';
             ctx.strokeRect(c.x + 0.5, c.y + 0.5, Math.max(1, c.w - 1), Math.max(1, c.h - 1));
           }
         }
       }
 
       ctx.globalAlpha = 1;
-      ctx.fillStyle = '#1b2b45';
+      ctx.fillStyle = '#ffe6f0';
       ctx.fillRect(LEFT + 1, PAD_Y + 28, RIGHT - LEFT - 2, H - PAD_Y - 28);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = '13px system-ui,sans-serif';
-      ctx.fillStyle = '#b6cce7';
+      ctx.fillStyle = '#8c5f7b';
       ctx.fillText('← このあたりを左右にスライド →', W / 2, PAD_Y + 28 + (H - PAD_Y - 28) * 0.45);
 
       if (shields > 0) {
         const sy = PAD_Y + 24;
         ctx.save();
-        ctx.strokeStyle = '#b8a6ff';
+        ctx.strokeStyle = '#9b7be8';
         ctx.lineWidth = shields >= 2 ? 4 : 2.5;
         ctx.globalAlpha = 0.75 + 0.2 * Math.sin(clock * 5);
         ctx.beginPath();
@@ -1094,35 +1098,42 @@
       }
 
       const py = PAD_Y + paddle.bump * 2.5;
-      ctx.fillStyle = clock < wideUntil ? '#a8ed9c' : '#a6e8ff';
+      ctx.fillStyle = clock < wideUntil ? '#5fcf9f' : '#e46a92';
       ctx.fillRect(paddle.x - paddle.w / 2, py, paddle.w, PAD_H);
-      ctx.fillStyle = '#f0fbff';
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
       ctx.fillRect(paddle.x - paddle.w / 2 + 4, py + 2, paddle.w - 8, 2);
 
       ctx.font = 'bold 12px system-ui,sans-serif';
       for (const item of items) {
         ctx.fillStyle = item.def.color;
         ctx.fillRect(item.x - 16, item.y - 10, 32, 20);
-        ctx.fillStyle = '#14213a';
+        ctx.strokeStyle = 'rgba(90,61,92,0.22)';
+        ctx.strokeRect(item.x - 15.5, item.y - 9.5, 31, 19);
+        ctx.fillStyle = '#3a243b';
         ctx.fillText(item.def.mark, item.x, item.y, 29);
       }
 
       for (const ball of balls) {
-        const ballColor = bombReady ? '#ff9e6d' : '#f7fcff';
-        ctx.fillStyle = ballColor;
+        const ballColor = bombReady ? '#ff844b' : '#ffffff';
+        ctx.fillStyle = bombReady ? '#ff844b' : '#ff8fb3';
         for (let i = 0; i < ball.trail.length; i++) {
           const p = ball.trail[i];
-          ctx.globalAlpha = 0.24 * (i + 1) / ball.trail.length;
+          ctx.globalAlpha = 0.28 * (i + 1) / ball.trail.length;
           ctx.beginPath();
           ctx.arc(p.x, p.y, R * 0.72, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.globalAlpha = 1;
+        ctx.fillStyle = ballColor;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, R, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = bombReady ? '#b84018' : '#5a3d5c';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.lineWidth = 1;
         if (bombReady) {
-          ctx.strokeStyle = '#ffd178';
+          ctx.strokeStyle = '#ff9e6d';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.arc(ball.x, ball.y, R + 2.5 + Math.sin(clock * 12) * 1, 0, Math.PI * 2);
@@ -1151,7 +1162,7 @@
       ctx.font = 'bold 12px system-ui,sans-serif';
       for (const p of popups) {
         ctx.globalAlpha = Math.min(1, (p.life / p.max) * 1.4);
-        ctx.fillStyle = 'rgba(8,16,34,0.65)';
+        ctx.fillStyle = 'rgba(255,255,255,0.88)';
         ctx.fillText(p.text, p.x + 1, p.y + 1);
         ctx.fillStyle = p.color;
         ctx.fillText(p.text, p.x, p.y);
@@ -1160,12 +1171,14 @@
       ctx.globalAlpha = 1;
       if (phase === 'roulette' && roulette) {
         const boxX = 36, boxY = 308, boxW = W - 72, boxH = 148;
-        ctx.fillStyle = 'rgba(8,16,34,0.92)';
+        ctx.fillStyle = 'rgba(255,253,248,0.96)';
         ctx.fillRect(boxX, boxY, boxW, boxH);
-        ctx.strokeStyle = '#6c8ec4';
-        ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffd3e2';
+        ctx.strokeRect(boxX + 1.5, boxY + 1.5, boxW - 3, boxH - 3);
+        ctx.lineWidth = 1;
 
-        ctx.fillStyle = roulette.applied ? '#ffe399' : '#a6e8ff';
+        ctx.fillStyle = roulette.applied ? '#e46a92' : '#5a3d5c';
         ctx.font = 'bold 18px system-ui,sans-serif';
         ctx.fillText(
           roulette.applied ? `${roulette.targets.length}色が抜けた！` : '抜ける色ルーレット！',
@@ -1185,19 +1198,19 @@
           ctx.fillStyle = color(cIdx);
           ctx.fillRect(sx, slotY, slotSize, slotSize);
           ctx.lineWidth = done ? 3 : 2;
-          ctx.strokeStyle = done ? '#ffe399' : '#85a3d1';
+          ctx.strokeStyle = done ? '#e46a92' : '#d8b4c8';
           ctx.strokeRect(sx, slotY, slotSize, slotSize);
           ctx.lineWidth = 1;
           if (done) {
-            ctx.fillStyle = 'rgba(8,16,34,0.55)';
+            ctx.fillStyle = 'rgba(90,61,92,0.84)';
             ctx.fillRect(sx + 6, slotY + slotSize - 18, slotSize - 12, 14);
-            ctx.fillStyle = '#ffe399';
+            ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 11px system-ui,sans-serif';
             ctx.fillText('抜け', sx + slotSize / 2, slotY + slotSize - 11);
           }
         }
 
-        ctx.fillStyle = '#b9cde8';
+        ctx.fillStyle = '#7c5b7e';
         ctx.font = '12px system-ui,sans-serif';
         ctx.fillText('タップ / Space でスキップ', W / 2, boxY + boxH - 18);
       } else if (phase === 'clear') {
@@ -1314,7 +1327,7 @@
         const x = Math.floor((72 - entry.cols * unit) / 2);
         const y = Math.floor((72 - entry.rows * unit) / 2);
         for (const p of entry.pixels) {
-          g.fillStyle = (!partial || (!p.broken && !p.skipped)) ? color(p.color) : '#1a2842';
+          g.fillStyle = (!partial || (!p.broken && !p.skipped)) ? color(p.color) : '#eadbe6';
           g.fillRect(x + (p.i % entry.cols) * unit,
             y + Math.floor(p.i / entry.cols) * unit, unit, unit);
         }
@@ -1529,7 +1542,7 @@
         try { previousFocus.focus({ preventScroll: true }); } catch (_) { /* 復元できなくても終了 */ }
       }
       if (typeof onClose === 'function') {
-        try { onClose(); } catch (error) { console.error('バウンドぬりえ: 終了処理', error); }
+        try { onClose(); } catch (error) { console.error('ピクセルアート崩し: 終了処理', error); }
       }
     }
 
@@ -1560,7 +1573,7 @@
     } else {
       const rules = element('ul');
       [
-        '最初から表示されたぬりえブロックにボールを当てて崩そう！',
+        '最初から表示されたピクセルアートにボールを当てて崩そう！',
         '開始時のルーレットで1〜3色が抜けて、毎回ちがう形になります。',
         '同じ色を連続で崩すと「同色チェイン」ボーナス！',
         `全ブロックを崩すと+${CLEAR_POINTS}点（ノーミスで+150点）で次のお題へ！`,
@@ -1570,12 +1583,13 @@
       const chips = element('div', 'bn-chips');
       for (const def of ITEMS) {
         const chip = element('span', 'bn-chip', `${def.mark} ${def.name}`);
-        chip.style.color = def.color;
+        chip.style.background = def.color;
+        chip.style.color = '#3a243b';
         chips.appendChild(chip);
       }
       const content = [rules, chips];
       if (!saveData) content.push(element('p', '', '保存なしでプレイします。'));
-      showCard('バウンドぬりえ', content, [button('スタート', start, true)]);
+      showCard('ピクセルアート崩し', content, [button('スタート', start, true)]);
     }
     hud();
     resize();
