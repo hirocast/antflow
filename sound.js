@@ -266,6 +266,93 @@ const Sound = {
     s.start(t); s.stop(t + 0.45);
   },
   albumIn() { if (this.ok()) [523.25, 659.25, 783.99].forEach((f, i) => this.mallet(f, i * 0.08, 0.09)); },
+  tsumLink(len) {
+    if (!this.ok()) return;
+    const scale = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33];
+    const n = Math.max(1, len | 0);
+    const f = 523.25 * Math.pow(2, scale[Math.min(n - 1, scale.length - 1)] / 12) * this.vary();
+    this.tone(f, 0.14, { vol: 0.13, type: 'triangle', attack: 0.003 });
+    this.tone(f * 2, 0.09, { vol: 0.045, type: 'sine', attack: 0.002 });
+    if (n === 3) {
+      this.tone(f * 1.5, 0.12, { vol: 0.045, when: 0.025, attack: 0.003 });
+    } else if (n === 7) {
+      this.bell(f * 1.5, 0.02, 0.06, 0.22);
+      this.bell(f * 2, 0.06, 0.055, 0.26);
+    }
+  },
+  tsumUnlink(len) {
+    if (!this.ok()) return;
+    const scale = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33];
+    const n = Math.max(1, len | 0);
+    const f = 523.25 * Math.pow(2, scale[Math.min(n - 1, scale.length - 1)] / 12);
+    this.tone(f * 0.92, 0.08, { vol: 0.06, type: 'sine', glide: 0.88, attack: 0.003 });
+  },
+  tsumClear(count, combo, fever) {
+    if (!this.ok()) return;
+    const c = Math.max(3, count | 0), cb = Math.min(Math.max(1, combo | 0), 12);
+    const base = 523.25 * Math.pow(2, (Math.min(cb - 1, 5) + (fever ? 2 : 0)) / 12);
+    this.tone(360 + cb * 16, 0.11, { vol: 0.14, glide: 1.75, attack: 0.003 });
+    this.noise(0, 0.045, 0.055, 2600, 'bandpass', 1.4);
+    const steps = c >= 7 ? [0, 4, 7, 12, 16] : c >= 5 ? [0, 4, 7, 12] : [0, 4, 7];
+    steps.forEach((st, i) => {
+      const f = base * Math.pow(2, st / 12);
+      this.mallet(f, i * 0.032, 0.095);
+      if (i === steps.length - 1) this.bell(f * 2, i * 0.032, 0.045, 0.28);
+    });
+    if (c >= 7) {
+      this.bell(base * 2, 0.14, 0.065, 0.34);
+      this.bell(base * 2.5, 0.19, 0.055, 0.38);
+    }
+  },
+  tsumBomb(depth) {
+    if (!this.ok()) return;
+    const d = Math.min(Math.max(0, depth | 0), 6);
+    const mul = Math.pow(1.12, d);
+    this.tone(95 * mul, 0.32, { vol: 0.24, glide: 0.45, attack: 0.003 });
+    this.noise(0, 0.28, 0.08, 650, 'lowpass', 0.8);
+    this.noise(0.03, 0.12, 0.035, 2400, 'bandpass', 1.6);
+    this.mallet(523.25 * mul, 0.02, 0.09);
+  },
+  tsumFever() {
+    if (!this.ok()) return;
+    this.whoosh();
+    [523.25, 659.25, 783.99, 987.77, 1174.66, 1567.98].forEach((f, i) => {
+      this.mallet(f, i * 0.045, 0.09);
+      if (i >= 3) this.bell(f, i * 0.045, 0.045, 0.35);
+    });
+  },
+  tsumSkill() {
+    if (!this.ok()) return;
+    [587.33, 739.99, 880, 1174.66, 1479.98].forEach((f, i) => {
+      this.bell(f, i * 0.04, 0.065, 0.35);
+      this.tone(f * 0.5, 0.16, { vol: 0.06, when: i * 0.04, glide: 1.25, attack: 0.004 });
+    });
+  },
+  tsumShuffle() {
+    if (!this.ok()) return;
+    this.whoosh();
+    [392, 493.88, 587.33].forEach((f, i) => this.mallet(f, i * 0.045, 0.075));
+  },
+  tsumReady(go) {
+    if (!this.ok()) return;
+    if (go) [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.mallet(f, i * 0.04, 0.09));
+    else this.mallet(523.25, 0, 0.08);
+  },
+  tsumDot(idx) {
+    if (!this.ok()) return;
+    const now = this.ctx.currentTime;
+    if (this.lastTsumDot && now - this.lastTsumDot < 0.035) return;
+    this.lastTsumDot = now;
+    const f = 880 * Math.pow(2, [0, 2, 4, 7, 9, 12][Math.abs(idx | 0) % 6] / 12);
+    this.bell(f, 0, 0.038, 0.14);
+  },
+  tsumStageClear() {
+    if (!this.ok()) return;
+    [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((f, i) => {
+      this.mallet(f, i * 0.055, 0.1);
+      if (i >= 3) this.bell(f, i * 0.055, 0.05, 0.45);
+    });
+  },
   // アリの足音：歩いている間だけ小さなサラサラ音を鳴らし、止まったらノードをスリープさせる
   initWalk() {
     if (!this.ctx || this.walkG) return;

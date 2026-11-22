@@ -694,7 +694,7 @@
           feverUntil = now + FEVER_MS;
           endAt += FEVER_BONUS_MS;
           label(width / 2, height * 0.32, 'FEVER！ ＋5秒', '#a63f6d', now);
-          sound('starPing');
+          sound('tsumFever');
         }
       }
       return points;
@@ -707,7 +707,7 @@
       skillCharge = 0;
       const sk = activeSkin.skill;
       const lv = sk.lv;
-      sound('starPing');
+      sound('tsumSkill');
       label(width / 2, height * 0.28, `${activeSkin.skin.e} ${sk.name}！`, '#b03060', now);
 
       const clearSet = (list) => {
@@ -715,7 +715,7 @@
         removePieces(list, now);
         const pts = award(list.length, now, false, true);
         label(width / 2, height * 0.45, `+${fmt(pts)}`, '#a45e25', now);
-        sound('boom');
+        sound('tsumBomb', 0);
         return list.length;
       };
       const pickRandom = (n) => {
@@ -836,13 +836,12 @@
       removePieces(chain, now);
       const points = award(chain.length, now, false);
       label(last.x, last.y - radius, `+${fmt(points)}`, '#a45e25', now);
-      sound('pop');
+      sound('tsumClear', chain.length, combo, isFever(now));
 
       if (chain.length >= BOMB_CHAIN) {
         pieces.push(piece(BOMB, clamp(last.x, radius, width - radius),
           clamp(last.y, radius, height - radius), 0, -radius * 4));
         label(last.x, last.y - radius * 2.1, 'ボム！', '#824699', now);
-        sound('starPing');
       }
     }
 
@@ -864,7 +863,7 @@
       }
       const count = removed.size - queue.length;
       removePieces(removed, now);
-      sound('boom');
+      sound('tsumBomb', Math.max(0, queue.length - 1));
       if (count > 0) {
         const points = award(count, now, true);
         label(bomb.x, bomb.y - radius, `+${fmt(points)}`, '#824699', now);
@@ -911,12 +910,12 @@
         if (chain.length > 1 && next === chain[chain.length - 2]) {
           if ((sx - next.x) ** 2 + (sy - next.y) ** 2 <= undoSq) {
             chain.pop();
-            sound('tap');
+            sound('tsumUnlink', chain.length);
           }
         } else if (!chain.includes(next)
           && (next.x - last.x) ** 2 + (next.y - last.y) ** 2 <= linkSq) {
           chain.push(next);
-          sound('tap');
+          sound('tsumLink', chain.length);
         }
       }
     }
@@ -963,7 +962,9 @@
       } catch {
         // キャプチャ不可の場合は盤面を出た時点で選択を取り消す。
       }
-      sound('tap');
+      sound('init');
+      if (gesture.bomb) sound('tap');
+      else sound('tsumLink', 1);
     }
 
     function pointerMove(event) {
@@ -1003,7 +1004,7 @@
       }
       label(width / 2, height / 2, 'シャッフル！', '#7b5b39', now);
       if (document.activeElement === ui.shuffle) ui.close.focus({ preventScroll: true });
-      sound('tap');
+      sound('tsumShuffle');
       hud(now);
     }
 
@@ -1085,7 +1086,7 @@
         phase = 'playing';
         text(ui.banner, '');
         label(width / 2, height * 0.4, 'スタート！', '#a45e25', now);
-        if (now < endAt) sound('starPing');
+        if (now < endAt) sound('tsumReady', true);
       } else if (phase === 'ready') {
         text(ui.banner, startAt - now > 500 ? 'よーい…' : 'まもなくスタート');
       }

@@ -294,14 +294,15 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .sk-detail b{color:var(--pinkd);font-size:12px}
 .sk-detail .sk-tag{display:inline-block;background:#fff1d6;color:#9a5b13;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:900;margin-left:4px}
 #skCv{display:block;width:104px;height:104px;margin:0 auto}
-#bSkill{position:absolute;left:10px;bottom:10px;z-index:4;display:flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:3px solid #fff;border-radius:999px;background:rgba(255,255,255,.94);color:var(--ink);font:900 12px var(--rf);box-shadow:0 4px 12px rgba(90,61,92,.22);cursor:pointer;overflow:hidden;transition:transform .15s,box-shadow .15s}
-#bSkill:active{transform:scale(.94)}
+#bSkill{position:relative;flex:1.15;max-width:120px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 4px 2px;border:2.5px solid #fff;border-radius:20px;background:#fffdf8;color:var(--ink);font:900 10.5px var(--rf);box-shadow:0 4px 0 #e6cbd8;cursor:pointer;overflow:hidden;transition:transform .15s,box-shadow .15s}
+#bSkill:active{transform:translateY(3px);box-shadow:none!important}
 #bSkill .sk-fill{position:absolute;left:0;bottom:0;top:0;width:0%;background:linear-gradient(90deg,rgba(255,143,179,.28),rgba(255,207,74,.38));transition:width .2s;pointer-events:none}
-#bSkill .sk-ico{position:relative;font-size:21px;line-height:1}
-#bSkill .sk-txt{position:relative;display:flex;flex-direction:column;align-items:flex-start;line-height:1.1}
-#bSkill .sk-txt small{font-size:9px;opacity:.75;font-weight:800}
-#bSkill.ready{background:linear-gradient(135deg,#fff0f6,#fff8d6);border-color:#ff8fb3;box-shadow:0 0 0 3px rgba(255,143,179,.35),0 6px 16px rgba(228,106,146,.35);animation:skPulse 1s ease-in-out infinite alternate}
-@keyframes skPulse{from{transform:scale(1)}to{transform:scale(1.06)}}
+#bSkill .sk-ico{position:relative;font-size:20px;line-height:1}
+#bSkill .sk-txt{position:relative;display:flex;flex-direction:column;align-items:center;line-height:1.05}
+#bSkill .sk-txt b{font-size:9.5px;white-space:nowrap}
+#bSkill .sk-txt small{font-size:9px;opacity:.8;font-weight:800;white-space:nowrap}
+#bSkill.ready{background:linear-gradient(135deg,#fff0f6,#fff8d6);border-color:#ff8fb3;box-shadow:0 4px 0 #e46a92,0 0 0 2px rgba(255,143,179,.35);animation:skPulse 1s ease-in-out infinite alternate}
+@keyframes skPulse{from{transform:scale(1)}to{transform:scale(1.04)}}
 .gacha-row{display:flex;gap:8px;margin-top:10px}
 .gacha-row .big{margin-top:0;flex:1;font-size:14px;padding:0 6px;line-height:1.15;height:54px}
 .gacha-row .big small{display:block;font-size:11px;font-weight:800;opacity:.92;margin-top:2px}
@@ -396,38 +397,39 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
   st.textContent = `
 #app{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 @media (min-width:700px){#app{max-width:min(1400px,100vw)}}
-@media (max-height:820px){
- header{flex-basis:54px}
- .lv{padding:2px 9px;min-width:78px}
- .lv b{font-size:15px}
- .lv .st{font-size:10px}
- footer{flex-basis:54px;padding-bottom:2px}
- .fb{height:48px;border-radius:18px}
- .fb span{font-size:18px}
- .fb small{font-size:10px}
-}
-@media (max-height:480px){
- header{flex-basis:46px;flex-wrap:nowrap;padding:0 8px}
- .lv{flex-direction:row;align-items:baseline;gap:6px;margin-right:0}
- .prog{order:0;flex:1;flex-direction:column;align-items:stretch;gap:3px;padding-top:0}
- .lv .st,#leftTxt{display:none}
- .ib{width:34px;height:34px;font-size:16px;border-radius:12px}
- .coin{height:32px;font-size:13px}
- footer{flex-basis:46px;padding-bottom:2px}
- .fb{height:40px;flex-direction:row;gap:4px}
- .fb span{font-size:16px}
-}
-@media (max-width:420px){
- header{gap:4px;padding:4px 6px 3px}
- .lv{padding:4px 8px;column-gap:6px}
- .lv #lvNum{font-size:14px}
- .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
- .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
- .coin i{font-size:15px}
- .fb small{font-size:9.5px}
-}
-body.wide footer{align-self:flex-end;width:var(--pw);max-width:100%;padding-left:6px}
-body.wide .fb{max-width:none}
+ @media (max-height:820px){
+  header{flex-basis:54px}
+  .lv{padding:2px 9px;min-width:78px}
+  .lv b{font-size:15px}
+  .lv .st{font-size:10px}
+  footer{flex-basis:54px;padding-bottom:2px}
+  .fb,#bSkill{height:48px;border-radius:18px}
+  .fb span,#bSkill .sk-ico{font-size:18px}
+  .fb small{font-size:10px}
+ }
+ @media (max-height:480px){
+  header{flex-basis:46px;flex-wrap:nowrap;padding:0 8px}
+  .lv{flex-direction:row;align-items:baseline;gap:6px;margin-right:0}
+  .prog{order:0;flex:1;flex-direction:column;align-items:stretch;gap:3px;padding-top:0}
+  .lv .st,#leftTxt{display:none}
+  .ib{width:34px;height:34px;font-size:16px;border-radius:12px}
+  .coin{height:32px;font-size:13px}
+  footer{flex-basis:46px;padding-bottom:2px}
+  .fb,#bSkill{height:40px;flex-direction:row;gap:4px}
+  .fb span,#bSkill .sk-ico{font-size:16px}
+ }
+ @media (max-width:420px){
+  header{gap:4px;padding:4px 6px 3px}
+  .lv{padding:4px 8px;column-gap:6px}
+  .lv #lvNum{font-size:14px}
+  .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
+  .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
+  .coin i{font-size:15px}
+  footer{gap:5px;padding:0 6px 4px}
+  .fb small,#bSkill .sk-txt b,#bSkill .sk-txt small{font-size:8.5px}
+ }
+ body.wide footer{align-self:flex-end;width:var(--pw);max-width:100%;padding-left:6px}
+ body.wide .fb,body.wide #bSkill{max-width:none}
 `;
   document.head.appendChild(st);
 })();
@@ -477,7 +479,7 @@ function handleTalkLikeClick(e) {
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
   $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全はこび</small><em class="price" id="pScan"></em></button>');
-  $('#stage').insertAdjacentHTML('beforeend', '<button type="button" id="bSkill" aria-label="きせかえスキル"><span class="sk-fill" id="skFill"></span><span class="sk-ico" id="skBtnIco">🐜</span><span class="sk-txt"><b id="skBtnLv">SLv.1</b><small id="skBtnPct">0%</small></span></button>');
+  $('footer').insertAdjacentHTML('afterbegin', '<button type="button" id="bSkill" aria-label="きせかえスキル"><span class="sk-fill" id="skFill"></span><span class="sk-ico" id="skBtnIco">🐜</span><span class="sk-txt"><b id="skBtnLv">SLv.1</b><small id="skBtnPct">0%</small></span></button>');
   $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2>');
   const setBtn = $('#bSet');
   if (setBtn && !$('#setUpdDot')) setBtn.insertAdjacentHTML('beforeend', '<em class="dot" id="setUpdDot"></em>');

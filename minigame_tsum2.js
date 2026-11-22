@@ -457,6 +457,12 @@
     const events = new AbortController();
     const listen = (target, type, fn) =>
       target.addEventListener(type, fn, { signal: events.signal });
+    const sound = (name, ...args) => {
+      try {
+        const s = typeof Sound !== 'undefined' ? Sound : window.Sound;
+        if (s && typeof s[name] === 'function') s[name](...args);
+      } catch (_) {}
+    };
 
     let state, stage, bag = [], lastArt = null;
     let width = 1, height = 1, radius = 20, targetCount = 40, dpr = 1;
@@ -715,8 +721,14 @@
       state.pointer = e.pointerId;
       state.lastPoint = pos;
       try { el.board.setPointerCapture(e.pointerId); } catch (_) {}
-      if (p.type < 0) state.bombTap = p;
-      else state.chain = [p];
+      sound('init');
+      if (p.type < 0) {
+        state.bombTap = p;
+        sound('tap');
+      } else {
+        state.chain = [p];
+        sound('tsumLink', 1);
+      }
     }
 
     function trace(pos) {
@@ -732,10 +744,14 @@
         const q = hit(x, y, 1.28, p => p.type === targetType);
         if (!q || q === tail) continue;
         if (chain.length > 1 && q === chain[chain.length - 2]) {
-          if (Math.hypot(x - q.x, y - q.y) <= radius * 0.95) chain.pop();
+          if (Math.hypot(x - q.x, y - q.y) <= radius * 0.95) {
+            chain.pop();
+            sound('tsumUnlink', chain.length);
+          }
         } else if (!chain.includes(q) &&
                    Math.hypot(q.x - tail.x, q.y - tail.y) <= radius * CFG.LINK_RADIUS) {
           chain.push(q);
+          sound('tsumLink', chain.length);
         }
       }
       state.lastPoint = pos;
@@ -754,10 +770,14 @@
         if (!bomb.armed && hit(pos.x, pos.y, 1.3) === bomb) explode(bomb, 0);
         return;
       }
-      if (chain.length < CFG.MIN_CHAIN) return;
+      if (chain.length < CFG.MIN_CHAIN) {
+        if (chain.length > 1) sound('deny');
+        return;
+      }
 
       const n = chain.length, tail = chain[n - 1];
       scoreAt((n * 50 + (n - CFG.MIN_CHAIN) ** 2 * 25) * multiplier(), tail);
+      sound('tsumClear', n, 1, state.feverTime > 0);
       clearPieces(chain);
       if (n >= CFG.BOMB_CHAIN) {
         const b = piece(tail.x, tail.y, -1);
@@ -814,6 +834,7 @@
           state.fever = 0;
           state.feverTime = CFG.FEVER_TIME;
           announce('FEVER ×2!', 1.1);
+          sound('tsumFever');
         }
       }
     }
@@ -837,6 +858,7 @@
       if (flash && artBox) {
         const p = artPoint(flyer.indexes[0]);
         state.flashes.push({ x: p.x, y: p.y, color: flyer.color, age: 0 });
+        sound('tsumDot', stage.count);
       }
     }
 
@@ -846,6 +868,7 @@
       state.score += CFG.COMPLETE_SCORE;
       state.completed.push(stage);
       if (atTimeout) return;
+      sound('tsumStageClear');
       state.time += CFG.COMPLETE_TIME;
       state.phase = 'complete';
       state.transition = CFG.COMPLETE_PAUSE;
@@ -874,6 +897,7 @@
       state.skillCharge = 0;
       const sk = activeSkin.skill;
       const lv = sk.lv;
+      sound('tsumSkill');
       announce(`${activeSkin.skin.e} ${sk.name}！`, 1.0);
 
       const clearSkillSet = (list, anchor) => {
@@ -986,6 +1010,7 @@
       if (affected.has(state.bombTap) || state.chain.some(p => affected.has(p))) clearInput();
 
       scoreAt((100 + normal.length * 60) * (1 + depth * .35) * multiplier(), bomb);
+      sound('tsumBomb', depth);
       clearPieces([bomb, ...normal]);
       for (const p of nearby) {
         if (p.type >= 0 || p.armed) continue;
@@ -1040,6 +1065,7 @@
       }
       if (!auto) state.shuffleCd = CFG.SHUFFLE_COOLDOWN;
       state.moveCheck = 1.1;
+      sound('tsumShuffle');
       announce(auto ? '手づまり！ シャッフル' : 'シャッフル！', .8);
     }
 
@@ -1071,6 +1097,7 @@
         if (state.transition <= 0) {
           state.phase = 'play';
           announce('スタート！', .55);
+          sound('tsumReady', true);
         }
       } else if (state.phase === 'complete') {
         state.transition -= dt;
@@ -1323,6 +1350,7 @@
       if (closed) return;
       setText(el.best, result.best.toLocaleString());
       showResult(earned, result);
+      sound('fanfare');
     }
 
     function showResult(earned, result) {
@@ -1380,8 +1408,8 @@
         empty.textContent = '今回は完成したアートがありません。';
         gallery.replaceWith(empty);
       }
-      $('[data-retry]').onclick = start;
-      $('[data-close]').onclick = close;
+      $('[data-retry]').onclick = () => { sound('init'); sound('tap'); start(); };
+      $('[data-close]').onclick = () => { sound('tap'); close(); };
       el.result.hidden = false;
       $('[data-retry]').focus();
     }
