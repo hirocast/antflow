@@ -6,7 +6,7 @@
   const R = 5.3, LEFT = 10, RIGHT = W - 10, TOP = 10;
   const PAD_Y = 506, PAD_H = 12;
   const STEP = 1 / 120, EPS = 1e-7, SEPARATION = 0.03;
-  const CLEAR_POINTS = 500, MAX_BALLS = 7, MAX_CELLS = 180;
+  const CLEAR_POINTS = 500, MAX_BALLS = 7;
   const FALLBACK_COLORS = [
     '#000000', '#ffffff', '#ff5252', '#ff8a80', '#ffab40',
     '#ffd740', '#ffff8d', '#69f0ae', '#00e676', '#40c4ff',
@@ -141,44 +141,23 @@
     }
     if (x1 < 0) return null;
 
-    // 透明余白を除いてから縮小。透明だけの領域はブロックにしない。
-    const artW = x1 - x0 + 1, artH = y1 - y0 + 1;
-    const counts = new Uint32Array(21);
-    let cols, rows, pixels, occupied;
-    for (let scale = Math.max(1, artW / 24, artH / 22); ; scale *= 1.18) {
-      cols = clamp(Math.round(artW / scale), 1, 24);
-      rows = clamp(Math.round(artH / scale), 1, 22);
-      pixels = new Int8Array(cols * rows).fill(-1);
-      occupied = 0;
-      for (let row = 0; row < rows; row++) {
-        const fromY = y0 + Math.floor(row * artH / rows);
-        const toY = y0 + Math.floor((row + 1) * artH / rows);
-        for (let col = 0; col < cols; col++) {
-          const fromX = x0 + Math.floor(col * artW / cols);
-          const toX = x0 + Math.floor((col + 1) * artW / cols);
-          counts.fill(0);
-          let best = -1, count = 0;
-          for (let y = fromY; y < toY; y++) {
-            for (let x = fromX; x < toX; x++) {
-              const c = grid[y * sw + x];
-              if (validColor(c) && ++counts[c] > count) {
-                best = c;
-                count = counts[c];
-              }
-            }
-          }
-          if (best < 0) continue;
-          pixels[row * cols + col] = best;
-          occupied++;
-        }
+    // 透明余白を除き、本編と同じピクセル数（1:1）のままブロック化する。
+    const cols = x1 - x0 + 1, rows = y1 - y0 + 1;
+    const pixels = new Int8Array(cols * rows).fill(-1);
+    let occupied = 0;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const c = grid[(y0 + row) * sw + (x0 + col)];
+        if (!validColor(c)) continue;
+        pixels[row * cols + col] = c;
+        occupied++;
       }
-      if (occupied <= MAX_CELLS) break;
     }
 
-    const size = Math.min(346 / cols, 236 / rows, 30);
+    const size = Math.min(360 / cols, 250 / rows, 30);
     const x = (W - cols * size) / 2;
-    const y = 26 + (236 - rows * size) * 0.25;
-    const inset = Math.min(0.65, size * 0.04);
+    const y = 22 + (250 - rows * size) * 0.25;
+    const inset = size >= 7 ? Math.min(0.65, size * 0.04) : 0;
     const lookup = new Array(pixels.length);
     const cells = [];
     const colorCounts = new Uint32Array(21);
@@ -297,10 +276,15 @@
     const scoreEl = stat('スコア'), timeEl = stat('完成枚数'), bestEl = stat('ベスト');
     const artRow = element('div', 'bn-art-row');
     const previewCanvas = element('canvas', 'bn-preview');
-    previewCanvas.width = 48;
-    previewCanvas.height = 48;
+    previewCanvas.width = 64;
+    previewCanvas.height = 64;
     previewCanvas.setAttribute('aria-hidden', 'true');
     const previewCtx = previewCanvas.getContext('2d');
+    const stageCanvas = document.createElement('canvas');
+    stageCanvas.width = W * 2;
+    stageCanvas.height = 300 * 2;
+    const stageCtx = stageCanvas.getContext('2d');
+    let stageDirty = true;
     const artInfo = element('div', 'bn-art-info');
     const progress = element('div', 'bn-progress');
     const fill = element('i');
@@ -483,6 +467,7 @@
       }
       stage.total = kept;
       stage.left = kept;
+      stageDirty = true;
       sound('starPing');
       message(`${roulette.targets.length}色が抜けた！`);
       announce(`ルーレットの結果、${roulette.targets.length}色が抜けました。残り${kept}ブロック。`);
@@ -502,7 +487,7 @@
       if (!previewCtx) return;
       previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
       if (!stage) return;
-      const unit = Math.max(1, Math.floor(42 / Math.max(stage.cols, stage.rows)));
+      const unit = Math.max(1, Math.floor(64 / Math.max(stage.cols, stage.rows)));
       const ox = Math.floor((previewCanvas.width - stage.cols * unit) / 2);
       const oy = Math.floor((previewCanvas.height - stage.rows * unit) / 2);
       for (const c of stage.cells) {
@@ -517,6 +502,7 @@
 
     function nextStage() {
       stage = chooseStage();
+      stageDirty = true;
       stageNo++;
       combo = 0; lastHit = -Infinity;
       colorChain = 0; lastColor = -1;
@@ -633,24 +619,25 @@
       announce(`${stage.name}をクリア。${CLEAR_POINTS + lastClearBonus}点を獲得。`);
     }
 
-    function paint(cell, fromBomb = false) {
+    function paint(cell, fromSplash = false) {
       if (phase !== 'play' || cell.broken || cell.skipped) return;
       cell.broken = true;
       cell.at = clock;
       stage.left--;
+      stageDirty = true;
       dryBounces = 0;
       combo = clock - lastHit <= 2.4 ? combo + 1 : 1;
       lastHit = clock;
-      if (!fromBomb) {
+      if (!fromSplash) {
         if (cell.color === lastColor) colorChain++;
         else { lastColor = cell.color; colorChain = 1; }
       }
-      const chainBonus = !fromBomb && colorChain >= 2 ? 5 * Math.min(8, colorChain - 1) : 0;
-      const pts = 10 * multiplier() + chainBonus;
+      const chainBonus = !fromSplash && colorChain >= 2 ? 5 * Math.min(8, colorChain - 1) : 0;
+      const pts = (fromSplash ? 3 : 10) * multiplier() + chainBonus;
       score += pts;
       const cx = cell.x + cell.w / 2, cy = cell.y + cell.h / 2;
-      burst(cx, cy, color(cell.color), fromBomb ? 4 : 5);
-      if (!fromBomb) {
+      burst(cx, cy, color(cell.color), fromSplash ? 3 : 5);
+      if (!fromSplash) {
         addRing(cx, cy, color(cell.color), 22);
         addPopup(
           cx, cy - 4,
@@ -659,28 +646,51 @@
         );
         sound('pop', 44);
       }
-      if (!fromBomb && bombReady) {
-        bombReady = false;
+      if (!fromSplash) {
+        const maxDim = Math.max(stage.cols, stage.rows);
         const r = Math.floor(cell.i / stage.cols);
         const col = cell.i % stage.cols;
-        addRing(cx, cy, '#ff9e6d', 54);
-        addPopup(cx, cy - 16, 'BOOM!', '#ff9e6d');
-        sound('boom', 60);
-        for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            if (!dr && !dc) continue;
-            const nr = r + dr, nc = col + dc;
-            if (nr < 0 || nr >= stage.rows || nc < 0 || nc >= stage.cols) continue;
-            const neighbor = stage.lookup[nr * stage.cols + nc];
-            if (neighbor && !neighbor.broken && !neighbor.skipped) {
-              paint(neighbor, true);
-              if (phase !== 'play') return;
+        if (bombReady) {
+          bombReady = false;
+          const bombR = maxDim >= 43 ? 4 : maxDim >= 25 ? 2 : 1;
+          const bombR2 = bombR * bombR + 1;
+          addRing(cx, cy, '#ff9e6d', 54);
+          addPopup(cx, cy - 16, 'BOOM!', '#ff9e6d');
+          sound('boom', 60);
+          for (let dr = -bombR; dr <= bombR; dr++) {
+            for (let dc = -bombR; dc <= bombR; dc++) {
+              if (!dr && !dc) continue;
+              if (dr * dr + dc * dc > bombR2) continue;
+              const nr = r + dr, nc = col + dc;
+              if (nr < 0 || nr >= stage.rows || nc < 0 || nc >= stage.cols) continue;
+              const neighbor = stage.lookup[nr * stage.cols + nc];
+              if (neighbor && !neighbor.broken && !neighbor.skipped) {
+                paint(neighbor, true);
+                if (phase !== 'play') return;
+              }
+            }
+          }
+        } else if (maxDim >= 25) {
+          const splashR = maxDim >= 43 ? 2 : 1;
+          const splashR2 = splashR === 2 ? 4 : 1;
+          for (let dr = -splashR; dr <= splashR; dr++) {
+            for (let dc = -splashR; dc <= splashR; dc++) {
+              if (!dr && !dc) continue;
+              if (dr * dr + dc * dc > splashR2) continue;
+              const nr = r + dr, nc = col + dc;
+              if (nr < 0 || nr >= stage.rows || nc < 0 || nc >= stage.cols) continue;
+              const neighbor = stage.lookup[nr * stage.cols + nc];
+              if (neighbor && !neighbor.broken && !neighbor.skipped) {
+                paint(neighbor, true);
+                if (phase !== 'play') return;
+              }
             }
           }
         }
       }
+      if (phase !== 'play') return;
       if (!stage.left) complete();
-      else if (!fromBomb) drop(cell);
+      else if (!fromSplash) drop(cell);
     }
 
     function collect(item) {
@@ -997,6 +1007,26 @@
       if (stage) {
         const showLast = phase === 'play' && stage.left > 0 && stage.left <= 8;
         const revealAll = phase === 'clear';
+        if (!revealAll && stageCtx) {
+          if (stageDirty) {
+            stageDirty = false;
+            stageCtx.setTransform(2, 0, 0, 2, 0, 0);
+            stageCtx.clearRect(0, 0, W, 300);
+            for (const c of stage.cells) {
+              if (c.broken || c.skipped) continue;
+              stageCtx.fillStyle = color(c.color);
+              stageCtx.fillRect(c.x, c.y, c.w, c.h);
+              if (c.w >= 7) {
+                stageCtx.fillStyle = 'rgba(255,255,255,0.22)';
+                stageCtx.fillRect(c.x, c.y, c.w, Math.max(1, c.h * 0.18));
+                stageCtx.strokeStyle = 'rgba(255,255,255,0.14)';
+                stageCtx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
+              }
+            }
+          }
+          ctx.globalAlpha = 1;
+          ctx.drawImage(stageCanvas, 0, 0, W, 300);
+        }
         for (const c of stage.cells) {
           if (!revealAll && c.broken) {
             if (!reduceMotion && clock - c.at < 0.14) {
@@ -1020,17 +1050,21 @@
             }
             continue;
           }
-          ctx.globalAlpha = revealAll ? 0.96 : 1;
-          ctx.fillStyle = color(c.color);
-          ctx.fillRect(c.x, c.y, c.w, c.h);
-          ctx.fillStyle = 'rgba(255,255,255,0.22)';
-          ctx.fillRect(c.x, c.y, c.w, Math.max(1, c.h * 0.18));
-          ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-          ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
+          if (revealAll || !stageCtx) {
+            ctx.globalAlpha = revealAll ? 0.96 : 1;
+            ctx.fillStyle = color(c.color);
+            ctx.fillRect(c.x, c.y, c.w, c.h);
+            if (c.w >= 7) {
+              ctx.fillStyle = 'rgba(255,255,255,0.22)';
+              ctx.fillRect(c.x, c.y, c.w, Math.max(1, c.h * 0.18));
+              ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+              ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
+            }
+          }
           if (showLast) {
             ctx.globalAlpha = reduceMotion ? 0.95 : 0.73 + 0.25 * Math.sin(clock * 6);
             ctx.strokeStyle = '#ffe699';
-            ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
+            ctx.strokeRect(c.x + 0.5, c.y + 0.5, Math.max(1, c.w - 1), Math.max(1, c.h - 1));
           }
         }
       }
