@@ -4,4 +4,5 @@
   if (miss.length) {
     window.AF_bootErr('最初に読み込めなかったファイル：' + miss[0] + '（同じフォルダにあるか、最後まで保存できているかを確認してください）');
   }
+  document.documentElement.classList.remove('af-booting');
 })();

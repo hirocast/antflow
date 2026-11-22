@@ -124,3 +124,4 @@ body.dev .ib{width:34px;font-size:15px}
  .ov:not(#ov-load):not(#ov-jam):not(#ov-confirm):not(#ov-daily):not(#ov-award):not(#ov-stageerr):not(#ov-posthelp):not(#ov-bgm-posthelp) .card{width:100vw!important;max-width:100vw!important;height:100%!important;max-height:100%!important;border:none!important;border-radius:0!important;box-shadow:none!important;padding:max(30px,calc(env(safe-area-inset-top,0px) + 28px)) 14px max(4px,calc(env(safe-area-inset-bottom,0px) - 12px))!important}
  .ov:not(#ov-load):not(#ov-jam):not(#ov-confirm):not(#ov-daily):not(#ov-award):not(#ov-stageerr):not(#ov-posthelp):not(#ov-bgm-posthelp)#ov-title .card{padding-top:calc(env(safe-area-inset-top,0px) + 4px)!important}
 }
+.af-booting #app,.af-booting .ov{opacity:0;pointer-events:none}
