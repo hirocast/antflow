@@ -3884,9 +3884,13 @@ layout();
 /* ================= ユーザー要望・不具合ポスト ================= */
 (function initFeedback() {
   const FB_API = (window.AF_FEEDBACK_API || 'https://antflow.hiroshi-artcast.workers.dev/feedback').trim();
+  const FB_REPLIES_API = FB_API.replace(/\/feedback\/?$/, '/feedback/replies');
+  const FB_REPLY_API = FB_API.replace(/\/feedback\/?$/, '/feedback/reply');
   const FB_SENT_KEY = 'antflow-fb-sent-v1';
   const FB_NICK_KEY = 'antflow-fb-nick-v1';
   const FB_CAMP_KEY = 'antflow-fb-camp-v1';
+  const FB_TOKENS_KEY = 'antflow-fb-tokens-v1';
+  const FB_CLAIMED_KEY = 'antflow-fb-reply-claimed-v1';
   // 当面の要望・不具合報告 お礼キャンペーン設定（終了時は active: false にするだけ）
   const FB_CAMPAIGN = {
     active: true,
@@ -4063,7 +4067,7 @@ layout();
       '<div>・アカウント不要で送れます。<b>送信内容と添付スクショは開発者のみ閲覧できる非公開の管理ページに記録されます</b>が、本名・連絡先・スクショ内の通知など個人情報が映り込まないようご注意ください。</div>' +
       '<div>・原因調査のため、直前の画面・端末種別・画面サイズ・プレイ中の面・操作/エラー履歴などの技術情報のみ自動で添えられます（個人情報は送信されません）。</div>' +
       '<div>・不具合は確認のうえ改善に努めますが、<b>端末や環境によっては改善できない場合もあります</b>。</div>' +
-      '<div>・<b>基本的には個別の返信は行っておりません</b>（対応内容はホームの「最近のアップデート」やおてがみ箱でお知らせします）。</div>' +
+      '<div>・お礼やより詳しい確認のご質問をお送りする場合は、ホームの「📬 おしらせ・受賞メール」に届きます（そこから返信もできます）。</div>' +
     '</div></details>' +
     '<div class="fb-hist" id="fbHist" style="display:none"></div>' +
     '</div>' +
@@ -4393,7 +4397,35 @@ layout();
     if (pv) pv.classList.add('on');
     if (btn) btn.textContent = '📷 別の画像に変更';
   }
+  let replyTarget = null;
+  function loadFbTokens() {
+    try {
+      const a = JSON.parse(localStorage.getItem(FB_TOKENS_KEY) || '[]');
+      return Array.isArray(a) ? a.filter(x => x && x.number && x.token) : [];
+    } catch (e) { return []; }
+  }
+  function saveFbToken(number, token, title) {
+    if (!number || !token) return;
+    const arr = loadFbTokens().filter(x => x.number !== number);
+    arr.unshift({ number, token, title: String(title || '').slice(0, 40), at: Date.now() });
+    try { localStorage.setItem(FB_TOKENS_KEY, JSON.stringify(arr.slice(0, 20))); } catch (e) {}
+  }
+  function findFbToken(number) {
+    return loadFbTokens().find(x => Number(x.number) === Number(number)) || null;
+  }
+  function syncReplyModeUI() {
+    const isReply = !!replyTarget;
+    if ($('#fbCats')) $('#fbCats').style.display = isReply ? 'none' : '';
+    if ($('#fbCamp')) $('#fbCamp').style.display = isReply ? 'none' : '';
+    if ($('#fbNick')) $('#fbNick').style.display = isReply ? 'none' : '';
+    if ($('#fbBugBox') && isReply) $('#fbBugBox').classList.remove('on');
+    if ($('#fbMakerBox') && isReply) $('#fbMakerBox').classList.remove('on');
+    if ($('#fbHist')) $('#fbHist').style.display = isReply ? 'none' : '';
+    const ta = $('#fbText');
+    if (ta) ta.placeholder = isReply ? '運営からの質問への詳しい状況・お返事を書いてね（スクショ添付もOK！）' : '内容を入力してね（500文字まで）';
+  }
   function openFeedback(from, opts) {
+    replyTarget = null;
     const curOv = from !== undefined ? from : (G.overlay || 'play');
     prevOv = curOv || 'play';
     liveCtx = captureLiveContext(prevOv);
@@ -4411,12 +4443,32 @@ layout();
       ctxEl.style.display = 'block';
     }
     syncBugPanelUI();
+    syncReplyModeUI();
     refreshFbCampaignUI();
     renderHist();
     showOv('feedback');
     if ($('#fbBody')) $('#fbBody').scrollTop = 0;
   }
   window.AF_openFeedback = openFeedback;
+  function openFeedbackReply(issueNumber, title) {
+    const tok = findFbToken(issueNumber);
+    if (!tok) { toast('この報告の受付情報が見つかりませんでした'); return; }
+    prevOv = 'title';
+    liveCtx = null;
+    replyTarget = { number: tok.number, token: tok.token, title: title || tok.title || ('#' + tok.number) };
+    const th = $('#fbThanks');
+    if (th) { th.classList.remove('on'); th.innerHTML = ''; }
+    const ctxEl = $('#fbCtxBadge');
+    if (ctxEl) {
+      ctxEl.textContent = '💬 運営からの質問への返信：' + replyTarget.title;
+      ctxEl.style.display = 'block';
+    }
+    syncReplyModeUI();
+    showOv('feedback');
+    if ($('#fbBody')) $('#fbBody').scrollTop = 0;
+    if ($('#fbText')) $('#fbText').focus();
+  }
+  window.AF_openFeedbackReply = openFeedbackReply;
 
   $('#fbCats').addEventListener('click', e => {
     const b = e.target.closest('[data-cat]');
@@ -4522,6 +4574,38 @@ layout();
     sending = true;
     btn.disabled = true; btn.textContent = '📮 送信中…';
     try {
+      if (replyTarget) {
+        const rPayload = {
+          number: replyTarget.number,
+          token: replyTarget.token,
+          message: msg,
+          version: window.AF_APP_VER || ''
+        };
+        if (attachedImg) {
+          rPayload.image = attachedImg.dataUrl;
+          rPayload.imageInfo = attachedImg.info;
+        }
+        const rRes = await fetch(FB_REPLY_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(rPayload)
+        });
+        const rData = await rRes.json().catch(() => ({}));
+        if (!rRes.ok || !rData.ok) {
+          toast('⚠️ ' + (rData.error || '送信に失敗しました。少し待って試してね'), 3400);
+          return;
+        }
+        Sound.albumIn();
+        toast('💬 お返事を送ったよ！ありがとう✨', 3800);
+        if (ta) ta.value = '';
+        if ($('#fbCnt')) $('#fbCnt').textContent = '0';
+        clearAttachment();
+        replyTarget = null;
+        syncReplyModeUI();
+        showOv('title');
+        return;
+      }
+
       const progress = 'クリア ' + gotCount() + '/' + TOTAL + '面' + (G.level && G.level.name ? '（現在:' + G.level.name + '）' : '');
       const hasImg = !!attachedImg;
       const isMakerPost = selCat === 'maker' || !!(liveCtx && liveCtx.isMakerOrigin) || (selCat === 'bug' && selScene === 'maker');
@@ -4604,6 +4688,7 @@ layout();
       }
 
       const histMsg = msg || (symptoms.join('／') + (sceneLabel ? '（' + sceneLabel + '）' : ''));
+      if (data.number && data.fbToken) saveFbToken(data.number, data.fbToken, histMsg.slice(0, 32));
       saveSent({ cat: selCat, msg: histMsg, hasImg, gift: !!rewarded, at: Date.now() });
       if (ta) ta.value = '';
       if ($('#fbCnt')) $('#fbCnt').textContent = '0';
@@ -4621,8 +4706,64 @@ layout();
     }
   });
 
+  function loadClaimedReplies() {
+    try { return JSON.parse(localStorage.getItem(FB_CLAIMED_KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function saveClaimedReplies(o) {
+    try { localStorage.setItem(FB_CLAIMED_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  async function checkFeedbackReplies() {
+    const tokens = loadFbTokens();
+    if (!tokens.length || typeof window.AF_pushInboxItem !== 'function') return;
+    try {
+      const res = await fetch(FB_REPLIES_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: tokens.slice(0, 15).map(x => ({ number: x.number, token: x.token })) })
+      });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      if (!data || !data.ok || !Array.isArray(data.replies) || !data.replies.length) return;
+      const claimed = loadClaimedReplies();
+      let newInbox = 0, newReward = false;
+      for (const r of data.replies) {
+        const entry = findFbToken(r.issue);
+        const rw = { c: r.coins | 0, t: r.tickets | 0, h: r.hintT | 0, s: r.scanT | 0 };
+        const hasRw = rw.c || rw.t || rw.h || rw.s;
+        const rwTxt = hasRw ? fmtReward(rw) : '';
+        const cKey = r.issue + ':' + r.commentId;
+        if (hasRw && !claimed[cKey]) {
+          claimed[cKey] = 1;
+          grantReward(rw);
+          newReward = true;
+        }
+        const added = window.AF_pushInboxItem({
+          id: 'fb_reply_' + r.issue + '_' + r.commentId,
+          kind: r.ask ? 'update' : 'news',
+          badge: r.ask ? '💬 運営からの質問' : '💌 運営からのお返事',
+          title: (r.ask ? '【ご確認】' : '【お礼・お返事】') + ((entry && entry.title) || ('ご報告 #' + r.issue)),
+          body: r.body,
+          rewardText: rwTxt,
+          replyIssue: r.ask ? r.issue : 0,
+          at: r.at ? Date.parse(r.at) : Date.now()
+        });
+        if (added) newInbox++;
+      }
+      if (newReward) {
+        saveClaimedReplies(claimed);
+        persist();
+        updateCoins(true);
+        renderTitle();
+        toast('🎁 運営からのお返事＆お礼がメールに届いたよ！', 4400);
+      } else if (newInbox > 0) {
+        toast('📬 おしらせ・受賞メールにお返事が届いたよ！', 3800);
+      }
+    } catch (e) {}
+  }
+
   refreshFbCampaignUI();
   syncQuickFbVis();
+  setTimeout(checkFeedbackReplies, 1800);
 })();
 
 /* ================= セーブデータ引継ぎ（1回限りコード方式） ================= */
@@ -4638,6 +4779,8 @@ layout();
     'antflow-stage-likes-v1',
     'antflow-stage-votes-v1',
     'antflow-fb-camp-v1',
+    'antflow-fb-tokens-v1',
+    'antflow-fb-reply-claimed-v1',
     'antflow-nick-v1',
     'antflow-fb-nick-v1',
     'antflow-anon-name-v1',

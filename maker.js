@@ -1480,6 +1480,19 @@
             (item.rewardText ? '<div class="rw"></div>' : '');
           det.querySelector('.body').textContent = item.body;
           if (item.rewardText) det.querySelector('.rw').textContent = '🎁 うけとった報酬：' + item.rewardText;
+          if (item.replyIssue && typeof window.AF_openFeedbackReply === 'function') {
+            const rb = document.createElement('button');
+            rb.type = 'button';
+            rb.className = 'big mint';
+            rb.style.cssText = 'margin-top:8px;padding:7px 12px;font-size:12px;width:100%';
+            rb.textContent = '💬 この質問に返信する';
+            rb.addEventListener('click', () => {
+              Sound.tap();
+              showOv(null);
+              window.AF_openFeedbackReply(item.replyIssue, item.title || '');
+            });
+            det.appendChild(rb);
+          }
           wrap.appendChild(det);
         }
         listEl.appendChild(wrap);

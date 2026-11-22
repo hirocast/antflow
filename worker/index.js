@@ -924,6 +924,7 @@ async function handleFeedback(request, env, cors) {
   }
   const extractHint = `\`node scripts/extract_feedback_img.mjs <Issue番号> --repo ${fbRepo}\``;
 
+  const replyToken = makeFbToken();
   const issueBody =
     '### 💌 ユーザーからの要望・不具合連絡\n' +
     `- カテゴリ: ${catLabel}\n` +
@@ -937,6 +938,7 @@ async function handleFeedback(request, env, cors) {
     '\n#### 内容\n' +
     (message || '（クイック選択・自動診断情報のみでの報告）') + '\n' +
     diagSection +
+    `\n<!-- FB_TOKEN:${replyToken} -->\n` +
     (imageData ? `\n<!-- FEEDBACK_IMG:${imageData} -->\n` : '');
 
   const labels = ['feedback'];
@@ -969,7 +971,190 @@ async function handleFeedback(request, env, cors) {
   }
 
   const created = await ghRes.json();
-  return jsonRes({ ok: true, number: created.number, author: nick, hasImage: !!imageData }, 201, cors);
+  if (env.RATE_LIMIT_KV && created && created.number) {
+    try {
+      await env.RATE_LIMIT_KV.put('fb:tok:' + replyToken, String(created.number), { expirationTtl: 15552000 });
+    } catch {}
+  }
+  return jsonRes({ ok: true, number: created.number, fbToken: replyToken, author: nick, hasImage: !!imageData }, 201, cors);
+}
+
+const FB_TOKEN_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function makeFbToken() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) out += FB_TOKEN_ALPHABET[bytes[i] % FB_TOKEN_ALPHABET.length];
+  return out;
+}
+
+function getFbRepo(env) {
+  const raw = String(env.FEEDBACK_REPO || '').trim();
+  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(raw) ? raw : `${REPO_OWNER}/antflow-feedback`;
+}
+
+async function verifyFbToken(env, fbToken, fbRepo, number, token) {
+  if (!Number.isInteger(number) || number <= 0 || number > 10000000) return false;
+  if (typeof token !== 'string' || !/^[A-Za-z0-9]{12,32}$/.test(token)) return false;
+  if (env.RATE_LIMIT_KV) {
+    try {
+      const cached = await env.RATE_LIMIT_KV.get('fb:tok:' + token);
+      if (cached !== null) return cached === String(number);
+    } catch {}
+  }
+  try {
+    const res = await fetch(`https://api.github.com/repos/${fbRepo}/issues/${number}`, {
+      headers: {
+        'Authorization': `Bearer ${fbToken}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'antflow-post-worker'
+      }
+    });
+    if (!res.ok) return false;
+    const iss = await res.json();
+    const m = String(iss.body || '').match(/<!--\s*FB_TOKEN:([A-Za-z0-9]{12,32})\s*-->/);
+    if (!m || m[1] !== token) return false;
+    if (env.RATE_LIMIT_KV) {
+      try {
+        await env.RATE_LIMIT_KV.put('fb:tok:' + token, String(number), { expirationTtl: 15552000 });
+      } catch {}
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseReplyComment(comment) {
+  if (!comment || !comment.user || comment.user.login !== REPO_OWNER) return null;
+  const raw = String(comment.body || '').replace(/\r\n?/g, '\n').trim();
+  const m = raw.match(/^\[REPLY([^\]]*)\]\s*\n?([\s\S]*)$/);
+  if (!m) return null;
+  const opts = m[1] || '';
+  const body = (m[2] || '').trim().slice(0, 800);
+  if (!body) return null;
+  const numOpt = (key, max) => {
+    const r = opts.match(new RegExp(`\\b${key}=(\\d+)\\b`));
+    return r ? Math.min(max, Math.max(0, parseInt(r[1], 10) || 0)) : 0;
+  };
+  return {
+    commentId: comment.id,
+    body,
+    ask: /\bask=(1|true)\b/i.test(opts),
+    coins: numOpt('coins', 2000),
+    tickets: numOpt('tickets', 10),
+    hintT: numOpt('hintT', 10),
+    scanT: numOpt('scanT', 10),
+    at: comment.created_at || ''
+  };
+}
+
+async function handleFeedbackReplies(request, env, cors) {
+  const { body, errorRes } = await parseJsonPost(request, env, cors, 8192);
+  if (errorRes) return errorRes;
+  const fbToken = env.FEEDBACK_GITHUB_TOKEN;
+  const fbRepo = getFbRepo(env);
+  if (!fbToken || fbRepo === `${REPO_OWNER}/${REPO_NAME}`) {
+    return jsonRes({ ok: true, replies: [] }, 200, cors);
+  }
+  const items = Array.isArray(body.items) ? body.items.slice(0, 15) : [];
+  const replies = [];
+  for (const it of items) {
+    if (!it || typeof it !== 'object') continue;
+    const number = Number(it.number);
+    const token = String(it.token || '').trim();
+    if (!(await verifyFbToken(env, fbToken, fbRepo, number, token))) continue;
+    try {
+      const res = await fetch(`https://api.github.com/repos/${fbRepo}/issues/${number}/comments?per_page=30`, {
+        headers: {
+          'Authorization': `Bearer ${fbToken}`,
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'antflow-post-worker'
+        }
+      });
+      if (!res.ok) continue;
+      const list = await res.json();
+      if (!Array.isArray(list)) continue;
+      for (const c of list) {
+        const parsed = parseReplyComment(c);
+        if (parsed) replies.push({ issue: number, ...parsed });
+      }
+    } catch {}
+  }
+  return jsonRes({ ok: true, replies }, 200, cors);
+}
+
+async function handleFeedbackUserReply(request, env, cors) {
+  const { body, errorRes } = await parseJsonPost(request, env, cors, 76000);
+  if (errorRes) return errorRes;
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (checkBurstLimit(ip)) {
+    return jsonRes({ ok: false, error: '連続送信制限：少し待ってから送ってね' }, 429, cors);
+  }
+  const fbToken = env.FEEDBACK_GITHUB_TOKEN;
+  const fbRepo = getFbRepo(env);
+  if (!fbToken || fbRepo === `${REPO_OWNER}/${REPO_NAME}`) {
+    return jsonRes({ ok: false, error: '現在返信受付を一時停止しています' }, 503, cors);
+  }
+  const number = Number(body.number);
+  const token = String(body.token || '').trim();
+  if (!(await verifyFbToken(env, fbToken, fbRepo, number, token))) {
+    return jsonRes({ ok: false, error: '受付情報の確認に失敗しました' }, 403, cors);
+  }
+  const rlKey = 'fb:reply:ip:' + ip;
+  if (await rlHas(env, rlKey)) {
+    return jsonRes({ ok: false, error: '連続送信制限：少し待ってから送ってね（30秒）' }, 429, cors);
+  }
+  const message = cleanComment(body.message, 500);
+  if (message.length < 2) {
+    return jsonRes({ ok: false, error: '内容を2文字以上で書いてね' }, 400, cors);
+  }
+  if (hasNgWord(message)) {
+    return jsonRes({ ok: false, error: '送信できない言葉やURLが含まれています' }, 400, cors);
+  }
+  let imageData = '';
+  let imageInfo = '';
+  if (body.image) {
+    const rawImg = String(body.image).trim();
+    if (rawImg.length > 52000) {
+      return jsonRes({ ok: false, error: '画像サイズが大きすぎます' }, 400, cors);
+    }
+    if (!validateImageDataUrl(rawImg)) {
+      return jsonRes({ ok: false, error: '画像の形式が正しくありません' }, 400, cors);
+    }
+    imageData = rawImg;
+    imageInfo = cleanMdLine(body.imageInfo, 48) || Math.round(rawImg.length * 0.75 / 1024) + 'KB';
+  }
+  const appVer = cleanMdLine(body.version, 24) || 'unknown';
+  const commentBody =
+    '### 💬 ユーザーからの追加回答\n' +
+    `- アプリ版: ${appVer}\n` +
+    (imageData ? `- スクショ添付: あり（${imageInfo}）\n` : '') +
+    '\n' + message + '\n' +
+    (imageData ? `\n<!-- FEEDBACK_IMG:${imageData} -->\n` : '');
+
+  await rlSet(env, rlKey, 30);
+  try {
+    const ghRes = await fetch(`https://api.github.com/repos/${fbRepo}/issues/${number}/comments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${fbToken}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'antflow-post-worker',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ body: commentBody })
+    });
+    if (!ghRes.ok) {
+      await rlDel(env, rlKey);
+      return jsonRes({ ok: false, error: '送信に失敗しました (' + ghRes.status + ')' }, 502, cors);
+    }
+    const created = await ghRes.json();
+    return jsonRes({ ok: true, commentId: created.id }, 201, cors);
+  } catch {
+    await rlDel(env, rlKey);
+    return jsonRes({ ok: false, error: '送信に失敗しました' }, 502, cors);
+  }
 }
 
 const TRANSFER_ALLOW_KEYS = new Set([
@@ -983,6 +1168,8 @@ const TRANSFER_ALLOW_KEYS = new Set([
   'antflow-stage-likes-v1',
   'antflow-stage-votes-v1',
   'antflow-fb-camp-v1',
+  'antflow-fb-tokens-v1',
+  'antflow-fb-reply-claimed-v1',
   'antflow-nick-v1',
   'antflow-fb-nick-v1',
   'antflow-anon-name-v1',
@@ -1126,6 +1313,12 @@ export default {
     }
     if (request.method === 'POST' && url.pathname === '/feedback') {
       return handleFeedback(request, env, cors);
+    }
+    if (request.method === 'POST' && url.pathname === '/feedback/replies') {
+      return handleFeedbackReplies(request, env, cors);
+    }
+    if (request.method === 'POST' && url.pathname === '/feedback/reply') {
+      return handleFeedbackUserReply(request, env, cors);
     }
     if (request.method === 'POST' && url.pathname === '/transfer/create') {
       return handleTransferCreate(request, env, cors);
