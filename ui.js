@@ -294,7 +294,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .sk-detail b{color:var(--pinkd);font-size:12px}
 .sk-detail .sk-tag{display:inline-block;background:#fff1d6;color:#9a5b13;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:900;margin-left:4px}
 #skCv{display:block;width:104px;height:104px;margin:0 auto}
-#bSkill{position:absolute;right:10px;bottom:10px;z-index:4;display:flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:3px solid #fff;border-radius:999px;background:rgba(255,255,255,.94);color:var(--ink);font:900 12px var(--rf);box-shadow:0 4px 12px rgba(90,61,92,.22);cursor:pointer;overflow:hidden;transition:transform .15s,box-shadow .15s}
+#bSkill{position:absolute;left:10px;bottom:10px;z-index:4;display:flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:3px solid #fff;border-radius:999px;background:rgba(255,255,255,.94);color:var(--ink);font:900 12px var(--rf);box-shadow:0 4px 12px rgba(90,61,92,.22);cursor:pointer;overflow:hidden;transition:transform .15s,box-shadow .15s}
 #bSkill:active{transform:scale(.94)}
 #bSkill .sk-fill{position:absolute;left:0;bottom:0;top:0;width:0%;background:linear-gradient(90deg,rgba(255,143,179,.28),rgba(255,207,74,.38));transition:width .2s;pointer-events:none}
 #bSkill .sk-ico{position:relative;font-size:21px;line-height:1}
