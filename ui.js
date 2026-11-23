@@ -159,9 +159,11 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .quick-back{position:fixed;top:max(1px,calc(env(safe-area-inset-top,0px) - 34px));left:2px;z-index:25;border:2px solid #fff;border-radius:999px;padding:4px 9px 4px 7px;background:linear-gradient(#fffdf8,#fff1d6);color:var(--ink);font:900 10.5px/1 var(--rf);box-shadow:0 2px 0 rgba(90,61,92,.22),0 3px 8px rgba(90,61,92,.14);cursor:pointer;display:none;align-items:center;gap:3px;white-space:nowrap}
 .quick-back.on{display:inline-flex}
 @media (max-width:600px){
- #bQClose,#bMisClose,#bBingoClose,#bSkClose,#bHelpClose,#bAlbumClose,#bViewBack,#bDevClose,#bMkClose,#bGalClose,#bgmCloseBtn,#bBgmGalClose,#bStBgmBack,#bBgmBuiltinBack,#bCtClose,#bA2hsClose,#bTrClose,#bInboxClose,#ov-settings .set-foot,#ov-clear .clear-foot{position:sticky;bottom:0;z-index:6;box-shadow:0 4px 0 #e1c48e,0 0 0 4px #fffdf8}
- #ov-settings .set-foot,#ov-clear .clear-foot{background:#fffdf8;box-shadow:0 -6px 12px #fffdf8;padding-top:6px;margin-top:10px}
+ #bQClose,#bMisClose,#bBingoClose,#bHelpClose,#bAlbumClose,#bViewBack,#bDevClose,#bMkClose,#bGalClose,#bgmCloseBtn,#bBgmGalClose,#bStBgmBack,#bBgmBuiltinBack,#bCtClose,#bA2hsClose,#bTrClose,#bInboxClose,#ov-settings .set-foot,#ov-clear .clear-foot,#ov-skins .sk-foot{position:sticky;bottom:0;z-index:6;box-shadow:0 4px 0 #e1c48e,0 0 0 4px #fffdf8}
+ #ov-settings .set-foot,#ov-clear .clear-foot,#ov-skins .sk-foot{background:#fffdf8;box-shadow:0 -6px 12px #fffdf8;padding-top:6px;margin-top:10px}
  #ov-settings .set-foot .big,#ov-clear .clear-foot .big{margin-top:0}
+ #ov-skins .sk-foot .gacha-row{margin-top:0}
+ #ov-skins .sk-foot #bSkClose{margin-top:8px}
 }
 .fb-ctx{margin:2px 0 6px;padding:6px 9px;background:#eef9ff;border:1.5px solid #bde3fa;border-radius:11px;text-align:left;font-size:10.5px;font-weight:800;line-height:1.45;color:#1b5b82}
 .mk-fb-cta{width:100%;margin-top:8px;padding:9px 10px;border:2px solid #ffc95e;border-radius:15px;background:linear-gradient(135deg,#fff9dc,#ffeaf3);color:#8a3a58;font:900 12.5px/1.3 var(--rf);cursor:pointer;box-shadow:0 3px 0 #eab962;text-align:center}
@@ -626,7 +628,7 @@ function handleTalkLikeClick(e) {
       '<button class="big sec" id="bBingoClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-skins"><div class="card">' +
       '<h2>🎀 きせかえ</h2><div class="sk-wallet" id="skWallet"></div><canvas id="skCv"></canvas><div class="sk-detail" id="skDetail"></div><p class="fine" id="skSum"></p><div class="skgrid" id="skGrid"></div>' +
-      '<div class="gacha-row"><button class="big" id="bGacha"></button><button class="big gold" id="bGacha10"></button></div><button class="big sec" id="bSkClose">とじる</button></div></div>' +
+      '<div class="sk-foot"><div class="gacha-row"><button class="big" id="bGacha"></button><button class="big gold" id="bGacha10"></button></div><button class="big sec" id="bSkClose">とじる</button></div></div></div>' +
     '<div class="ov" id="ov-gacha"><div class="card">' +
       '<h2 id="gachaTitle">🎁 おたからばこ</h2>' +
       '<div class="gacha-stage" id="gachaStage"></div>' +
