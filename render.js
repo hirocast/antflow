@@ -513,7 +513,7 @@ function pathFrom(dist, goal, EW, EH) {
 
 /* ---- アリの列の間隔 ---- */
 // ANT_GAP：同じ向きに進むアリ同士の間隔（アリ1匹の長さの何倍か）。大きいほど離れる
-const ANT_GAP = 1.3;
+const ANT_GAP = 1.05;
 // アリは盤面の細かさに関係なく同じ大きさで描くので、間隔をマス数に直す
 function gapCells() { return antPx * 1.05 * ANT_GAP / cs; }
 // 同じ箱から出た仲間がすぐ前にいたら、スピードを落とす（止まりきらないので行列は詰まらない）
@@ -605,7 +605,7 @@ function eraseCell(i) {
   boardG.fillStyle = SOIL;
   boardG.fillRect(ox + x * cs - 0.3, oy + y * cs - 0.3, cs + 0.6, cs + 0.6);
 }
-const COMBO_MARK = [10, 20, 30, 50, 75, 100, 150, 200, 300, 500];
+const COMBO_MARK = [5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 500];
 function startFever() {
   const R = G.run;
   G.fever.g = 0; G.fever.t = G.perk.feverT;
@@ -628,14 +628,14 @@ function endFever() {
 function pickCube(a) {
   if (G.vgrid[a.cell] >= 0) {
     G.vgrid[a.cell] = -1; G.vver++; G.vleft--; eraseCell(a.cell); G.boardSoft = true;
-    if (G.pickFlashes) G.pickFlashes.push({ x: a.tx, y: a.ty, c: a.c, t0: G.rt, dur: 0.14 });
-    if (G.newReachFlashes && posOf(G.levelId) <= 3 && G.s) {
+    if (G.pickFlashes) G.pickFlashes.push({ x: a.tx, y: a.ty, c: a.c, t0: G.rt, dur: 0.16 });
+    if (G.newReachFlashes && G.s) {
       const W = G.s.W, H = G.s.H, ne = nestGate(), dist = visDist(ne.ex, ne.ey), nowSet = new Set();
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         const idx = y * W + x;
         if (G.vgrid[idx] >= 0 && cubeDist(dist, W, x, y) >= 0) {
           nowSet.add(idx);
-          if (G.prevVisReach && !G.prevVisReach.has(idx)) G.newReachFlashes.push({ x, y, t0: G.rt, dur: 0.26 });
+          if (G.prevVisReach && !G.prevVisReach.has(idx)) G.newReachFlashes.push({ x, y, t0: G.rt, dur: 0.24 });
         }
       }
       G.prevVisReach = nowSet;
@@ -644,7 +644,7 @@ function pickCube(a) {
   a.vb.picked++;
   if (Math.abs(a.tx - a.x) > 0.01) a.face = a.tx > a.x ? 1 : -1;
   const w = toW(a.tx, a.ty), R = G.run, fev = G.fever.t > 0;
-  for (let k = 0; k < (fev ? 7 : 5); k++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 140 - 40, life: 0, max: 0.4, col: fev && k % 2 ? pick(POP) : HEX[a.c], s: Math.max(2.5, antPx * 0.16), star: k === 0 });
+  for (let k = 0; k < (fev ? 8 : 6); k++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 175, vy: -Math.random() * 150 - 45, life: 0, max: 0.42, col: fev && k % 2 ? pick(POP) : HEX[a.c], s: Math.max(2.5, antPx * 0.17), star: k <= 1 });
   if (G.time - G.comboT > G.perk.combo) G.combo = 0;
   Sound.pop(G.combo++);
   G.comboT = G.time;
@@ -665,13 +665,13 @@ function pickCube(a) {
     if (!fev) { G.fever.g += 2.0 / G.level.total * (1 + Math.min(G.combo, 30) / 30) * G.perk.fever; if (G.fever.g >= 1) startFever(); }
     if (typeof addSkillCharge === 'function') addSkillCharge(1);
     if (COMBO_MARK.indexOf(G.combo) >= 0) {
-      popup(G.combo + ' コンボ！', bcx(), oy + G.s.H * cs * 0.22, G.combo >= 50 ? '#ffd23f' : '#ffffff');
+      popup(G.combo + ' コンボ！', bcx(), oy + G.s.H * cs * 0.22, G.combo >= 30 ? '#ffd23f' : G.combo >= 10 ? '#ff8fb3' : '#ffffff');
       if (!said) { maybeSay(a, 'combo', 0.9); said = true; }
     }
   }
   if (!said) maybeSay(a, 'pick', 0.4);
   if (G.vleft === 0 && G.pendingWin) {
-    G.slowmo = 0.5;
+    G.slowmo = 0.18;
     const r = canvas.getBoundingClientRect();
     Fx.burst(r.left + bcx(), r.top + oy + G.s.H * cs / 2, 60, 420, ['star', 'conf', 'dot']);
     Sound.boom();
@@ -691,7 +691,9 @@ function startReturn(a) {
 }
 const _antVbs = [];
 function updateAnts(dt, rdt) {
-  const fm = (G.fever.t > 0 ? 1.4 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1), gap = gapCells();
+  const comboOn = G.combo >= 3 && (G.time - G.comboT <= G.perk.combo);
+  const comboMul = comboOn ? 1 + Math.min(0.26, G.combo * 0.012) : 1;
+  const fm = (G.fever.t > 0 ? 1.45 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1) * comboMul, gap = gapCells();
   _antVbs.length = 0;
   for (let k = 0, len = G.ants.length; k < len; k++) {
     const a = G.ants[k];
@@ -712,19 +714,23 @@ function updateAnts(dt, rdt) {
       continue;
     }
     if (a.state === 'enter') { a.t += dt; if (a.t >= ENTER) G.ants.splice(k, 1); continue; }
-    const step = a.speed * (a.state === 'back' ? 0.78 : 1) * fm * dt * followFactor(a, gap, a.vb && a.vb._ants);
+    const step = a.speed * (a.state === 'back' ? 0.82 : 1) * fm * dt * followFactor(a, gap, a.vb && a.vb._ants);
     a.trav = (a.trav || 0) + step;
     const done = moveAlong(a, step);
     if (a.state === 'back') {
       a.sweat -= dt;
       if (a.sweat < 0) a.sweat = 1.4 + Math.random() * 1.5;
       if (!a.said && a.i > a.pts.length * 0.45) { a.said = true; maybeSay(a, 'carry', 0.12); }
+      if (G.pendingWin && Math.random() < 0.25) {
+        const w = toW(a.x, a.y);
+        G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 60, vy: -40 - Math.random() * 40, life: 0, max: 0.3, col: pick(POP), s: Math.max(2, antPx * 0.15), star: true });
+      }
     }
     if (done) {
       if (a.state === 'out') { a.state = 'pick'; a.t = 0; pickCube(a); }
       else {
         a.state = 'enter'; a.t = 0; G.nestBounce = 1; Sound.thump();
-        if (Math.random() < 0.25) G.parts.push({ x: nestX, y: nestY - nestR * 0.4, vx: (Math.random() - 0.5) * 60, vy: -90, life: 0, max: 0.5, col: '#ffd45e', s: antPx * 0.3, star: true });
+        if (Math.random() < 0.28) G.parts.push({ x: nestX, y: nestY - nestR * 0.4, vx: (Math.random() - 0.5) * 60, vy: -90, life: 0, max: 0.5, col: '#ffd45e', s: antPx * 0.3, star: true });
         // にぎわっているときは、穴のふちから土の粒がこぼれる
         if (G.ants.length >= 4 && Math.random() < 0.5) {
           for (let q = 0; q < 2; q++) G.parts.push({ x: nestX + (Math.random() - 0.5) * nestR * 1.2, y: nestY - nestR * 0.05, vx: (Math.random() - 0.5) * 90, vy: -60 - Math.random() * 60, life: 0, max: 0.45, col: Math.random() < 0.5 ? '#c98a52' : '#a86a3a', s: Math.max(2.5, nestR * 0.12), star: false });
@@ -742,12 +748,16 @@ function updateBoxes(dt) {
   for (let k = G.vboxes.length - 1; k >= 0; k--) {
     const b = G.vboxes[k];
     b.t += dt;
-    if (b.state === 'fly' && b.t >= 0.24) { b.state = 'land'; b.t = 0; Sound.land(); }
-    else if (b.state === 'land' && b.t >= 0.14) { b.state = 'slot'; b.t = 0; }
+    if (b.state === 'fly' && b.t >= 0.17) { b.state = 'land'; b.t = 0; Sound.land(); tryDispatch(b); }
+    else if (b.state === 'land' && b.t >= 0.09) { b.state = 'slot'; b.t = 0; tryDispatch(b); }
     else if (b.state === 'slot') {
-      if (b.t > 0.08) tryDispatch(b);
-      if (b.logicalDone && b.dispatched >= b.total && !b.queue.length) { b.state = 'leave'; b.t = 0; Sound.boxOut(); }
-    } else if (b.state === 'leave' && b.t >= 0.22) {
+      tryDispatch(b);
+      if (b.logicalDone && b.dispatched >= b.total && !b.queue.length) {
+        b.state = 'leave'; b.t = 0; Sound.boxOut();
+        const sx = slotX(b.slot), sy = slotY;
+        for (let p = 0; p < 5; p++) G.parts.push({ x: sx, y: sy, vx: (Math.random() - 0.5) * 140, vy: -Math.random() * 110 - 20, life: 0, max: 0.35, col: p === 0 ? '#ffd23f' : HEX[b.c], s: Math.max(2.5, slotSize * 0.11), star: p <= 1 });
+      }
+    } else if (b.state === 'leave' && b.t >= 0.18) {
       if (G.vslots[b.slot] === b) G.vslots[b.slot] = null;
       G.vboxes.splice(k, 1); G.slotFreed = true;
     }
@@ -769,12 +779,12 @@ function updateParts(dt) {
 function checkEnd(rdt) {
   if (G.overlay || G.loading) return;
   if (G.pendingWin) {
-    if (!G.clearShown && G.ants.length === 0 && G.vboxes.length === 0) { G.endT += rdt; if (G.endT > 0.35) showClear(); }
+    if (!G.clearShown && G.ants.length === 0 && G.vboxes.length === 0) { G.endT += rdt; if (G.endT > 0.16) showClear(); }
     return;
   }
   if (G.pendingJam && !G.jamDismissed) {
     const busy = G.ants.length > 0 || G.vboxes.some(b => b.state !== 'slot' || b.logicalDone || b.queue.length);
-    if (!busy) { G.endT += rdt; if (G.endT > 0.35) showJam(); } else G.endT = 0;
+    if (!busy) { G.endT += rdt; if (G.endT > 0.32) showJam(); } else G.endT = 0;
   }
 }
 
@@ -852,15 +862,63 @@ function drawGold() {
   }
 }
 function drawFever() {
-  if (G.fever.t <= 0) return;
+  if (!G.s) return;
   const W = G.s.W, H = G.s.H, p = framePad - 1, bx = ox - cs - p, by = oy - cs - p, bw = (W + 2) * cs + p * 2, bh = (H + 2) * cs + p * 2;
-  ctx.lineWidth = 5; ctx.strokeStyle = 'hsl(' + ((G.rt * 240) % 360) + ',95%,62%)';
-  roundRect(ctx, bx, by, bw, bh, 24); ctx.stroke();
-  const txt = 'FEVER ' + G.fever.t.toFixed(1), cx = bcx(), ty = Math.max(11, by + 1);
-  ctx.font = fnt(900, 13);
-  const tw = ctx.measureText(txt).width + 18;
-  ctx.fillStyle = 'hsl(' + ((G.rt * 240 + 180) % 360) + ',90%,60%)'; roundRect(ctx, cx - tw / 2, ty - 10, tw, 20, 10); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, ty);
+  const cx = bcx(), ty = Math.max(11, by + 1);
+  if (G.fever.t > 0) {
+    ctx.lineWidth = 5; ctx.strokeStyle = 'hsl(' + ((G.rt * 240) % 360) + ',95%,62%)';
+    roundRect(ctx, bx, by, bw, bh, 24); ctx.stroke();
+    const txt = '🔥 FEVER ' + G.fever.t.toFixed(1) + 's';
+    ctx.font = fnt(900, 12.5);
+    const tw = Math.max(110, ctx.measureText(txt).width + 20);
+    ctx.fillStyle = 'rgba(65,30,75,0.85)'; roundRect(ctx, cx - tw / 2, ty - 10, tw, 20, 10); ctx.fill();
+    const pct = clamp(G.fever.t / Math.max(1, G.perk.feverT), 0, 1);
+    if (pct > 0) {
+      ctx.save(); roundRect(ctx, cx - tw / 2 + 1.5, ty - 8.5, tw - 3, 17, 8.5); ctx.clip();
+      ctx.fillStyle = 'hsl(' + ((G.rt * 240 + 180) % 360) + ',90%,58%)';
+      ctx.fillRect(cx - tw / 2, ty - 10, tw * pct, 20);
+      ctx.restore();
+    }
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; roundRect(ctx, cx - tw / 2, ty - 10, tw, 20, 10); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, ty + 0.5);
+  } else if (G.fever.g > 0.01 && !G.overlay) {
+    const pct = clamp(G.fever.g, 0, 1), near = pct >= 0.75;
+    const pulse = near ? 1 + 0.04 * Math.sin(G.rt * 12) : 1;
+    const gw = clamp(bw * 0.42, 86, 132) * pulse, gh = 16;
+    ctx.save();
+    ctx.fillStyle = 'rgba(70,40,75,0.72)'; roundRect(ctx, cx - gw / 2, ty - gh / 2, gw, gh, gh / 2); ctx.fill();
+    ctx.save(); roundRect(ctx, cx - gw / 2 + 1.5, ty - gh / 2 + 1.5, gw - 3, gh - 3, (gh - 3) / 2); ctx.clip();
+    const fg = ctx.createLinearGradient(cx - gw / 2, 0, cx + gw / 2, 0);
+    fg.addColorStop(0, '#ff5a9a'); fg.addColorStop(1, '#ffd23f');
+    ctx.fillStyle = fg; ctx.fillRect(cx - gw / 2, ty - gh / 2, gw * pct, gh);
+    ctx.restore();
+    ctx.strokeStyle = near ? '#ffd23f' : 'rgba(255,255,255,0.88)'; ctx.lineWidth = 1.5;
+    roundRect(ctx, cx - gw / 2, ty - gh / 2, gw, gh, gh / 2); ctx.stroke();
+    ctx.font = fnt(900, 10); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(near ? '🔥 あと少しでFEVER!' : '🔥 FEVER ' + Math.round(pct * 100) + '%', cx, ty + 0.5);
+    ctx.restore();
+  }
+  // ライブコンボバッジ（2コンボ以上で残り受付時間バーと一緒に弾む）
+  const comboAge = G.time - G.comboT;
+  if (G.combo >= 2 && comboAge <= G.perk.combo && !G.overlay) {
+    const rem = clamp(1 - comboAge / Math.max(0.1, G.perk.combo), 0, 1);
+    const sc = comboAge < 0.14 ? 1 + 0.22 * Math.sin((comboAge / 0.14) * Math.PI) : 1;
+    const txt = G.combo + ' COMBO!';
+    ctx.save();
+    ctx.font = fnt(900, 11.5);
+    const cw = ctx.measureText(txt).width + 16, ch = 19;
+    const cbx = clamp(bx + bw - cw / 2 - 6, cx + 62 + cw / 2, CW - cw / 2 - 4);
+    const cby = ty;
+    ctx.translate(cbx, cby); ctx.scale(sc, sc);
+    ctx.fillStyle = G.combo >= 25 ? '#ff9a00' : G.combo >= 10 ? '#ff4d7e' : '#ff6f9f';
+    roundRect(ctx, -cw / 2, -ch / 2, cw, ch, ch / 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    roundRect(ctx, -cw * 0.36, ch / 2 - 4, cw * 0.72 * rem, 2.2, 1.1); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(txt, 0, -0.5);
+    ctx.restore();
+  }
 }
 // 巣穴：板の外に置く土の山。(nestX, nestY) が穴のまんなか（静的部分をオフスクリーンにキャッシュ）
 function ensureNestCache(r) {
@@ -1048,10 +1106,11 @@ function drawBox(x, y, sz, ci, num, o, g) {
   }
   if (al !== 1) g.globalAlpha = 1;
 }
-function drawZz(x, y, sz) {
+function drawZz(x, y, sz, g) {
+  g = g || ctx;
   const r = Math.max(7, sz * 0.16), bob = Math.sin(G.rt * 3) * 2;
-  ctx.fillStyle = '#fff'; ell(ctx, x, y + bob, r, r); ctx.fill();
-  ctx.fillStyle = '#a08ab0'; ctx.font = fnt(900, r * 1.1); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('z', x, y + bob);
+  g.fillStyle = '#fff'; ell(g, x, y + bob, r, r); g.fill();
+  g.fillStyle = '#a08ab0'; g.font = fnt(900, r * 1.1); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('z', x, y + bob);
 }
 function renderTrayTo(g, needHc) {
   const L = panelL, TW = panelR - panelL, gk = trayTop + '|' + CH;
@@ -1065,6 +1124,7 @@ function renderTrayTo(g, needHc) {
   g.strokeStyle = '#fff'; g.lineWidth = 3; g.stroke();
   let maxShow = 1;
   while (maxShow < TRAY_MAX && trayHeadY + (TY[maxShow] + 0.41 * TSC[maxShow]) * headSize <= CH - 12) maxShow++;
+  const isDanger = G.s.boxes.length >= SLOT_COUNT - 1 && G.fever.t <= 0;
   for (let j = 0; j < G.s.cols.length; j++) {
     const col = G.s.cols[j], h = G.s.heads[j], rest = col.length - h;
     let x = trayX(j);
@@ -1081,15 +1141,23 @@ function renderTrayTo(g, needHc) {
       if (k === 0 && G.press && G.press.j === j && !G.press.previewed) { sx = 1.18; sy = 0.8; }
       if (k === 0 && G.queued && G.queued.j === j) s *= 1 + 0.05 * Math.sin(G.rt * 20);
       if (k === 0 && needHc && !G.hc) G.hc = headCounts(G.s);
-      const y = trayHeadY + lerp(TY[k], TY[k + 1], fr) * headSize, dim = k === 0 && save.settings.dim && !G.hc[j];
-      const al = (k === maxShow - 1 ? 1 - fr : 1) * (dim ? 0.5 : 1);
+      const rr = (k === 0 && G.hc) ? (G.hc[j] || 0) : 0;
+      const y = trayHeadY + lerp(TY[k], TY[k + 1], fr) * headSize, dim = k === 0 && (save.settings.dim || isDanger) && rr === 0;
+      const al = (k === maxShow - 1 ? 1 - fr : 1) * (dim ? 0.52 : 1);
       drawBox(x, y, s, b.c, b.n, { alpha: al, numY: k > 0 ? 0.22 : 0.1, sx, sy }, g);
-      if (dim && g === ctx) drawZz(x + s * 0.42, y - s * 0.4, s);
-      if (k === 0 && G.scanId === G.levelId && (G.hc[j] || 0) >= b.n) {
+      if (dim && g === ctx) drawZz(x + s * 0.42, y - s * 0.4, s, g);
+      if (k === 0 && isDanger && rr === 0) {
+        const wr = Math.max(8, s * 0.18), wx = x - s * 0.38, wy = y - s * 0.36;
+        g.fillStyle = '#ff4d6d'; ell(g, wx, wy, wr, wr); g.fill();
+        g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
+        g.fillStyle = '#fff'; g.font = fnt(900, wr * 1.25); g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('!', wx, wy + 0.5);
+      }
+      if (k === 0 && (G.scanId === G.levelId || isDanger) && rr >= b.n) {
         const p = 0.5 + 0.5 * Math.sin(G.rt * 6);
         g.strokeStyle = 'rgba(63,174,127,' + (0.75 + 0.25 * p) + ')'; g.lineWidth = 3.5;
         roundRect(g, x - s * 0.54, y - s * 0.45, s * 1.08, s * 0.9, s * 0.26); g.stroke();
-        if (!save.settings.info) {
+        if (!save.settings.info && G.scanId === G.levelId) {
           const txt = '✓全部';
           g.font = fnt(900, Math.max(10, s * 0.19));
           const tw = g.measureText(txt).width + 10, th = Math.max(14, s * 0.25);
@@ -1101,7 +1169,7 @@ function renderTrayTo(g, needHc) {
         }
       }
       if (k === 0 && save.settings.info) {
-        const rr = G.hc[j] || 0, txt = rr + '/' + b.n;
+        const txt = rr + '/' + b.n;
         g.font = fnt(800, Math.max(10, s * 0.2));
         const tw = g.measureText(txt).width + 10, th = Math.max(14, s * 0.26);
         g.fillStyle = rr >= b.n ? '#3fae7f' : rr > 0 ? '#ff9a3c' : '#a08ab0';
@@ -1118,9 +1186,10 @@ function renderTrayTo(g, needHc) {
   }
 }
 function drawTray() {
-  const cols = G.s.cols, needHc = !!(save.settings.dim || save.settings.info || G.scanId === G.levelId);
+  const cols = G.s.cols, isDanger = G.s.boxes.length >= SLOT_COUNT - 1 && G.fever.t <= 0;
+  const needHc = !!(save.settings.dim || save.settings.info || G.scanId === G.levelId || isDanger);
   if (needHc && !G.hc) G.hc = headCounts(G.s);
-  let animated = !!(G.shake || G.queued || G.scanId === G.levelId);
+  let animated = !!(G.shake || G.queued || G.scanId === G.levelId || isDanger);
   if (!animated) {
     for (let j = 0; j < cols.length; j++) {
       if (G.trayOff[j] > 0) { animated = true; break; }
@@ -1132,7 +1201,7 @@ function drawTray() {
     return;
   }
   const pressJ = G.press && !G.press.previewed ? G.press.j : -1;
-  let key = G.levelId + '|' + panelL + '|' + panelR + '|' + trayTop + '|' + CH + '|' + dpr + '|' + (save.settings.cb ? 1 : 0) + '|' + (save.settings.dim ? 1 : 0) + '|' + (save.settings.info ? 1 : 0) + '|' + pressJ;
+  let key = G.levelId + '|' + panelL + '|' + panelR + '|' + trayTop + '|' + CH + '|' + dpr + '|' + (save.settings.cb ? 1 : 0) + '|' + (save.settings.dim ? 1 : 0) + '|' + (save.settings.info ? 1 : 0) + '|' + pressJ + '|sb' + G.s.boxes.length;
   for (let j = 0; j < cols.length; j++) {
     const col = cols[j], h = G.s.heads[j], b0 = col[h];
     key += '|' + h + '/' + col.length + (b0 ? ':' + b0.c + ',' + b0.n : '');
@@ -1154,13 +1223,20 @@ function drawSlotBoxes() {
     let x = slotX(b.slot), y = slotY, sz = slotSize;
     const o = {}, num = b.total - b.dispatched;
     if (b.state === 'fly') {
-      const t = clamp(b.t / 0.24, 0, 1), e = easeOutCubic(t);
+      const t = clamp(b.t / 0.17, 0, 1), e = easeOutCubic(t);
       x = lerp(b.fx, x, e); y = lerp(b.fy, y, e) - Math.sin(Math.PI * t) * Math.min(70, CH * 0.09); sz = lerp(b.fs, slotSize, e);
       o.sx = 0.86; o.sy = 1.16;
     } else if (b.state === 'land') {
-      const k = Math.sin(Math.PI * clamp(b.t / 0.14, 0, 1));
-      o.sx = 1 + 0.14 * k; o.sy = 1 - 0.18 * k;
-    } else if (b.state === 'leave') o.sx = o.sy = Math.max(0, 1 - easeInBack(clamp(b.t / 0.22, 0, 1)));
+      const k = Math.sin(Math.PI * clamp(b.t / 0.09, 0, 1));
+      o.sx = 1 + 0.16 * k; o.sy = 1 - 0.2 * k;
+    } else if (b.state === 'leave') o.sx = o.sy = Math.max(0, 1 - easeInBack(clamp(b.t / 0.18, 0, 1)));
+    const wakeAge = b.wakeT ? (G.rt - b.wakeT) : 99;
+    if (wakeAge < 0.42) {
+      const wk = wakeAge / 0.42;
+      y -= Math.sin(wk * Math.PI) * slotSize * 0.22;
+      o.sx = (o.sx || 1) * (1 + 0.12 * Math.sin(wk * Math.PI));
+      o.sy = (o.sy || 1) * (1 - 0.08 * Math.sin(wk * Math.PI));
+    }
     if (G.jamShake > 0) x += Math.sin(G.rt * 60 + b.slot) * 3 * (G.jamShake / 0.4);
     o.peek = b.state === 'slot' && num > 0;
     drawBox(x, y, sz, b.c, b.state === 'fly' ? b.total : num, o);
@@ -1168,6 +1244,13 @@ function drawSlotBoxes() {
       const fa = 1 - b.t / 0.09;
       ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,' + (0.85 * fa) + ')'; ctx.lineWidth = 3.5;
       roundRect(ctx, x - sz * 0.56, y - sz * 0.48, sz * 1.12, sz * 0.96, sz * 0.24); ctx.stroke();
+      ctx.restore();
+    }
+    if (wakeAge < 0.42) {
+      const wk = wakeAge / 0.42;
+      ctx.save(); ctx.strokeStyle = 'rgba(255,215,64,' + (0.9 * (1 - wk)) + ')'; ctx.lineWidth = 3.5;
+      const rs = sz * (1.06 + wk * 0.28);
+      roundRect(ctx, x - rs * 0.54, y - rs * 0.46, rs * 1.08, rs * 0.92, rs * 0.26); ctx.stroke();
       ctx.restore();
     }
     if (b.state === 'slot' && num > 0 && !b.queue.length) drawZz(x + sz * 0.45, y - sz * 0.45, sz);
@@ -1305,7 +1388,7 @@ function drawSpotlightAndFlashes() {
   const s = G.s, W = s.W, H = s.H, ne = nestGate();
   const redMot = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion:reduce)').matches;
   let dist = null;
-  if (!G.prevVisReach && posOf(G.levelId) <= 3) {
+  if (!G.prevVisReach) {
     dist = visDist(ne.ex, ne.ey);
     G.prevVisReach = new Set();
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -1344,6 +1427,22 @@ function drawSpotlightAndFlashes() {
       }
       ctx.restore();
     }
+  }
+  // 箱をタップして運ぶ対象に決まったキャンディのロックオン演出
+  if (G.assignFlashes && G.assignFlashes.length) {
+    ctx.save();
+    for (let i = G.assignFlashes.length - 1; i >= 0; i--) {
+      const f = G.assignFlashes[i], el = G.rt - f.t0;
+      if (el >= f.dur || G.vgrid[f.idx] < 0) { G.assignFlashes.splice(i, 1); continue; }
+      if (el < 0) continue;
+      const k = el / f.dur, pop = 1 + (redMot ? 0 : 0.22 * Math.sin(k * Math.PI));
+      const x = f.idx % W, y = (f.idx - x) / W, cx = ox + (x + 0.5) * cs, cy = oy + (y + 0.5) * cs, d = cs * pop;
+      ctx.drawImage(cubeSpr[f.c], cx - d / 2, cy - d / 2, d, d);
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.95 * (1 - k * 0.7)) + ')';
+      ctx.lineWidth = Math.max(1.8, cs * 0.14);
+      ctx.strokeRect(cx - d / 2, cy - d / 2, d, d);
+    }
+    ctx.restore();
   }
   // どの箱を押しても、取れる同色キャンディを一瞬光らせる
   if (G.tapFlash && G.rt - G.tapFlash.t0 < 0.25) {
@@ -1389,16 +1488,15 @@ function drawSpotlightAndFlashes() {
   }
 }
 function drawGuides() {
-  if (G.hintCol >= 0) {
-    const j = G.hintCol;
-    if (G.s.heads[j] >= G.s.cols[j].length) G.hintCol = -1;
-    else {
-      const x = trayX(j), p = 0.5 + 0.5 * Math.sin(G.rt * 7), S = headSize * (1.18 + 0.08 * p);
-      ctx.strokeStyle = 'rgba(255,200,40,' + (0.6 + 0.4 * p) + ')'; ctx.lineWidth = 4;
-      roundRect(ctx, x - S / 2, trayHeadY - S * 0.45, S, S * 0.9, S * 0.26); ctx.stroke();
-      ctx.fillStyle = '#ffb020'; ctx.font = fnt(900, headSize * 0.34); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText('▼', x, trayHeadY - S * 0.45 - 2 - p * 4);
-    }
+  if (G.hintCol >= 0 && G.s && G.s.heads[G.hintCol] >= G.s.cols[G.hintCol].length) G.hintCol = -1;
+  const tutJ = (typeof Tut !== 'undefined' && Tut.wantCol) ? Tut.wantCol() : -1;
+  const hj = tutJ >= 0 ? tutJ : G.hintCol;
+  if (hj >= 0 && G.s && G.s.heads[hj] < G.s.cols[hj].length) {
+    const x = trayX(hj), p = 0.5 + 0.5 * Math.sin(G.rt * 7), S = headSize * (1.18 + 0.08 * p);
+    ctx.strokeStyle = 'rgba(255,200,40,' + (0.6 + 0.4 * p) + ')'; ctx.lineWidth = 4;
+    roundRect(ctx, x - S / 2, trayHeadY - S * 0.45, S, S * 0.9, S * 0.26); ctx.stroke();
+    ctx.fillStyle = '#ffb020'; ctx.font = fnt(900, headSize * 0.34); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('▼', x, trayHeadY - S * 0.45 - 2 - p * 4);
   }
   if (G.overlay || G.preview) return;
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -1415,24 +1513,23 @@ function drawGuides() {
       ctx.strokeStyle = 'rgba(255,255,255,' + (0.7 + 0.3 * pulse) + ')';
       ctx.lineWidth = 2.2;
       roundRect(ctx, bx - bs * 0.53, by - bs * 0.44, bs * 1.06, bs * 0.88, bs * 0.23); ctx.stroke();
-      // 0手目は1.0秒後、1〜2手目は3秒無操作時（アリ運搬中は出さない）にクリーンな波紋＆ポインター表示
       const idleT = G.rt - (G.lastTapT || 0);
-      const showPtr = !G.press && G.ants.length === 0 && ((G.moves.length === 0 && idleT >= 1.0) || (G.moves.length > 0 && idleT >= 3.0));
+      const showPtr = !G.press && G.ants.length === 0 && ((G.moves.length === 0 && idleT >= 0.25) || (G.moves.length > 0 && idleT >= 2.2));
       if (showPtr) {
         const rp = (G.rt % 1.2) / 1.2, pressY = rp < 0.45 ? 0 : 4;
         ctx.strokeStyle = 'rgba(255,255,255,' + (0.85 * (1 - rp)) + ')'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(bx, by, headSize * (0.28 + rp * 0.42), 0, Math.PI * 2); ctx.stroke();
-        // 端末依存の絵文字を避けたシンプルな白いタップポインター
         const px = bx + headSize * 0.16, py = by + headSize * 0.16 + pressY, pr = Math.max(7, headSize * 0.14);
         ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.strokeStyle = '#ff6f9f'; ctx.lineWidth = 2.2;
         ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(px, py + pr * 0.7); ctx.lineTo(px + pr * 0.9, py + pr * 1.9);
         ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = Math.max(4, pr * 0.55); ctx.lineCap = 'round'; ctx.stroke();
+        paintBubble(ctx, bx, by - headSize * 0.48, G.moves.length === 0 ? '👆 光る箱をタップ！' : '👆 つぎはこの箱！', 12, 1, 0.96);
       }
       ctx.restore();
     }
   }
-  if (G.levelId === 2 && !save.flags.lp && G.moves.length < 4) {
+  if (posOf(G.levelId) === 2 && !save.flags.lp && G.moves.length < 4 && G.s) {
     const h = headsOf(G.s);
     if (!h.length) return;
     const x = trayX(h[0]), y = trayHeadY, p = (G.rt % 1.6) / 1.6;

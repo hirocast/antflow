@@ -634,6 +634,9 @@ Sound.coin = function () {
   this.tone(2093, 0.22, { vol: 0.045, type: 'square', when: 0.07 });
 };
 Sound.nice = function () { if (this.ok()) [659.25, 987.77].forEach((f, i) => this.mallet(f, i * 0.08, 0.1)); };
+Sound.perfectBox = function () { if (this.ok()) [523.25, 659.25, 783.99].forEach((f, i) => this.mallet(f, i * 0.045, 0.085)); };
+Sound.chain = function (n) { if (this.ok()) [587.33, 739.99, 880, 1174.66].slice(0, Math.min(4, 2 + (n || 1))).forEach((f, i) => this.mallet(f, i * 0.055, 0.1)); };
+Sound.lastSpurt = function () { if (this.ok()) [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.bell(f, i * 0.05, 0.065, 0.45)); };
 
 /* ================= 育成・経済（セーブに項目を足す。古いセーブもそのまま使える） ================= */
 // tut：見おわったチュートリアルの記録
@@ -643,6 +646,12 @@ function metaInit(force) {
   for (const k in META_DEF) {
     const d = META_DEF[k], v = save[k];
     if (force || v == null || typeof v !== typeof d || Array.isArray(v) !== Array.isArray(d)) save[k] = JSON.parse(JSON.stringify(d));
+  }
+  if (!save.flags || typeof save.flags !== 'object') save.flags = { help: 0, lp: 0 };
+  if (!save.flags.uxV2) {
+    save.settings.wash = true;
+    save.settings.dim = true;
+    save.flags.uxV2 = 1;
   }
   if (save.skins.indexOf('none') < 0) save.skins.unshift('none');
   save.skins = save.skins.filter(k => SKINS.some(s => s.k === k));
@@ -1101,11 +1110,13 @@ function applyLevel(id, L) {
   G.levelId = id; G.level = L; G.s = makeState(L);
   G.undo = []; G.moves = []; G.queued = null;
   // アリの歩く速さ。ANT_RATE を変えると全体の速さが変わる（1＝前の速さ、0.5＝半分）
-  const ANT_RATE = 0.65;
+  const ANT_RATE = 0.82;
   G.antSpeed = clamp((L.W + L.H) * 0.36, 8, 42) * ANT_RATE;
   G.run = { started: false, done: false, time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0, freeU: G.perk.freeUndo, freeH: G.perk.freeHint, newTalks: [], bingoSnap: bingoSnapshot() };
   G.par = parTimes(L); G.waitIds = new Set(); G.timerShown = -9;
-  endFever(); G.fever.g = 0;
+  endFever();
+  const streakCharge = (!G.firstSim && (G.streak || 0) >= 1) ? Math.min(0.45, (G.streak || 0) * 0.15) : 0;
+  G.fever.g = streakCharge;
   const sk = getSkinSkill(save.skin);
   G.skill = { g: 0, max: Math.min(sk.pNeed, Math.max(10, Math.round(L.total * 0.35))), freezeT: 0, boostT: 0 };
   if (typeof updateSkillBtn === 'function') updateSkillBtn();
@@ -1115,7 +1126,10 @@ function applyLevel(id, L) {
   layout(); resetVisual();
   G.clearShown = false; G.loading = false;
   G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false; G.lastTapT = G.rt;
-  G.recCol = -1; G.maskAlpha = 0; G.pickFlashes = []; G.newReachFlashes = []; G.prevVisReach = null; G.tapFlash = null;
+  G.recCol = -1; G.maskAlpha = 0; G.pickFlashes = []; G.newReachFlashes = []; G.assignFlashes = []; G.prevVisReach = null; G.tapFlash = null;
+  if (streakCharge > 0 && !G.overlay) {
+    popup('🔥 ' + G.streak + '連続! FEVER+' + Math.round(streakCharge * 100) + '%', bcx(), oy + L.H * cs * 0.38, '#ffd23f');
+  }
   Sound.setBgm(L.name, L.theme);
   if (!G.overlay) G.bgmBanner = save.settings.bgm !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   if (!L.custom) Tut.levelStart(id);
@@ -1135,7 +1149,7 @@ function headCounts(s) {
 function resetVisual() {
   G.vgrid = G.s.grid.slice(); G.vver++; G.boardDirty = true;
   G.pgrid = G.vgrid.slice(); G.pver++;
-  G.ants = []; G.parts = []; G.bubbles = []; G.popups = []; G.vboxes = [];
+  G.ants = []; G.parts = []; G.bubbles = []; G.popups = []; G.vboxes = []; G.assignFlashes = [];
   G.parades = []; G.lastOut = new Array(SLOT_COUNT).fill(null);
   G.vslots = new Array(SLOT_COUNT).fill(null);
   G.s.boxes.forEach((b, i) => {
@@ -1211,6 +1225,20 @@ function onTapCol(j) {
   const s = G.s;
   if (s.heads[j] >= s.cols[j].length) return;
   if (s.boxes.length >= SLOT_COUNT) { G.shake = { j, t: 0.24 }; G.slotFlash = 0.4; Sound.deny(); haptic(20); return; }
+  // 序盤（Lv.1〜3）でスロット残り1つのとき、置くと即渋滞する箱をタップしたら優しくガイドして守る
+  if (posOf(G.levelId) <= 3 && G.fever.t <= 0 && s.boxes.length === SLOT_COUNT - 1) {
+    const tCheck = cloneState(s);
+    place(tCheck, j, null);
+    if (isJam(tCheck)) {
+      const safeJ = headsOf(s).find(k => { const tk = cloneState(s); place(tk, k, null); return !isJam(tk); });
+      if (safeJ != null) {
+        G.shake = { j, t: 0.24 }; G.slotFlash = 0.4; G.hintCol = safeJ;
+        Sound.deny(); haptic(18);
+        toast('🐜 そこは今とどかないよ！光っている箱から置こう✨', 2800);
+        return;
+      }
+    }
+  }
   const free = G.vslots.indexOf(null);
   if (free < 0) { G.queued = { j, until: G.rt + 2.5 }; return; }
   if (G.run && !G.run.started) {
@@ -1222,21 +1250,47 @@ function onTapCol(j) {
   G.undo.push(cloneState(s)); G.moves.push(j);
   const ev = [];
   place(s, j, ev);
-  let newId = -1, newN = 0, got = 0;
+  let newId = -1, newC = 0, newN = 0, got = 0, assignOrd = 0;
+  const wokenSlots = [];
+  if (!G.assignFlashes) G.assignFlashes = [];
   for (const e of ev) {
     if (e.type === 'place') {
       const vb = { id: e.id, c: e.c, total: e.n, dispatched: 0, picked: 0, queue: [], slot: free, state: 'fly', t: 0, logicalDone: false, nextT: 0, fx: trayX(j), fy: trayHeadY, fs: headSize };
       G.vboxes.push(vb); G.vslots[free] = vb;
-      newId = e.id; newN = e.n; G.waitIds.delete(e.id);
+      newId = e.id; newC = e.c; newN = e.n; G.waitIds.delete(e.id);
     } else {
       const vb = G.vboxes.find(v => v.id === e.id);
       if (!vb) continue;
-      if (e.type === 'assign') { vb.queue.push(...e.cells); if (e.id === newId) got += e.cells.length; }
-      else {
+      if (e.type === 'assign') {
+        vb.queue.push(...e.cells);
+        for (let ci = 0; ci < e.cells.length; ci++) {
+          G.assignFlashes.push({ idx: e.cells[ci], c: vb.c, t0: G.rt + Math.min(0.18, assignOrd * 0.015), dur: 0.36 });
+          assignOrd++;
+        }
+        if (e.id === newId) got += e.cells.length;
+        else if (wokenSlots.indexOf(vb) < 0) {
+          wokenSlots.push(vb);
+          vb.wakeT = G.rt;
+          const sx = slotX(vb.slot), sy = slotY;
+          for (let p = 0; p < 6; p++) G.parts.push({ x: sx, y: sy, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 130 - 30, life: 0, max: 0.42, col: p % 2 ? '#ffd23f' : HEX[vb.c], s: Math.max(2.5, slotSize * 0.12), star: true });
+        }
+      } else {
         vb.logicalDone = true;
         if (e.id !== newId && G.waitIds.has(e.id)) { G.waitIds.delete(e.id); niceRead(); }
       }
     }
+  }
+  if (wokenSlots.length > 0) {
+    if (typeof Sound.chain === 'function') Sound.chain(wokenSlots.length);
+    if (G.fever.t <= 0) {
+      G.fever.g = Math.min(1, G.fever.g + 0.07 * wokenSlots.length);
+      if (G.fever.g >= 1) startFever();
+    }
+    if (wokenSlots.length >= 2) popup('⚡ ' + (wokenSlots.length + 1) + 'れんさ！', slotCX, slotY - slotSize * 1.3, '#ffd23f');
+  } else if (got === newN && newN >= 3) {
+    if (typeof Sound.perfectBox === 'function') Sound.perfectBox();
+    const tx = trayX(j), ty = trayHeadY;
+    for (let p = 0; p < 6; p++) G.parts.push({ x: tx, y: ty, vx: (Math.random() - 0.5) * 150, vy: -Math.random() * 120 - 30, life: 0, max: 0.38, col: p === 0 ? '#ffd23f' : HEX[newC], s: Math.max(2.5, headSize * 0.11), star: p <= 2 });
   }
   if (G.fever.t > 0 && newId >= 0 && got === 0 && s.left > 0) {
     const dig = feverDeliverBox(newId, 3);
@@ -1253,8 +1307,12 @@ function onTapCol(j) {
   G.hc = null;
   G.hintCol = -1; G.boardDirty = true; G.lastTapT = G.rt;
   Sound.tap(); haptic(8);
-  if (s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
-  else if (isJam(s)) {
+  if (s.left === 0) {
+    G.pendingWin = true;
+    if (G.run) G.run.done = true;
+    if (typeof Sound.lastSpurt === 'function') Sound.lastSpurt();
+    popup('🎉 CLEAR! ラストスパート！', bcx(), oy + G.s.H * cs * 0.45, '#ffd23f', true);
+  } else if (isJam(s)) {
     if (G.fever.t > 0) {
       let rescued = false;
       while (s.left > 0 && isJam(s) && s.boxes.length > 0) {
@@ -1267,8 +1325,11 @@ function onTapCol(j) {
         if (G.fever.t <= 0) endFever();
       }
     }
-    if (s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
-    else if (isJam(s)) G.pendingJam = true;
+    if (s.left === 0) {
+      G.pendingWin = true;
+      if (G.run) G.run.done = true;
+      if (typeof Sound.lastSpurt === 'function') Sound.lastSpurt();
+    } else if (isJam(s)) G.pendingJam = true;
   }
   // はじめて起きたことを、その場で1回だけ説明する
   if (newId >= 0 && !G.pendingWin) {
@@ -1399,6 +1460,7 @@ function showClear() {
   const R = G.run || { time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0 };
   G.clearShown = true; G.nextBusy = false; G.scanId = 0; refreshPrices();
   endFever();
+  G.streak = (G.streak || 0) + 1;
   const t = Math.max(0.1, Math.round(R.time * 10) / 10), par = G.par || parTimes(G.level), st = timeStars(t, par);
   const prev = !isCustom && save.best[id], firstS3 = !isCustom && st === 3 && !(prev && prev.s >= 3), newBest = !!prev && t < prev.t;
   if (!isCustom) {
@@ -1414,6 +1476,7 @@ function showClear() {
   const lines = [], d = starsAt(pos);
   lines.push(['クリア（むずかしさ' + '★'.repeat(d) + '）', 10 + d * 4]);
   lines.push(['タイム ' + '★'.repeat(st) + '☆'.repeat(3 - st), [0, 5, 15, 30][st]]);
+  if (G.streak >= 2) lines.push(['🔥 ' + G.streak + 'れんぞくクリア！', Math.min(50, G.streak * 10)]);
   if (R.maxCombo >= 5) lines.push(['さいだい ' + R.maxCombo + ' コンボ', Math.floor(R.maxCombo / 5)]);
   if (R.fevers) lines.push(['フィーバー ×' + R.fevers, R.fevers * 10 + R.fcoin]);
   if (R.gold) lines.push(['金のキャンディ ×' + R.gold, R.gold * 15]);
@@ -1441,12 +1504,12 @@ function showClear() {
     lines.push(['⭐ スターロード ' + save.road * 10 + '★' + (tk ? '（🎟️+1）' : ''), 100]);
   }
   const total = lines.reduce((a, l) => a + l[1], 0);
-  const LINE_ORDER = ['クリア', 'はじめてのクリア', 'タイム', 'はじめての★★★', 'もどす', 'さいだい', 'フィーバー', '金の', 'ナイス', '⭐', '女王'];
+  const LINE_ORDER = ['クリア', 'はじめてのクリア', 'タイム', 'はじめての★★★', '🔥', 'もどす', 'さいだい', 'フィーバー', '金の', 'ナイス', '⭐', '女王'];
   const lineRank = l => { const k = LINE_ORDER.findIndex(p => l[0].indexOf(p) === 0); return k < 0 ? 99 : k; };
   const shown = lines.map((l, i) => [l, i]).sort((a, b) => lineRank(a[0]) - lineRank(b[0]) || a[1] - b[1]).map(x => x[0]);
   save.coins += total;
   persist();
-  if (nx) setTimeout(() => { if (tok === G.clearTok && G.overlay === 'clear') ensureLevel(nx, () => {}); }, 1900);
+  if (nx) setTimeout(() => { if (tok === G.clearTok && G.overlay === 'clear') ensureLevel(nx, () => {}); }, 900);
 
   Sound.fanfare(); haptic(30); Sound.duck(1.25);
   popText($('#clearTitle'), st === 3 ? 'パーフェクト！' : 'クリア！');
@@ -1525,20 +1588,20 @@ function showClear() {
   const rCells = [];
   for (let y = 0; y < rW; y++) for (let x = 0; x < rW; x++) {
     const v = rArt.grid[y * rW + x];
-    if (v >= 0) rCells.push({ v, px: rx0 + (x + 0.5) * rc, py: rx0 + (y + 0.5) * rc, d: Math.hypot(x - rcx, y - rcx) / rmd * 0.8 });
+    if (v >= 0) rCells.push({ v, px: rx0 + (x + 0.5) * rc, py: rx0 + (y + 0.5) * rc, d: Math.hypot(x - rcx, y - rcx) / rmd * 0.55 });
   }
   G.reveal = { t: 0, g: cv.getContext('2d'), S, pw, c: rc, doneCv, doneG, cells: rCells, settled: false };
   const se = $('#clearStars');
   se.innerHTML = '';
   for (let i = 0; i < 3; i++) {
     const sp = document.createElement('span');
-    sp.textContent = '★'; sp.style.animationDelay = (0.9 + i * 0.2) + 's';
+    sp.textContent = '★'; sp.style.animationDelay = (0.25 + i * 0.14) + 's';
     if (i >= st) sp.className = 'off';
     se.appendChild(sp);
-    if (i < st) setTimeout(() => { if (tok === G.clearTok) Sound.starPing(i); }, 900 + i * 200);
+    if (i < st) setTimeout(() => { if (tok === G.clearTok) Sound.starPing(i); }, 250 + i * 140);
   }
   $('#clearTime').textContent = '⏱ ' + t + '秒（★★★ ' + par[0] + '秒・★★ ' + par[1] + '秒）' + (newBest ? '　🏅自己ベスト！' : '');
-  $('#resList').innerHTML = shown.map((l, i) => '<div style="animation-delay:' + (0.9 + i * 0.12).toFixed(2) + 's"><span>' + l[0] + '</span><b>🪙+' + l[1] + '</b></div>').join('');
+  $('#resList').innerHTML = shown.map((l, i) => '<div style="animation-delay:' + (0.28 + i * 0.06).toFixed(2) + 's"><span>' + l[0] + '</span><b>🪙+' + l[1] + '</b></div>').join('');
   $('#resFood').textContent = '🍬 エサ +' + food + '（しょくりょうこ ' + save.food + '）';
   updateClearQueenBtn();
   const rt = $('#resTotal');
@@ -1548,12 +1611,12 @@ function showClear() {
     const t0 = performance.now();
     const tick = () => {
       if (tok !== G.clearTok) return;
-      const k = Math.min(1, (performance.now() - t0) / 800);
+      const k = Math.min(1, (performance.now() - t0) / 450);
       rt.textContent = Math.round(total * k);
       if (k < 1) requestAnimationFrame(tick); else { Sound.coin(); updateCoins(true); }
     };
     tick();
-  }, (0.9 + lines.length * 0.12) * 1000);
+  }, (0.35 + lines.length * 0.06) * 1000);
   const got = gotCount();
   $('#albumTotal').textContent = TOTAL;
   $('#albumCount').textContent = first ? got - 1 : got;
@@ -1564,8 +1627,8 @@ function showClear() {
     $('#albumCount').textContent = got;
     $('#albumBar').style.width = (100 * got / TOTAL) + '%';
     if (first) { $('#albumNew').classList.add('on'); Sound.albumIn(); }
-  }, 1700);
-  const nc = $('#nextCv'), bn = $('#bNext');
+  }, 850);
+  const nc = $('#nextCv'), bn = $('#bNext'), nxtFev = Math.min(45, G.streak * 15);
   if (isCustom) {
     nc.style.display = 'none';
     $('#nextLabel').textContent = 'オリジナルステージ';
@@ -1574,9 +1637,9 @@ function showClear() {
   } else if (nx) {
     const na = getArt(nx);
     drawThumb(nc, na, 52, !save.cleared[nx]); nc.style.display = '';
-    $('#nextLabel').textContent = 'つぎの絵（クリアで公開）';
+    $('#nextLabel').textContent = '🔥 ' + G.streak + 'れんぞく！つぎはFEVER +' + nxtFev + '%でスタート！';
     $('#nextName').textContent = 'つぎは「' + na.theme + '」の絵！（' + na.W + '×' + na.H + '）';
-    bn.textContent = 'つぎへ ▶';
+    bn.textContent = 'つぎへ ▶（🔥FEVER+' + nxtFev + '%）';
   } else {
     nc.style.display = 'none';
     $('#nextLabel').textContent = 'おめでとう！';
@@ -1653,12 +1716,13 @@ function flyToAlbum(id) {
 function showJam() {
   Sound.jam(); Sound.muffle(true); G.jamShake = 0.4; haptic(40);
   const say = '🐜「' + talkLine('jam') + '」', btn = $('#bJamRewind'), ub = $('#bJamUndo');
+  const uLbl = payInfo('undo').ok ? priceLabel('undo') : '🐜応援むりょう！';
   $('#jamMsg').textContent = say + ' どこで道を外れたか調べています。';
   $('#bJamRetry').textContent = '⟳ 最初から（むりょう）';
   // 前回の表示を元に戻す（ボタンを隠したままにしない）
   btn.style.display = ''; btn.disabled = true; btn.textContent = '⏪ 戻り先を調べています…';
   ub.style.display = ''; ub.disabled = false; ub.classList.add('sec');
-  ub.textContent = '↶ 1手もどす（' + priceLabel('undo') + '）';
+  ub.textContent = '↶ 1手もどす（' + uLbl + '）';
   showOv('jam');
   const tok = ++G.rewindTok, n = G.undo.length, sol = G.level.solution, t0 = Date.now();
   G.rewindTo = -1;
@@ -1678,13 +1742,14 @@ function showJam() {
       // 戻り先が1手前なら「1手もどす」と同じなので、⏪は出さず「1手もどす」を一番目のボタンにする
       btn.style.display = 'none';
       ub.classList.remove('sec');
-      ub.textContent = '↶ 1手もどす（' + priceLabel('undo') + '）';
+      ub.textContent = '↶ 1手もどす（' + uLbl + '）';
       $('#jamMsg').textContent = say + ' 1手前までは解ける状態だったよ。1手もどして別の箱を試そう！';
       return;
     }
     G.rewindTo = t; btn.disabled = false;
-    btn.textContent = '⏪ ' + cnt + '手もどす（🪙' + PRICE.rewind + '）';
-    $('#jamMsg').textContent = say + ' ' + cnt + '手前までは解ける状態だったよ。そこから別の順番を試そう！';
+    const rLbl = save.coins >= PRICE.rewind ? ('🪙' + PRICE.rewind) : '🐜応援むりょう！';
+    btn.textContent = '⏪ ' + cnt + '手もどす（' + rLbl + '）';
+    $('#jamMsg').textContent = say + ' ' + cnt + '手前までは解ける状態だったよ。ワンタップで戻れるよ！';
   };
   const step = () => {
     if (tok !== G.rewindTok) return;
@@ -2254,30 +2319,29 @@ function findSolvableUndo() {
 }
 function doUndo() {
   if (G.loading || (G.overlay && G.overlay !== 'jam') || !G.undo.length) return;
-  const info = payInfo('undo');
-  if (!info.ok) { pay('undo'); return; }
   const n = G.undo.length;
   const t = G.overlay === 'jam' && G.rewindTo >= 0 && G.rewindTo < n ? G.rewindTo : findSolvableUndo();
+  if (t < 0 || t >= n) return;
   const cnt = n - t;
-  confirmSpend({
-    title: cnt === 1 ? '↶ 1てもどす' : '↶ ' + cnt + 'てもどす',
-    desc: cnt === 1
-      ? '直前にえらんだ箱を1手まえ（解ける盤面）にもどします。'
-      : 'いまの盤面からはクリアできないため、まだ解ける盤面（' + cnt + '手まえ）まで一気にもどします。',
-    cost: info.cost,
-    okLabel: 'もどす！'
-  }, () => {
-    if (G.loading || (G.overlay && G.overlay !== 'jam') || t < 0 || t >= G.undo.length) return;
-    if (!pay('undo')) return;
-    G.rewindTok++;
-    G.s = G.undo[t]; G.undo.length = t; G.moves.length = t; G.queued = null;
-    if (G.run) G.run.undos++;
-    resetVisual(); hideOv(); Sound.undo(); updateTip();
-    if (cnt > 1) toast('↶ 解ける盤面（' + cnt + '手まえ）までもどしたよ', 2400);
-  });
+  const info = payInfo('undo');
+  let rescued = false;
+  if (!info.ok && G.overlay === 'jam') {
+    rescued = true;
+  } else if (!pay('undo')) {
+    return;
+  }
+  G.rewindTok++;
+  G.s = G.undo[t]; G.undo.length = t; G.moves.length = t; G.queued = null;
+  if (G.run) G.run.undos++;
+  resetVisual(); hideOv(); Sound.undo(); haptic(10); updateTip();
+  toast(rescued ? '🐜 ありんこ応援レスキュー！解ける盤面までもどしたよ✨' : cnt > 1 ? '⏪ 解ける盤面（' + cnt + '手まえ）までもどしたよ！' : '↶ 1手もどしたよ！', 2400);
 }
 function doRetry() {
   if (G.loading || (G.overlay && G.overlay !== 'jam')) return;
+  if (G.overlay === 'jam' || !G.moves || G.moves.length <= 2) {
+    hideOv(); loadLevel(G.levelId); Sound.undo();
+    return;
+  }
   confirmSpend({
     title: '⟳ やりなおし',
     desc: 'このステージを最初からやり直します。いままでの手数はリセットされます。',
@@ -2290,7 +2354,11 @@ function doRetry() {
 }
 function doHint() {
   if (G.overlay || G.pendingWin || G.loading || !G.s) return;
-  if (G.hintCol >= 0) { toast('💡 光っている箱がおすすめだよ'); return; }
+  if (G.hintCol >= 0) {
+    if (G.s.heads[G.hintCol] < G.s.cols[G.hintCol].length) G.tapFlash = { c: headBox(G.s, G.hintCol).c, t0: G.rt };
+    toast('💡 光っている箱がおすすめだよ');
+    return;
+  }
   const sol = G.level.solution;
   let j = -1;
   if (followsSolution() && G.moves.length < sol.length) j = sol[G.moves.length];
@@ -2303,32 +2371,19 @@ function doHint() {
       return;
     } else { toast('読み切れなかったよ。少し戻して別の順番を試そう（コインは使ってないよ）', 2600); return; }
   }
-  const info = payInfo('hint');
-  if (!info.ok) { pay('hint'); return; }
-  confirmSpend({
-    title: '💡 ヒント',
-    desc: 'いまの盤面からクリアにつながるおすすめの箱を1つ光らせて教えます。',
-    cost: info.cost,
-    okLabel: 'つかう！'
-  }, () => {
-    if (G.overlay || G.pendingWin || G.loading || !G.s) return;
-    if (!pay('hint')) return;
-    G.hintCol = j;
-    if (G.run) G.run.hints++;
-    toast('💡 光っている箱がおすすめだよ');
-  });
+  if (!pay('hint')) return;
+  G.hintCol = j;
+  if (G.s.heads[j] < G.s.cols[j].length) G.tapFlash = { c: headBox(G.s, j).c, t0: G.rt };
+  if (G.run) G.run.hints++;
+  Sound.nice(); haptic(10);
+  toast('💡 光っている箱がおすすめだよ！');
 }
 function doScan() {
   if (G.overlay || G.pendingWin || G.loading || !G.s) return;
   if (G.scanId === G.levelId) { toast('🔍 このステージでは解放済みだよ！'); return; }
   const info = payInfo('scan');
   if (!info.ok) { pay('scan'); return; }
-  confirmSpend({
-    title: '🔍 全部運べる',
-    desc: 'いま1列まるごと全部のアリを運べる箱が光ってわかるようになります。（このステージ中ずっと有効）',
-    cost: info.cost,
-    okLabel: '解放する！'
-  }, () => {
+  const activate = () => {
     if (G.overlay || G.pendingWin || G.loading || !G.s) return;
     if (!pay('scan')) return;
     G.scanId = G.levelId;
@@ -2336,7 +2391,14 @@ function doScan() {
     Sound.nice(); haptic(12);
     refreshPrices();
     toast('🔍 全部運べる箱が光るよ！（このステージ中）', 2600);
-  });
+  };
+  if (save.scanT > 0) { activate(); return; }
+  confirmSpend({
+    title: '🔍 全部運べる',
+    desc: 'いま1列まるごと全部のアリを運べる箱が光ってわかるようになります。（このステージ中ずっと有効）',
+    cost: info.cost,
+    okLabel: '解放する！'
+  }, activate);
 }
 function updateSkillBtn() {
   const b = $('#bSkill');
@@ -2955,17 +3017,6 @@ function tutReplay() {
   hideOv(); loadLevel(idAt(1));
   toast('🎓 Lv.1 から、もう一度教えるね！', 2400);
 }
-// render.js の drawGuides（箱を光らせるガイド）を、チュートリアル対応版に置きかえる（render.js は変更不要）
-drawGuides = function () {
-  if (G.hintCol >= 0 && G.s.heads[G.hintCol] >= G.s.cols[G.hintCol].length) G.hintCol = -1;
-  const w = Tut.wantCol(), j = w >= 0 ? w : G.hintCol;
-  if (j < 0 || G.s.heads[j] >= G.s.cols[j].length) return;
-  const x = trayX(j), p = 0.5 + 0.5 * Math.sin(G.rt * 7), S = headSize * (1.18 + 0.08 * p);
-  ctx.strokeStyle = 'rgba(255,200,40,' + (0.6 + 0.4 * p) + ')'; ctx.lineWidth = 4;
-  roundRect(ctx, x - S / 2, trayHeadY - S * 0.45, S, S * 0.9, S * 0.26); ctx.stroke();
-  ctx.fillStyle = '#ffb020'; ctx.font = fnt(900, headSize * 0.34); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText('▼', x, trayHeadY - S * 0.45 - 2 - p * 4);
-};
 
 /* ================= あそびかた（ページめくり式。各ページに動く絵をつける） ================= */
 const HELP_PAGES = [
@@ -3383,7 +3434,11 @@ on('#bViewBack', () => openAlbum(G.fromTitle));
 on('#bViewPlay', () => { hideOv(); loadLevel(G.viewId); });
 on('#bUndo', doUndo);
 on('#bRetry', doRetry);
-on('#bSpeed', () => { G.speed = G.speed === 1 ? 2 : 1; save.settings.fast = G.speed === 2; persist(); G.hudDirty = true; });
+on('#bSpeed', () => {
+  Sound.init(); Sound.tap();
+  G.speed = G.speed === 1 ? 2 : G.speed === 2 ? 3 : 1;
+  save.settings.fast = G.speed; persist(); G.hudDirty = true;
+});
 on('#bHint', () => { Sound.init(); doHint(); });
 on('#bScan', () => { Sound.init(); doScan(); });
 on('#bSkill', () => { Sound.init(); doMainSkill(); });
@@ -3490,23 +3545,19 @@ on('#bJamClose', () => { G.jamDismissed = true; G.rewindTok++; hideOv(); });
 on('#bJamRewind', () => {
   const t = G.rewindTo;
   if (t < 0 || t >= G.undo.length) return;
-  const info = payInfo('rewind');
-  if (!info.ok) { pay('rewind'); return; }
   const n = G.undo.length - t;
-  confirmSpend({
-    title: '⏪ すこしもどす',
-    desc: 'まだクリアできる手前（' + n + '手まえ）まで一気にもどしてやり直せます。',
-    cost: info.cost,
-    okLabel: 'もどす！'
-  }, () => {
-    if (t < 0 || t >= G.undo.length) return;
-    if (!pay('rewind')) return;
-    G.rewindTok++;
-    G.s = G.undo[t]; G.undo.length = t; G.moves.length = t; G.queued = null;
-    if (G.run) G.run.undos++;
-    resetVisual(); hideOv(); Sound.undo(); updateTip();
-    toast('⏪ ' + n + '手もどしたよ。ここからなら解ける！', 2600);
-  });
+  const info = payInfo('rewind');
+  let rescued = false;
+  if (!info.ok) {
+    rescued = true;
+  } else if (!pay('rewind')) {
+    return;
+  }
+  G.rewindTok++;
+  G.s = G.undo[t]; G.undo.length = t; G.moves.length = t; G.queued = null;
+  if (G.run) G.run.undos++;
+  resetVisual(); hideOv(); Sound.undo(); haptic(12); updateTip();
+  toast(rescued ? '🐜 ありんこ応援レスキュー！' + n + '手もどしたよ✨' : '⏪ ' + n + '手もどしたよ。ここからなら解ける！', 2600);
 });
 const SEEN_VER_KEY = 'antflow-seen-ver';
 const appUpd = { checked: false, lastCheck: 0, hasUpdate: false, data: null, openHist: false, showAllHist: false, justUpdated: false, busy: false };
@@ -3802,8 +3853,8 @@ function frame(now) {
   let dt = rdt * G.speed;
   const h = G.s && !G.pendingJam ? headsOf(G.s) : null;
   if (G.s && !G.pendingJam) {
-    if (G.s.left === 0) dt *= 2.5;
-    else if ((h && h.length === 1) || (G.level && G.s.left <= Math.max(12, Math.floor(G.level.total * 0.15)) && h && !h.length)) dt *= 2.2;
+    if (G.s.left === 0) dt *= 3.2;
+    else if ((h && h.length === 1) || (G.level && G.s.left <= Math.max(12, Math.floor(G.level.total * 0.15)) && h && !h.length)) dt *= 2.4;
   }
   if (G.slowmo > 0) { G.slowmo -= rdt; dt *= 0.3; }
   if (h && h.length === 1 && !G.overlay && !G.loading && !G.pendingWin && !G.pendingJam && !G.auto && !G.press && !Tut.blocking()) {
@@ -3862,7 +3913,7 @@ function frame(now) {
 }
 
 /* ================= 起動 ================= */
-G.speed = save.settings.fast ? 2 : 1;
+G.speed = save.settings.fast === 3 ? 3 : save.settings.fast ? 2 : 1;
 (function buildTitleLogo() {
   const el = $('#ttl');
   if (!el) return;

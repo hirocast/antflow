@@ -200,20 +200,34 @@ const Sound = {
     this.noise(0, 0.04, 0.03, 700, 'bandpass', 1);
   },
   boxOut() { if (this.ok()) this.tone(330 * this.vary(), 0.1, { vol: 0.07, glide: 1.5, attack: 0.01 }); },
-  // キャンディを拾う音：5音の音階を上下に行き来し、たくさん重なるほど1音を小さくする
-  pop() {
+  // キャンディを拾う音：コンボに合わせて5音音階を気持ちよく駆け上がり、節目のコンボでキラキラ倍音を重ねる
+  pop(combo) {
     if (!this.ok()) return;
     const now = this.ctx.currentTime;
-    if (now - this.lastPop < 0.05) return;
+    if (now - this.lastPop < 0.042) return;
     this.lastPop = now;
     this.popTimes = this.popTimes.filter(t => now - t < 1);
     this.popTimes.push(now);
-    const vol = 0.15 / Math.sqrt(Math.max(1, this.popTimes.length / 3));
-    if (Math.random() < 0.18) this.dir = -this.dir;
-    this.deg += this.dir;
-    if (this.deg > 6) { this.deg = 5; this.dir = -1; } else if (this.deg < 0) { this.deg = 1; this.dir = 1; }
-    this.mallet(261.63 * Math.pow(2, this.PENTA[this.deg] / 12) * this.vary(), 0, vol);
-    this.noise(0, 0.03, vol * 0.3, 2200, 'bandpass', 1.2);
+    const vol = 0.16 / Math.sqrt(Math.max(1, this.popTimes.length / 3));
+    const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
+    let semi;
+    if (typeof combo === 'number' && combo >= 0) {
+      if (combo < SCALE.length) semi = SCALE[combo];
+      else {
+        const HI = [12, 14, 16, 19, 21, 24, 21, 19, 16, 14];
+        semi = HI[(combo - SCALE.length) % HI.length];
+      }
+    } else {
+      if (Math.random() < 0.18) this.dir = -this.dir;
+      this.deg = clamp(this.deg + this.dir, 0, 6);
+      semi = this.PENTA[this.deg];
+    }
+    const freq = 261.63 * Math.pow(2, semi / 12) * this.vary();
+    this.mallet(freq, 0, vol);
+    this.noise(0, 0.028, vol * 0.28, 2400, 'bandpass', 1.2);
+    if (typeof combo === 'number' && combo >= 4 && ((combo + 1) % 5 === 0)) {
+      this.bell(freq * 1.5, 0.015, vol * 0.28, 0.32);
+    }
   },
   thump() {
     if (!this.ok()) return;

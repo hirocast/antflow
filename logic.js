@@ -374,7 +374,7 @@ function ensureLevel(id, cb) {
 }
 
 /* ================= セーブ ================= */
-let save = { level: 1, maxLevel: 1, cleared: {}, newArts: [], flags: { help: 0, lp: 0 }, settings: { sfx: true, bgm: true, vib: true, talk: true, steps: true, sfxVol: 90, bgmVol: 70, cb: false, wash: false, dim: false, info: false, fast: false, dev: false } };
+let save = { level: 1, maxLevel: 1, cleared: {}, newArts: [], flags: { help: 0, lp: 0 }, settings: { sfx: true, bgm: true, vib: true, talk: true, steps: true, sfxVol: 90, bgmVol: 70, cb: false, wash: true, dim: true, info: false, fast: false, dev: false } };
 try {
   const d = JSON.parse(localStorage.getItem(SAVE_KEY));
   if (d) save = Object.assign({}, save, d, { settings: Object.assign({}, save.settings, d.settings || {}), flags: Object.assign({}, save.flags, d.flags || {}), newArts: Array.isArray(d.newArts) ? d.newArts : [] });

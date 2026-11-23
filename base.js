@@ -3,7 +3,7 @@
 
 /* ================= 定数・ユーティリティ（他のすべてのファイルから使う） ================= */
 // LV_KEY：生成したステージの保存名。生成の仕組みや絵の数を変えたら番号を上げる（古いステージは自動で消える）
-const LV_KEY = 'antflow-lv35-', SAVE_KEY = 'antflow-save-v2', SLOT_COUNT = 5, MAX_ANTS = 320, PICK = 0.5, ENTER = 0.24, SHADE_MIN = 30;
+const LV_KEY = 'antflow-lv35-', SAVE_KEY = 'antflow-save-v2', SLOT_COUNT = 5, MAX_ANTS = 320, PICK = 0.34, ENTER = 0.20, SHADE_MIN = 30;
 const KEYS = ['R','O','Y','L','G','F','C','B','I','P','K','W','S','T','N','A','M','D','V','E','Q'];
 const HEX = ['#ff5a6a','#ff9a3c','#ffd23f','#b4e05a','#48d168','#1a633a','#7fd6f5','#4a8ff0','#3346a0','#a66be0','#ff9cc8','#fbf8f1','#ffd3b0','#e3b27a','#9a6342','#b6bcc8','#c23b55','#3d3550','#cdb4f5','#8fe6c8','#fde7a6'];
 const SYM = ['●','▲','■','◆','★','✚','○','▼','◎','✦','♥','□','△','◇','☾','✕','♣','♠','✿','❖','☀'];
@@ -1497,13 +1497,13 @@ function perks() {
     coin: 1 + 0.02 * (q - 1) + (f.coin ? f.coin * mul : 0),
     food: 1 + (q >= 300 ? 1.0 : q >= 250 ? 0.8 : q >= 120 ? 0.5 : q >= 60 ? 0.3 : q >= 35 ? 0.15 : 0) + (f.food ? f.food * mul : 0),
     speed: 1 + (q >= 280 ? 0.5 : q >= 220 ? 0.4 : q >= 140 ? 0.3 : q >= 70 ? 0.2 : q >= 25 ? 0.1 : 0) + (f.speed ? f.speed * mul : 0),
-    combo: 0.6 + (q >= 210 ? 0.5 : q >= 130 ? 0.3 : q >= 55 ? 0.15 : 0) + (f.combo ? f.combo * mul : 0),
+    combo: 0.95 + (q >= 210 ? 0.5 : q >= 130 ? 0.3 : q >= 55 ? 0.15 : 0) + (f.combo ? f.combo * mul : 0),
     hintCut: Math.max(q >= 150 ? 0.8 : q >= 65 ? 0.6 : q >= 12 ? 0.4 : q >= 5 ? 0.2 : 0, f.hintCut ? Math.min(0.95, f.hintCut * mul) : 0),
     fever: 1 + (q >= 6 ? 0.2 : 0) + (q >= 20 ? 0.2 : 0) + (q >= 175 ? 0.3 : 0) + (q >= 260 ? 0.3 : 0) + (f.fever ? f.fever * mul : 0),
     feverT: (q >= 270 ? 11 : q >= 180 ? 9.5 : q >= 90 ? 8 : q >= 30 ? 6.5 : 5) + (f.feverT ? f.feverT * mul : 0),
     gold: 1 + (q >= 290 ? 4 : q >= 200 ? 3 : q >= 100 ? 2 : q >= 10 ? 1 : 0) + (f.gold ? Math.round(f.gold * imul) : 0),
     par: 1 + (q >= 240 ? 0.3 : q >= 160 ? 0.2 : q >= 75 ? 0.1 : 0) + (f.par ? f.par * mul : 0),
-    freeUndo: (q >= 230 ? 7 : q >= 110 ? 5 : q >= 50 ? 4 : q >= 15 ? 3 : q >= 8 ? 2 : q >= 3 ? 1 : 0) + (f.freeUndo ? Math.round(f.freeUndo * imul) : 0),
+    freeUndo: 1 + (q >= 230 ? 7 : q >= 110 ? 5 : q >= 50 ? 4 : q >= 15 ? 3 : q >= 8 ? 2 : q >= 3 ? 1 : 0) + (f.freeUndo ? Math.round(f.freeUndo * imul) : 0),
     freeHint: (q >= 275 ? 3 : q >= 165 ? 2 : q >= 85 ? 1 : 0) + (f.freeHint ? Math.round(f.freeHint * imul) : 0),
     bonus: (q >= 300 ? 350 : q >= 295 ? 200 : q >= 190 ? 100 : q >= 95 ? 50 : q >= 45 ? 20 : 0) + (f.bonus ? Math.round(f.bonus * mul) : 0)
   };
