@@ -199,7 +199,46 @@
   let mkGrid = new Int8Array(mkW * mkH).fill(-1);
   const mkHistory = [], mkRedo = [];
   let mkCol = -2, mkMirror = false, mkMirrorV = false, mkPanMode = false, mkSelMode = false, mkDrawing = false, mkBuilt = false;
-  let mkTool = 'pen', mkBrush = 1, mkLastCell = null;
+  let mkTool = 'pen', mkBrush = 1, mkLastCell = null, mkShapeFill = false, mkShapeDrag = null;
+  function shapeCells(drag) {
+    if (!drag) return [];
+    const { tool, sx, sy, ex, ey, fill } = drag;
+    let ax = ex, ay = ey;
+    if (tool === 'square' || tool === 'circle') {
+      const dx = ex - sx, dy = ey - sy;
+      const side = Math.max(Math.abs(dx), Math.abs(dy));
+      ax = sx + (dx >= 0 ? side : -side);
+      ay = sy + (dy >= 0 ? side : -side);
+    }
+    const x0 = Math.min(sx, ax), x1 = Math.max(sx, ax);
+    const y0 = Math.min(sy, ay), y1 = Math.max(sy, ay);
+    const pts = [];
+    if (tool === 'rect' || tool === 'square') {
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          if (fill || x === x0 || x === x1 || y === y0 || y === y1) pts.push(x, y);
+        }
+      }
+    } else {
+      const w = x1 - x0 + 1, h = y1 - y0 + 1;
+      if (w <= 2 || h <= 2) {
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) pts.push(x, y);
+      } else {
+        const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        const rx = w / 2, ry = h / 2;
+        const inEll = (px, py) => ((px - cx) / rx) ** 2 + ((py - cy) / ry) ** 2 <= 1.0001;
+        for (let y = y0; y <= y1; y++) {
+          for (let x = x0; x <= x1; x++) {
+            if (!inEll(x, y)) continue;
+            if (fill || !inEll(x - 1, y) || !inEll(x + 1, y) || !inEll(x, y - 1) || !inEll(x, y + 1)) {
+              pts.push(x, y);
+            }
+          }
+        }
+      }
+    }
+    return pts;
+  }
   let mkBgmToken = '', mkAllowRemix = false, mkBaseAuthor = '', mkDiff = 2, mkGenIdx = 0;
   const STAGE_DIFFS = {
     1: { label: 'かんたん', short: '🌱 かんたん', stars: 1 },
@@ -1613,6 +1652,11 @@
       '<button id="mkFill">🪣 ぬりつぶし</button>' +
       '<button id="mkDrop">💉 スポイト</button>' +
       '<button id="mkBrush">🖌️ 1×1</button>' +
+      '<button id="mkRect">▭ 長方形</button>' +
+      '<button id="mkSquare">⬜ 正方形</button>' +
+      '<button id="mkEllipse">⬭ 楕円</button>' +
+      '<button id="mkCircle">⭕ 正円</button>' +
+      '<button id="mkShapeFill">⬜ フチだけ</button>' +
       '<button id="mkSelBtn">🔲 選択移動</button>' +
       '<button id="mkCopy">📋 コピー</button>' +
       '<button id="mkPaste" disabled>📋 はりつけ</button>' +
@@ -1874,6 +1918,26 @@
       mkLastCell = { x, y };
       drawMaker();
     }
+    const isShapeTool = t => t === 'rect' || t === 'square' || t === 'ellipse' || t === 'circle';
+    function applyShapeCells(pts) {
+      let changed = false;
+      for (let i = 0; i < pts.length; i += 2) {
+        const x = pts[i], y = pts[i + 1];
+        if (x < 0 || x >= mkW || y < 0 || y >= mkH) continue;
+        const mx = mkW - 1 - x, my = mkH - 1 - y;
+        const targets = [[x, y]];
+        if (mkMirror) targets.push([mx, y]);
+        if (mkMirrorV) targets.push([x, my]);
+        if (mkMirror && mkMirrorV) targets.push([mx, my]);
+        for (const [tx, ty] of targets) {
+          if (mkGrid[ty * mkW + tx] !== mkCol) {
+            mkGrid[ty * mkW + tx] = mkCol;
+            changed = true;
+          }
+        }
+      }
+      return changed;
+    }
     let mkScrollTap = null;
     cv.addEventListener('pointerdown', e => {
       if (isCanvasScrollOnly()) {
@@ -1885,7 +1949,7 @@
       cv.setPointerCapture(e.pointerId);
       mkPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (mkPtrs.size === 2) {
-        mkDrawing = false; mkSelDrag = null; mkLastCell = null;
+        mkDrawing = false; mkSelDrag = null; mkLastCell = null; mkShapeDrag = null;
         const pts = [...mkPtrs.values()];
         mkPinch = {
           dist: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1,
@@ -1956,6 +2020,13 @@
         }
         return;
       }
+      if (isShapeTool(mkTool)) {
+        if (mkCol < -1) { toast('🎨 先に下のパレットから色（または消しゴム）をえらんでね！'); return; }
+        const { x, y } = cellAt(e.clientX, e.clientY, true);
+        mkShapeDrag = { tool: mkTool, sx: x, sy: y, ex: x, ey: y, fill: mkShapeFill };
+        drawMaker();
+        return;
+      }
       pushMkUndo();
       mkDrawing = true;
       mkLastCell = null;
@@ -2019,6 +2090,16 @@
         drawMaker();
         return;
       }
+      if (mkShapeDrag) {
+        e.preventDefault();
+        const { x, y } = cellAt(e.clientX, e.clientY, true);
+        if (x !== mkShapeDrag.ex || y !== mkShapeDrag.ey) {
+          mkShapeDrag.ex = x;
+          mkShapeDrag.ey = y;
+          drawMaker();
+        }
+        return;
+      }
       if (mkDrawing) { e.preventDefault(); paintAt(e.clientX, e.clientY, false); }
     });
     const stop = e => {
@@ -2029,9 +2110,22 @@
       } else if (e.type === 'pointercancel') {
         mkScrollTap = null;
       }
+      if (mkShapeDrag && e.type === 'pointerup') {
+        const pts = shapeCells(mkShapeDrag);
+        mkShapeDrag = null;
+        if (pts.length) {
+          pushMkUndo();
+          if (applyShapeCells(pts)) Sound.tap();
+          else { mkHistory.pop(); refreshUndoBtn(); }
+        }
+        drawMaker();
+      } else if (e.type === 'pointercancel' && mkShapeDrag) {
+        mkShapeDrag = null;
+        drawMaker();
+      }
       mkPtrs.delete(e.pointerId);
       if (mkPtrs.size < 2) mkPinch = null;
-      if (mkPtrs.size === 0) { mkDrawing = false; mkLastPan = null; mkSelDrag = null; mkLastCell = null; }
+      if (mkPtrs.size === 0) { mkDrawing = false; mkLastPan = null; mkSelDrag = null; mkLastCell = null; mkShapeDrag = null; }
     };
     cv.addEventListener('pointerup', stop);
     cv.addEventListener('pointercancel', stop);
@@ -2053,12 +2147,17 @@
     $('#mkZOut').addEventListener('click', () => { Sound.tap(); setZoom(mkZoom <= 2 ? 1 : mkZoom <= 4 ? mkZoom - 1 : mkZoom - 2); });
     function setTool(t) {
       mkTool = t;
+      mkShapeDrag = null;
       if (t !== 'pen') {
         if (mkSelMode) { mkSelMode = false; commitSel(); drawMaker(); $('#mkSelBtn').classList.remove('on'); }
         if (mkPanMode) { mkPanMode = false; refreshZoomUI(); }
       }
       $('#mkFill').classList.toggle('on', mkTool === 'fill');
       $('#mkDrop').classList.toggle('on', mkTool === 'drop');
+      $('#mkRect').classList.toggle('on', mkTool === 'rect');
+      $('#mkSquare').classList.toggle('on', mkTool === 'square');
+      $('#mkEllipse').classList.toggle('on', mkTool === 'ellipse');
+      $('#mkCircle').classList.toggle('on', mkTool === 'circle');
       refreshCanvasTouch();
     }
     $('#mkPanBtn').addEventListener('click', () => {
@@ -2115,6 +2214,26 @@
       $('#mkBrush').textContent = '🖌️ ' + mkBrush + '×' + mkBrush;
       $('#mkBrush').classList.toggle('on', mkBrush > 1);
       setTool('pen');
+    });
+    for (const [id, tool, label] of [
+      ['#mkRect', 'rect', '長方形：キャンバスをなぞって描くよ'],
+      ['#mkSquare', 'square', '正方形：キャンバスをなぞって描くよ'],
+      ['#mkEllipse', 'ellipse', '楕円：キャンバスをなぞって描くよ'],
+      ['#mkCircle', 'circle', '正円：キャンバスをなぞって描くよ']
+    ]) {
+      $(id).addEventListener('click', () => {
+        Sound.tap();
+        const next = mkTool === tool ? 'pen' : tool;
+        setTool(next);
+        if (next === tool) toast(label);
+      });
+    }
+    $('#mkShapeFill').addEventListener('click', () => {
+      Sound.tap();
+      mkShapeFill = !mkShapeFill;
+      const b = $('#mkShapeFill');
+      b.textContent = mkShapeFill ? '🎨 中も塗る' : '⬜ フチだけ';
+      b.classList.toggle('on', mkShapeFill);
     });
     $('#mkSelBtn').addEventListener('click', () => {
       Sound.tap();
@@ -2862,6 +2981,22 @@
       g.setLineDash([4 * invZ, 3 * invZ]);
       g.strokeRect(mkSel.x * cs, mkSel.y * cs, mkSel.w * cs, mkSel.h * cs);
       g.setLineDash([]);
+    }
+    if (mkShapeDrag) {
+      const pts = shapeCells(mkShapeDrag);
+      g.save();
+      g.globalAlpha = 0.72;
+      g.fillStyle = mkCol >= 0 ? HEX[mkCol] : '#fff';
+      for (let i = 0; i < pts.length; i += 2) {
+        const x = pts[i], y = pts[i + 1];
+        if (x < 0 || x >= mkW || y < 0 || y >= mkH) continue;
+        const mx = mkW - 1 - x, my = mkH - 1 - y;
+        g.fillRect(x * cs + pad, y * cs + pad, fsz, fsz);
+        if (mkMirror) g.fillRect(mx * cs + pad, y * cs + pad, fsz, fsz);
+        if (mkMirrorV) g.fillRect(x * cs + pad, my * cs + pad, fsz, fsz);
+        if (mkMirror && mkMirrorV) g.fillRect(mx * cs + pad, my * cs + pad, fsz, fsz);
+      }
+      g.restore();
     }
     g.restore();
   }
