@@ -316,7 +316,7 @@ const G = {
   rc: new Map(), hudDirty: true, fromTitle: false, helpFrom: 'title', lastVib: 0, lastSay: -9, rewindTok: 0, rewindTo: -1,
   auto: false, autoNext: 0, autoClearT: 0, autoPath: null, autoAt: -1, genBusy: false, viewId: 1,
   // 育成・やりこみ
-  gold: new Set(), fever: { g: 0, t: 0 }, skill: { g: 0, max: 18, freezeT: 0, boostT: 0 }, run: null, perk: perks(), par: null, spdMul: 1, fvShown: -1, timerShown: -1,
+  gold: new Set(), fever: { g: 0, t: 0 }, skill: { g: 0, max: 18, freezeT: 0, boostT: 0 }, skillFx: [], skillBanner: null, run: null, perk: perks(), par: null, spdMul: 1, fvShown: -1, timerShown: -1,
   feeding: null, colAnts: null, colFlash: 0, gacha: null, sayT: -9, dailyP: null, scanId: 0
 };
 let CW = 0, CH = 0, dpr = 1, cs = 20, ox = 0, oy = 0, antPx = 20, antU = 10, nestR = 18, nestX = 0, nestY = 0;
@@ -1295,6 +1295,17 @@ function drawAnts() {
     const fx = sx * a.face, m0 = cr * fx * dpr, m1 = sr * fx * dpr, m2 = -sr * sy * dpr, m3 = cr * sy * dpr, m4 = wx * dpr, m5 = wy * dpr;
     ctx.setTransform(m0, m1, m2, m3, m4, m5);
     dirtyTf = true;
+    if (G.skill && G.skill.boostT > 0 && (a.state === 'out' || a.state === 'back')) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,214,68,0.75)';
+      ctx.lineWidth = Math.max(1.5, u * 0.16);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-u * 1.1, -u * 0.25); ctx.lineTo(-u * 2.1, -u * 0.25);
+      ctx.moveTo(-u * 1.0, u * 0.25); ctx.lineTo(-u * 1.85, u * 0.25);
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.drawImage(antSprite(a.c, pose, pose === 2 ? 0 : fr, false), oxR, oyA, sw, sh);
     if (lift >= 0) {
       const cx = lerp(u * 1.0, u * 0.36, clamp(lift, 0, 1)), cy = lerp(u * 0.8 - hcsz, -u * 1.02 - hcsz, lift);
@@ -2217,6 +2228,169 @@ function drawBgmBanner() {
     ctx.restore();
   }
 }
+function addSkillFx(fx) {
+  if (!G.skillFx) G.skillFx = [];
+  fx.t0 = G.rt + (fx.delay || 0);
+  fx.dur = fx.dur || 0.65;
+  G.skillFx.push(fx);
+}
+function drawSkillFx() {
+  if (!G.s) return;
+  const W = G.s.W, H = G.s.H, bx = ox - cs, by = oy - cs, bw = (W + 2) * cs, bh = (H + 2) * cs, br = Math.max(8, cs * 0.85);
+  const now = G.rt;
+  // ---- 持続バフの盤面オーラ＆カウントダウンピル（時間停止 / アリ加速） ----
+  const frz = G.skill ? (G.skill.freezeT || 0) : 0;
+  const bst = G.skill ? (G.skill.boostT || 0) : 0;
+  if (frz > 0 || bst > 0) {
+    ctx.save();
+    const pulse = 0.55 + 0.45 * Math.sin(now * 6.5);
+    if (frz > 0) {
+      ctx.strokeStyle = 'rgba(72,208,255,' + (0.55 + 0.35 * pulse) + ')';
+      ctx.lineWidth = 4.5;
+      roundRect(ctx, bx - 2, by - 2, bw + 4, bh + 4, br + 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(130,226,255,0.08)';
+      roundRect(ctx, bx, by, bw, bh, br); ctx.fill();
+      const txt = '❄️ STOP ' + frz.toFixed(1) + 's';
+      ctx.font = fnt(900, 11.5);
+      const pw = ctx.measureText(txt).width + 16, ph = 22, px = bx + 6, py = by + 6;
+      ctx.fillStyle = 'rgba(24,132,196,0.92)'; ctx.strokeStyle = '#d8f6ff'; ctx.lineWidth = 1.6;
+      roundRect(ctx, px, py, pw, ph, ph / 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, px + pw / 2, py + ph / 2 + 0.5);
+    }
+    if (bst > 0) {
+      ctx.strokeStyle = 'rgba(255,186,48,' + (0.55 + 0.35 * pulse) + ')';
+      ctx.lineWidth = frz > 0 ? 2.5 : 4;
+      roundRect(ctx, bx + 2, by + 2, bw - 4, bh - 4, Math.max(4, br - 2)); ctx.stroke();
+      const txt = '⚡ SPEED ' + bst.toFixed(1) + 's';
+      ctx.font = fnt(900, 11.5);
+      const pw = ctx.measureText(txt).width + 16, ph = 22, px = bx + bw - pw - 6, py = by + 6;
+      ctx.fillStyle = 'rgba(235,108,36,0.92)'; ctx.strokeStyle = '#fff0b3'; ctx.lineWidth = 1.6;
+      roundRect(ctx, px, py, pw, ph, ph / 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, px + pw / 2, py + ph / 2 + 0.5);
+    }
+    ctx.restore();
+  }
+  // ---- 単発・飛翔・ビーム・スウィープ等のスキルエフェクト ----
+  if (G.skillFx && G.skillFx.length) {
+    ctx.save();
+    for (let i = G.skillFx.length - 1; i >= 0; i--) {
+      const f = G.skillFx[i], el = now - f.t0;
+      if (el < 0) continue;
+      const k = el / f.dur;
+      if (k >= 1) { G.skillFx.splice(i, 1); continue; }
+      const ease = 1 - Math.pow(1 - k, 3), fade = k < 0.7 ? 1 : (1 - k) / 0.3;
+      if (f.kind === 'sweepH') {
+        const sx = bx - bw * 0.25 + (bw * 1.5) * ease, sw = Math.max(28, bw * 0.24);
+        const gr = ctx.createLinearGradient(sx - sw / 2, 0, sx + sw / 2, 0);
+        gr.addColorStop(0, 'rgba(255,255,255,0)');
+        gr.addColorStop(0.5, f.col || 'rgba(255,150,210,0.85)');
+        gr.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = gr;
+        ctx.save(); roundRect(ctx, bx, by, bw, bh, br); ctx.clip();
+        ctx.fillRect(sx - sw / 2, by, sw, bh);
+        ctx.restore();
+      } else if (f.kind === 'cross') {
+        const cx = bx + bw / 2, cy = by + bh / 2, thick = Math.max(10, Math.min(bw, bh) * 0.14 * (1 - k * 0.45));
+        ctx.globalAlpha = 0.9 * (1 - k);
+        ctx.fillStyle = f.col || '#ffd23f';
+        ctx.save(); roundRect(ctx, bx, by, bw, bh, br); ctx.clip();
+        ctx.fillRect(bx, cy - thick / 2, bw, thick);
+        ctx.fillRect(cx - thick / 2, by, thick, bh);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(bx, cy - thick * 0.2, bw, thick * 0.4);
+        ctx.fillRect(cx - thick * 0.2, by, thick * 0.4, bh);
+        ctx.restore();
+      } else if (f.kind === 'scanSweep') {
+        const sy = by + bh * ease;
+        ctx.globalAlpha = fade;
+        const gr = ctx.createLinearGradient(0, sy - 20, 0, sy + 20);
+        gr.addColorStop(0, 'rgba(56,226,255,0)');
+        gr.addColorStop(0.5, 'rgba(56,226,255,0.85)');
+        gr.addColorStop(1, 'rgba(56,226,255,0)');
+        ctx.save(); roundRect(ctx, bx, by, bw, bh, br); ctx.clip();
+        ctx.fillStyle = gr; ctx.fillRect(bx, sy - 20, bw, 40);
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(bx, sy); ctx.lineTo(bx + bw, sy); ctx.stroke();
+        ctx.restore();
+      } else if (f.kind === 'ring') {
+        const rad = lerp(f.r0 || 8, f.r1 || Math.max(bw, bh) * 0.55, ease);
+        ctx.globalAlpha = 0.92 * (1 - k);
+        ctx.strokeStyle = f.col || '#ffd23f';
+        ctx.lineWidth = Math.max(2, (f.lw || 5) * (1 - k * 0.6));
+        ctx.beginPath(); ctx.arc(f.x, f.y, rad, 0, Math.PI * 2); ctx.stroke();
+        if (f.fill) {
+          ctx.fillStyle = f.fill;
+          ctx.globalAlpha = 0.22 * (1 - k);
+          ctx.beginPath(); ctx.arc(f.x, f.y, rad, 0, Math.PI * 2); ctx.fill();
+        }
+      } else if (f.kind === 'beam') {
+        ctx.globalAlpha = 0.9 * (1 - k);
+        ctx.strokeStyle = f.col || '#ffd23f';
+        ctx.lineWidth = Math.max(2.5, (f.lw || 6) * (1 - k * 0.5));
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(f.x0, f.y0); ctx.lineTo(f.x1, f.y1); ctx.stroke();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1.2, (f.lw || 6) * 0.35 * (1 - k * 0.5));
+        ctx.beginPath(); ctx.moveTo(f.x0, f.y0); ctx.lineTo(f.x1, f.y1); ctx.stroke();
+      } else if (f.kind === 'fly') {
+        const t = ease;
+        const arc = (f.arc != null ? f.arc : -36) * Math.sin(t * Math.PI);
+        const x = lerp(f.x0, f.x1, t), y = lerp(f.y0, f.y1, t) + arc;
+        ctx.globalAlpha = fade;
+        // 軌跡の尾
+        const tp = Math.max(0, t - 0.14), ap = (f.arc != null ? f.arc : -36) * Math.sin(tp * Math.PI);
+        ctx.strokeStyle = f.col || '#ffd23f'; ctx.lineWidth = Math.max(2, (f.sz || 12) * 0.45); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(lerp(f.x0, f.x1, tp), lerp(f.y0, f.y1, tp) + ap); ctx.lineTo(x, y); ctx.stroke();
+        if (f.ci != null && candySpr[f.ci]) {
+          const sz = (f.sz || Math.max(14, cs * 0.95)) * (1 + 0.2 * Math.sin(t * Math.PI));
+          ctx.drawImage(candySpr[f.ci], x - sz / 2, y - sz / 2, sz, sz);
+        } else if (f.ico) {
+          ctx.font = Math.round(f.sz || 18) + 'px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(f.ico, x, y);
+        } else {
+          ctx.fillStyle = f.col || '#ffd23f';
+          starPath(ctx, x, y, (f.sz || 10) * 0.7, (f.sz || 10) * 0.32, 5); ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+  }
+  // ---- スキル発動カットインバナー（スキル名＋実際の効果バッジ） ----
+  const b = G.skillBanner;
+  if (b && G.overlay === '') {
+    const age = now - b.t0;
+    if (age > b.dur) { G.skillBanner = null; }
+    else {
+      const a = age < 0.18 ? age / 0.18 : age > b.dur - 0.35 ? Math.max(0, (b.dur - age) / 0.35) : 1;
+      const slide = age < 0.22 ? (1 - easeOutBack(age / 0.22)) * -14 : 0;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.font = fnt(900, 14);
+      const t1w = ctx.measureText(b.title).width;
+      ctx.font = fnt(800, 11.5);
+      const t2w = b.sub ? ctx.measureText(b.sub).width : 0;
+      const w = Math.min(CW - 18, Math.max(t1w, t2w) + 32), h = b.sub ? 46 : 30;
+      const x = bcx() - w / 2, y = Math.max(10, oy + 8) + slide;
+      ctx.fillStyle = 'rgba(46,20,58,0.88)';
+      ctx.strokeStyle = b.col || '#ffd23f';
+      ctx.lineWidth = 2.4;
+      roundRect(ctx, x, y, w, h, 16); ctx.fill(); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.font = fnt(900, 14);
+      ctx.fillText(b.title, bcx(), y + (b.sub ? 15 : h / 2 + 0.5), w - 18);
+      if (b.sub) {
+        ctx.fillStyle = '#ffe57f';
+        ctx.font = fnt(800, 11.5);
+        ctx.fillText(b.sub, bcx(), y + 33, w - 18);
+      }
+      ctx.restore();
+    }
+  }
+}
 function draw() {
   if (G.boardDirty) renderBoard();
   else if (G.boardSoft && G.rt - (G.boardT || 0) > 0.8) updateSoilHoles();
@@ -2224,7 +2398,7 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(boardCv, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawSpotlightAndFlashes(); drawGold(); drawFever(); drawNest(); drawSlots(); drawTray(); drawSlotBoxes(); drawSinger(); drawAnts(); drawFxLocal(); drawPopups(); drawPreview(); drawGuides(); drawBgmBanner();
+  drawSpotlightAndFlashes(); drawGold(); drawFever(); drawNest(); drawSlots(); drawTray(); drawSlotBoxes(); drawSinger(); drawAnts(); drawFxLocal(); drawSkillFx(); drawPopups(); drawPreview(); drawGuides(); drawBgmBanner();
 }
 
 /* ================= 全画面エフェクト（紙吹雪・花火） ================= */

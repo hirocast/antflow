@@ -1171,7 +1171,7 @@ function headCounts(s) {
 function resetVisual() {
   G.vgrid = G.s.grid.slice(); G.vver++; G.boardDirty = true;
   G.pgrid = G.vgrid.slice(); G.pver++;
-  G.ants = []; G.parts = []; G.bubbles = []; G.popups = []; G.vboxes = []; G.assignFlashes = [];
+  G.ants = []; G.parts = []; G.bubbles = []; G.popups = []; G.vboxes = []; G.assignFlashes = []; G.skillFx = []; G.skillBanner = null;
   G.parades = []; G.lastOut = new Array(SLOT_COUNT).fill(null);
   G.vslots = new Array(SLOT_COUNT).fill(null);
   G.s.boxes.forEach((b, i) => {
@@ -2321,7 +2321,8 @@ function updateHUD() {
 function updateTimer() {
   const R = G.run, el = $('#timeTxt'), bar = $('#progBar');
   if (!R || !G.par) return;
-  const sec = Math.floor(R.time), key = R.started ? sec : -2;
+  const frozen = !!(G.skill && G.skill.freezeT > 0);
+  const sec = Math.floor(R.time), key = (R.started ? sec : -2) * 2 + (frozen ? 1 : 0);
   if (key === G.timerShown) return;
   G.timerShown = key;
   if (!R.started) {
@@ -2330,7 +2331,7 @@ function updateTimer() {
     return;
   }
   const st = timeStars(R.time, G.par), lim = st === 3 ? G.par[0] : st === 2 ? G.par[1] : 0;
-  el.innerHTML = '⏱ ' + sec + '秒　<b class="s' + st + '">' + '★'.repeat(st) + '</b>' + (lim ? ' あと' + Math.max(0, lim - sec) + '秒' : ' ゆっくりでOK');
+  el.innerHTML = (frozen ? '<b style="color:#1b9ce2">❄️ STOP</b> ' : '⏱ ') + sec + '秒　<b class="s' + st + '">' + '★'.repeat(st) + '</b>' + (lim ? ' あと' + Math.max(0, lim - sec) + '秒' : ' ゆっくりでOK');
   if (bar) {
     const pct = st === 3 ? Math.max(0, (G.par[0] - sec) / Math.max(1, G.par[0])) * 100
       : st === 2 ? Math.max(0, (G.par[1] - sec) / Math.max(1, G.par[1] - G.par[0])) * 100 : 0;
@@ -2519,7 +2520,12 @@ function skillAutoPlace(count) {
         if (hs.length) j = hs[0];
       }
     }
-    if (j >= 0) { onTapCol(j); placed++; } else break;
+    if (j >= 0) {
+      const tx = trayX(j), ty = trayHeadY;
+      addSkillFx({ kind: 'ring', x: tx, y: ty, r0: headSize * 0.25, r1: headSize * 1.15, col: '#ff7eb3', fill: '#ff7eb3', lw: 5, dur: 0.52, delay: k * 0.1 });
+      onTapCol(j);
+      placed++;
+    } else break;
   }
   return placed;
 }
@@ -2527,15 +2533,22 @@ function skillDeliverFromSlots(maxCount) {
   if (!G.s || !G.s.boxes.length) return 0;
   let delivered = 0;
   const W = G.s.W, H = G.s.H;
+  const hitSlots = new Set();
   for (let bi = G.s.boxes.length - 1; bi >= 0 && delivered < maxCount; bi--) {
     const b = G.s.boxes[bi];
     const vb = G.vboxes.find(v => v.id === b.id);
+    const sIdx = vb ? vb.slot : bi;
+    const sx = slotX(sIdx), sy = slotY;
     for (let i = 0; i < G.s.grid.length && b.rem > 0 && delivered < maxCount; i++) {
       if (G.s.grid[i] !== b.c) continue;
       G.s.grid[i] = -1; G.s.left--; b.rem--;
       if (G.vgrid[i] >= 0) { G.vgrid[i] = -1; G.vver++; G.vleft--; eraseCell(i); G.boardSoft = true; }
       if (vb) { vb.picked++; vb.dispatched++; }
       const x = i % W, y = (i - x) / W, w = toW(x + 1, y + 1);
+      hitSlots.add(sIdx);
+      const dly = Math.min(0.28, delivered * 0.035);
+      addSkillFx({ kind: 'beam', x0: sx, y0: sy, x1: w.x, y1: w.y, col: HEX[b.c], lw: 5, dur: 0.34, delay: dly });
+      addSkillFx({ kind: 'fly', x0: w.x, y0: w.y, x1: nestX, y1: nestY, ci: b.c, col: HEX[b.c], sz: Math.max(15, cs * 1.05), arc: -42, dur: 0.56, delay: dly });
       for (let p = 0; p < 5; p++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 180, vy: -Math.random() * 140 - 30, life: 0, max: 0.45, col: HEX[b.c], s: Math.max(2.5, antPx * 0.18), star: p === 0 });
       if (G.run) {
         G.run.candies++; G.run.food += G.fever.t > 0 ? 2 : 1;
@@ -2549,7 +2562,9 @@ function skillDeliverFromSlots(maxCount) {
       G.s.boxes.splice(bi, 1);
     }
   }
+  hitSlots.forEach(si => addSkillFx({ kind: 'ring', x: slotX(si), y: slotY, r0: slotSize * 0.3, r1: slotSize * 1.15, col: '#ffd23f', fill: '#ffd23f', lw: 4.5, dur: 0.5 }));
   if (delivered > 0) {
+    G.nestBounce = 1;
     const ev = [];
     resolve(G.s, ev);
     for (const e of ev) {
@@ -2566,12 +2581,17 @@ function skillDeliverFromSlots(maxCount) {
 }
 function skillAddGold(count) {
   if (!G.s) return 0;
-  const cand = [];
+  const W = G.s.W, cand = [];
   for (let i = 0; i < G.s.grid.length; i++) if (G.s.grid[i] >= 0 && !G.gold.has(i)) cand.push(i);
   let added = 0;
   while (cand.length && added < count) {
     const idx = Math.floor(Math.random() * cand.length);
-    G.gold.add(cand.splice(idx, 1)[0]);
+    const cell = cand.splice(idx, 1)[0];
+    G.gold.add(cell);
+    const x = cell % W, y = (cell - x) / W, w = toW(x + 1, y + 1);
+    const dly = added * 0.06;
+    addSkillFx({ kind: 'fly', x0: w.x, y0: Math.max(8, oy - 24), x1: w.x, y1: w.y, ico: '✨', col: '#ffd23f', sz: 18, arc: 0, dur: 0.36, delay: dly });
+    addSkillFx({ kind: 'ring', x: w.x, y: w.y, r0: cs * 0.3, r1: cs * 2.1, col: '#ffd23f', fill: '#ffd23f', lw: 4, dur: 0.55, delay: dly + 0.28 });
     added++;
   }
   if (added > 0) G.boardDirty = true;
@@ -2588,73 +2608,151 @@ function doMainSkill() {
   G.skill.g = 0;
   updateSkillBtn();
   if (G.run && !G.run.started) { G.run.started = true; G.timerShown = -9; }
-  const lv = sk.lv;
+  const lv = sk.lv, cx = bcx(), cy = oy + G.s.H * cs * 0.5;
   Sound.fever(); haptic(22);
   const r = canvas.getBoundingClientRect();
-  Fx.burst(r.left + bcx(), r.top + oy + G.s.H * cs * 0.5, 45, 340, ['star', 'conf', 'dot']);
-  popup(s.e + ' ' + sk.name + '!', bcx(), oy + G.s.H * cs * 0.35, '#ff5a9a', true);
+  Fx.burst(r.left + cx, r.top + cy, 45, 340, ['star', 'conf', 'dot']);
+  const effs = [];
+  let bCol = '#ffd23f';
+  const fxFeverOrb = (txt) => {
+    for (let k = 0; k < 3; k++) addSkillFx({ kind: 'fly', x0: cx + (k - 1) * 24, y0: cy, x1: cx, y1: Math.max(8, oy - cs - 4), ico: '🔥', col: '#ff7a3d', sz: 18, arc: -18, dur: 0.52, delay: k * 0.06 });
+    popup(txt, cx, Math.max(26, oy - cs + 14), '#ff9a3c', true);
+  };
+  const fxFoodOrb = (n) => {
+    for (let k = 0; k < 3; k++) addSkillFx({ kind: 'fly', x0: cx + (k - 1) * 20, y0: cy, x1: nestX, y1: nestY, ico: '🍬', col: '#ff85b3', sz: 16, arc: -30, dur: 0.54, delay: k * 0.07 });
+    popup('🍬 エサ +' + n, nestX, nestY - nestR * 1.4, '#ff85b3');
+  };
   switch (sk.type) {
     case 'sweepH': {
+      bCol = '#ff7eb3';
+      addSkillFx({ kind: 'sweepH', col: 'rgba(255,140,200,0.88)', dur: 0.58 });
       const del = skillDeliverFromSlots(3 + lv * 2);
-      if (!del) skillAutoPlace(lv >= 4 ? 2 : 1);
-      G.skill.boostT = Math.max(G.skill.boostT, 4 + lv);
+      if (del > 0) effs.push('📦 ' + del + 'こ即おとどけ');
+      else { const pl = skillAutoPlace(lv >= 4 ? 2 : 1); if (pl > 0) effs.push('✨ 箱' + pl + 'つ自動セット'); }
+      const bSec = 4 + lv;
+      G.skill.boostT = Math.max(G.skill.boostT, bSec);
+      effs.push('⚡ 加速 ' + bSec + '秒');
       break;
     }
     case 'burst': {
+      bCol = '#ff9a3c';
+      addSkillFx({ kind: 'ring', x: cx, y: cy, r0: 14, r1: Math.max(G.s.W, G.s.H) * cs * 0.72, col: '#ff9a3c', fill: '#ffd23f', lw: 7, dur: 0.55 });
       const del = skillDeliverFromSlots(3 + lv * 2);
-      if (!del) skillAutoPlace(1);
-      if (G.fever.t <= 0) { G.fever.g += 0.25 + lv * 0.08; if (G.fever.g >= 1) startFever(); }
+      if (del > 0) effs.push('📦 ' + del + 'こ即おとどけ');
+      else { const pl = skillAutoPlace(1); if (pl > 0) effs.push('✨ 箱1つ自動セット'); }
+      if (G.fever.t <= 0) {
+        const addG = 0.25 + lv * 0.08;
+        G.fever.g += addG;
+        if (G.fever.g >= 1) { startFever(); fxFeverOrb('🔥 FEVER突入！'); effs.push('🔥 FEVER突入'); }
+        else { fxFeverOrb('🔥 FEVER +' + Math.round(addG * 100) + '%'); effs.push('🔥 FEVER +' + Math.round(addG * 100) + '%'); }
+      }
       break;
     }
     case 'cross': {
-      skillAddGold(1 + lv);
+      bCol = '#ffd23f';
+      addSkillFx({ kind: 'cross', col: '#ffd23f', dur: 0.58 });
+      const ga = skillAddGold(1 + lv);
+      if (ga > 0) effs.push('✨ 金キャンディ +' + ga);
       const del = skillDeliverFromSlots(2 + lv * 2);
-      if (!del) skillAutoPlace(1);
+      if (del > 0) effs.push('📦 ' + del + 'こ即おとどけ');
+      else { const pl = skillAutoPlace(1); if (pl > 0) effs.push('✨ 箱1つ自動セット'); }
       break;
     }
     case 'color': {
-      skillAutoPlace(lv >= 4 ? 2 : 1);
-      if (lv >= 3 && G.scanId !== G.levelId) { G.scanId = G.levelId; G.hc = null; refreshPrices(); }
+      bCol = '#38d8ff';
+      addSkillFx({ kind: 'ring', x: cx, y: cy, r0: 12, r1: Math.max(G.s.W, G.s.H) * cs * 0.7, col: '#38d8ff', lw: 6, dur: 0.55 });
+      const pl = skillAutoPlace(lv >= 4 ? 2 : 1);
+      if (pl > 0) effs.push('✨ 箱' + pl + 'つ自動セット');
+      if (lv >= 3 && G.scanId !== G.levelId) {
+        G.scanId = G.levelId; G.hc = null; refreshPrices();
+        addSkillFx({ kind: 'scanSweep', dur: 0.75 });
+        effs.push('🔍 全スキャン解放');
+      }
       break;
     }
     case 'bomb': {
-      skillAutoPlace(lv >= 3 ? 2 : 1);
-      if (G.fever.t <= 0) { G.fever.g += 0.2 + lv * 0.1; if (G.fever.g >= 1) startFever(); }
+      bCol = '#ff6b6b';
+      addSkillFx({ kind: 'ring', x: cx, y: cy, r0: 10, r1: Math.max(G.s.W, G.s.H) * cs * 0.75, col: '#ff6b6b', fill: '#ff9a3c', lw: 8, dur: 0.52 });
+      const pl = skillAutoPlace(lv >= 3 ? 2 : 1);
+      if (pl > 0) effs.push('✨ 箱' + pl + 'つ自動セット');
+      if (G.fever.t <= 0) {
+        const addG = 0.2 + lv * 0.1;
+        G.fever.g += addG;
+        if (G.fever.g >= 1) { startFever(); fxFeverOrb('🔥 FEVER突入！'); effs.push('🔥 FEVER突入'); }
+        else { fxFeverOrb('🔥 FEVER +' + Math.round(addG * 100) + '%'); effs.push('🔥 FEVER +' + Math.round(addG * 100) + '%'); }
+      }
       break;
     }
     case 'transform': {
+      bCol = '#ff85b3';
+      addSkillFx({ kind: 'ring', x: cx, y: cy, r0: 10, r1: Math.max(G.s.W, G.s.H) * cs * 0.65, col: '#ff85b3', fill: '#ffe0ef', lw: 6, dur: 0.52 });
       const del = skillDeliverFromSlots(3 + lv * 2);
-      if (!del) skillAutoPlace(1);
-      if (G.run) G.run.food += lv * 4;
+      if (del > 0) effs.push('📦 ' + del + 'こ即おとどけ');
+      else { const pl = skillAutoPlace(1); if (pl > 0) effs.push('✨ 箱1つ自動セット'); }
+      const fAdd = lv * 4;
+      if (G.run) { G.run.food += fAdd; fxFoodOrb(fAdd); effs.push('🍬 エサ +' + fAdd); }
       break;
     }
     case 'freeze': {
-      G.skill.freezeT = Math.max(G.skill.freezeT, 4 + lv * 2);
-      G.skill.boostT = Math.max(G.skill.boostT, 4 + lv * 2);
+      bCol = '#48d0ff';
+      const fSec = 4 + lv * 2;
+      G.skill.freezeT = Math.max(G.skill.freezeT, fSec);
+      G.skill.boostT = Math.max(G.skill.boostT, fSec);
+      G.timerShown = -9;
+      addSkillFx({ kind: 'ring', x: cx, y: cy, r0: 12, r1: Math.max(G.s.W, G.s.H) * cs * 0.85, col: '#48d0ff', fill: '#a6ecff', lw: 7, dur: 0.65 });
+      popup('❄️ 時間ストップ＆加速 ' + fSec + '秒！', cx, cy - cs * 1.2, '#48d0ff', true);
+      effs.push('❄️ 時間ストップ ' + fSec + '秒', '⚡ 加速 ' + fSec + '秒');
       break;
     }
     case 'timePlus': {
-      if (G.run) { G.run.time = Math.max(0, G.run.time - (2 + lv)); G.run.food += lv * 5; G.timerShown = -9; }
+      bCol = '#3cd6a8';
+      const tCut = 2 + lv, fAdd = lv * 5;
+      if (G.run) { G.run.time = Math.max(0, G.run.time - tCut); G.run.food += fAdd; G.timerShown = -9; }
+      for (let k = 0; k < 2; k++) addSkillFx({ kind: 'fly', x0: cx + (k ? 18 : -18), y0: cy, x1: cx, y1: 6, ico: '⏱️', col: '#3cd6a8', sz: 18, arc: -20, dur: 0.55, delay: k * 0.08 });
+      popup('⏱ -' + tCut + '秒！', cx, Math.max(30, oy + cs), '#3cd6a8', true);
+      fxFoodOrb(fAdd);
+      effs.push('⏱ タイム -' + tCut + '秒', '🍬 エサ +' + fAdd);
       break;
     }
     case 'fever': {
-      if (G.fever.t > 0) G.fever.t += lv + 1;
-      else { startFever(); G.fever.t += Math.max(0, lv - 1); }
+      bCol = '#ff6f3c';
+      addSkillFx({ kind: 'ring', x: cx, y: cy, r0: 14, r1: Math.max(G.s.W, G.s.H) * cs * 0.8, col: '#ff6f3c', fill: '#ffd23f', lw: 7, dur: 0.58 });
+      if (G.fever.t > 0) {
+        const ext = lv + 1;
+        G.fever.t += ext;
+        fxFeverOrb('🔥 FEVER +' + ext + '秒！');
+        effs.push('🔥 FEVER延長 +' + ext + '秒');
+      } else {
+        startFever(); G.fever.t += Math.max(0, lv - 1);
+        fxFeverOrb('🔥 FEVER 突入！');
+        effs.push('🔥 FEVER即突入！');
+      }
       break;
     }
     case 'goldRush': {
-      skillAddGold(2 + lv);
+      bCol = '#ffd23f';
+      const ga = skillAddGold(2 + lv);
       const bonus = 15 + lv * 10;
       save.coins += bonus; persist(); updateCoins(true);
+      for (let k = 0; k < 4; k++) addSkillFx({ kind: 'fly', x0: cx + (k - 1.5) * 18, y0: cy, x1: CW - 36, y1: 12, ico: '🪙', col: '#ffd23f', sz: 17, arc: -26, dur: 0.58, delay: k * 0.06 });
+      popup('🪙 +' + bonus + ' コイン！', cx, cy - cs * 1.1, '#ffd23f', true);
+      if (ga > 0) effs.push('✨ 金キャンディ +' + ga);
+      effs.push('🪙 コイン +' + bonus);
       break;
     }
     default: {
-      skillAutoPlace(lv >= 4 ? 2 : 1);
-      if (G.run) G.run.food += lv * 4;
+      bCol = '#ff8fb3';
+      addSkillFx({ kind: 'ring', x: cx, y: cy, r0: 12, r1: Math.max(G.s.W, G.s.H) * cs * 0.68, col: '#ff8fb3', lw: 6, dur: 0.5 });
+      const pl = skillAutoPlace(lv >= 4 ? 2 : 1);
+      if (pl > 0) effs.push('✨ 箱' + pl + 'つ自動セット');
+      const fAdd = lv * 4;
+      if (G.run) { G.run.food += fAdd; fxFoodOrb(fAdd); effs.push('🍬 エサ +' + fAdd); }
       break;
     }
   }
-  toast('⚡ ' + s.e + ' ' + sk.name + '（SLv.' + lv + '）発動！', 2200);
+  const effTxt = effs.join(' ／ ');
+  G.skillBanner = { title: s.e + ' ' + sk.name + '！', sub: effTxt, col: bCol, t0: G.rt, dur: 2.0 };
+  toast('⚡ ' + s.e + ' ' + sk.name + (effTxt ? '：' + effTxt : ' 発動！'), 2400);
 }
 let albumRenderTok = 0;
 const albumCvCache = new Map();
