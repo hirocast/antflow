@@ -4061,7 +4061,7 @@ function frame(now) {
   const h = G.s && !G.pendingJam ? headsOf(G.s) : null;
   if (G.s && !G.pendingJam) {
     if (G.s.left === 0) dt *= 2.5;
-    else if ((h && h.length === 1) || (G.level && G.s.left <= Math.max(12, Math.floor(G.level.total * 0.15)) && h && !h.length)) dt *= 1.55;
+    else if (G.fever.t <= 0 && ((h && h.length === 1) || (G.level && G.s.left <= Math.max(12, Math.floor(G.level.total * 0.15)) && h && !h.length))) dt *= 1.45;
   }
   if (G.slowmo > 0) { G.slowmo -= rdt; dt *= 0.3; }
   if (h && h.length === 1 && !G.overlay && !G.loading && !G.pendingWin && !G.pendingJam && !G.auto && !G.press && !Tut.blocking()) {
