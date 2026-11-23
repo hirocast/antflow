@@ -133,6 +133,7 @@
       lyric: String(b.lyric || '').slice(0, 24)
     };
   }
+  const MAX_BARS = 16;
   function cloneSong(s) {
     return {
       name: String(s.name || 'わたしのBGM').slice(0, 20),
@@ -141,7 +142,7 @@
       singer: SINGERS.some(x => x.id === s.singer) ? s.singer : 'custom',
       allowUse: !!s.allowUse,
       allowRemix: !!s.allowRemix,
-      bars: (s.bars && s.bars.length ? s.bars : [emptyBar()]).slice(0, 8).map(cloneBar)
+      bars: (s.bars && s.bars.length ? s.bars : [emptyBar()]).slice(0, MAX_BARS).map(cloneBar)
     };
   }
   function makeArrangeName(name) {
@@ -160,10 +161,10 @@
   function importBuiltinSong(key) {
     const title = (Sound.BGM_TITLES && Sound.BGM_TITLES[key]) || key;
     const src = key === 'samba'
-      ? { bpm: Sound.BPM || 108, style: 'samba', bars: (Sound.SONG || []).slice(0, 8) }
+      ? { bpm: Sound.BPM || 108, style: 'samba', bars: (Sound.SONG || []).slice(0, MAX_BARS) }
       : (Sound.EXTRA_SONGS && Sound.EXTRA_SONGS[key]);
     if (!src || !src.bars || !src.bars.length) return null;
-    const rawBars = src.bars.slice(0, 8);
+    const rawBars = src.bars.slice(0, MAX_BARS);
     let sum = 0, cnt = 0;
     for (const b of rawBars) for (const m of (b.m || [])) { sum += m[1]; cnt++; }
     const avg = cnt ? sum / cnt : 16;
@@ -242,6 +243,26 @@
   let useFlat = false;
   let tieDrag = null;
   let built = false;
+  const undoStack = [];
+  function updateUndoBtn() {
+    const b = $('#bgmUndoBtn');
+    if (b) b.disabled = undoStack.length === 0;
+  }
+  function pushUndo() {
+    undoStack.push({ song: cloneSong(song), curBar });
+    if (undoStack.length > 30) undoStack.shift();
+    updateUndoBtn();
+  }
+  function popUndo() {
+    if (!undoStack.length) return;
+    const prev = undoStack.pop();
+    song = prev.song;
+    curBar = Math.min(prev.curBar, song.bars.length - 1);
+    syncUI();
+    syncActiveIfUsed();
+    restartPreviewIfPlaying();
+    updateUndoBtn();
+  }
 
   // 初期プリセット曲
   const PRESETS = [
@@ -558,12 +579,18 @@
   function renderBarTabs() {
     const el = $('#bgmBars');
     if (!el) return;
-    let html = '';
+    let html = '<div class="bgm-barlist">';
     for (let i = 0; i < song.bars.length; i++) {
-      html += '<button type="button" class="bgm-bar' + (i === curBar ? ' on' : '') + '" data-b="' + i + '">' + (i + 1) + '小節</button>';
+      html += '<button type="button" class="bgm-bar' + (i === curBar ? ' on' : '') + '" data-b="' + i + '">' + (i + 1) + '</button>';
     }
-    if (song.bars.length < 8) html += '<button type="button" class="bgm-bar add" id="bgmAddBar">＋追加</button>';
-    if (song.bars.length > 1) html += '<button type="button" class="bgm-bar del" id="bgmDelBar">－削除</button>';
+    html += '</div><div class="bgm-barops">' +
+      '<span class="bgm-barcnt">' + song.bars.length + '/' + MAX_BARS + '小節</span>';
+    if (song.bars.length < MAX_BARS) {
+      html += '<button type="button" class="bgm-bar add" id="bgmAddBar">＋小節を追加</button>';
+      html += '<button type="button" class="bgm-bar dup" id="bgmDupBar">📋コピー追加</button>';
+    }
+    if (song.bars.length > 1) html += '<button type="button" class="bgm-bar del" id="bgmDelBar">🗑️削除</button>';
+    html += '</div>';
     el.innerHTML = html;
   }
 
@@ -745,14 +772,20 @@
 .bgm-lyric input{flex:1;min-width:0;height:32px;border-radius:10px;border:2px solid #ffd3e2;padding:0 8px;font:700 12px var(--rf);color:var(--ink)}
 .bgm-lyric select{height:32px;max-width:118px;border-radius:10px;border:2px solid #ffd3e2;background:#fff;padding:0 4px;font:700 11px var(--rf);color:var(--ink)}
 #bgmSingerCv{flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:#fff;border:2px solid #ffd3e2}
-.bgm-bars{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-.bgm-bar{border:none;border-radius:10px;padding:7px 11px;min-height:30px;background:#fff1d6;color:var(--ink);font:800 11.5px var(--rf);cursor:pointer}
+.bgm-bars{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
+.bgm-barlist{display:flex;gap:4px;flex-wrap:wrap}
+.bgm-barops{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.bgm-barcnt{font:800 11px var(--rf);color:#7a5a6a;margin-right:auto}
+.bgm-bar{border:none;border-radius:10px;padding:6px 10px;min-height:28px;background:#fff1d6;color:var(--ink);font:800 11.5px var(--rf);cursor:pointer}
 .bgm-bar.on{background:var(--pink);color:#fff}
 .bgm-bar.add{background:#dff7ec;color:#1b7a52}
+.bgm-bar.dup{background:#e7f1ff;color:#275d9c}
 .bgm-bar.del{background:#ffe5ea;color:#c03858}
-.bgm-mode{display:flex;align-items:center;gap:5px;margin-bottom:5px}
-.bgm-mbtn{border:none;border-radius:10px;padding:6px 11px;min-height:30px;background:#fff1d6;color:var(--ink);font:800 11.5px var(--rf);cursor:pointer}
+.bgm-mode{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px}
+.bgm-mbtn{border:none;border-radius:10px;padding:6px 10px;min-height:30px;background:#fff1d6;color:var(--ink);font:800 11.5px var(--rf);cursor:pointer}
 .bgm-mbtn.on{background:var(--pink);color:#fff}
+.bgm-mbtn:disabled{opacity:.4;cursor:default}
+.mktab.bgm-back{flex:0 0 auto;padding:0 10px;background:#fff1d6;color:var(--ink)}
 .bgm-mhint{flex:1;text-align:right;font-size:10px;opacity:.7;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bgm-grid{display:grid;grid-template-columns:32px repeat(16,minmax(22px,1fr));gap:2px;background:#f8ecf2;padding:5px;border-radius:14px;border:2px solid #ffd3e2;touch-action:pan-x;user-select:none;overflow-x:auto}
 .bgm-lbl{font:900 10px/1 var(--rf);display:flex;align-items:center;justify-content:center}
@@ -798,7 +831,7 @@
     ov.id = 'ov-bgm';
     ov.innerHTML =
       '<div class="card">' +
-        '<div class="mktabs"><button type="button" class="mktab" id="bBgmToStage">🎨 ステージをつくる</button><button type="button" class="mktab on">🎵 BGMをつくる</button></div>' +
+        '<div class="mktabs"><button type="button" class="mktab bgm-back" id="bgmTopBackBtn">← もどる</button><button type="button" class="mktab" id="bBgmToStage">🎨 ステージをつくる</button><button type="button" class="mktab on">🎵 BGMをつくる</button></div>' +
         '<h2>🎵 BGMをつくる</h2>' +
         '<div class="bgm-top">' +
           '<input id="bgmName" maxlength="20" placeholder="曲のなまえ">' +
@@ -811,6 +844,7 @@
           '<button type="button" class="bgm-mbtn on" data-mode="note">🎵 おく</button>' +
           '<button type="button" class="bgm-mbtn" data-mode="tie">〰️ のばす</button>' +
           '<button type="button" class="bgm-mbtn" id="bgmAccBtn" title="シャープ(♯)とフラット(♭)の表示を切り替え">♯ 表記</button>' +
+          '<button type="button" class="bgm-mbtn" id="bgmUndoBtn" disabled>↶ もどす</button>' +
           '<span class="bgm-mhint">のばす時は「のばす」</span>' +
         '</div>' +
         '<div class="bgm-grid" id="bgmGrid"></div>' +
@@ -897,6 +931,10 @@
     $('#bgmMode').addEventListener('click', e => {
       const b = e.target.closest('.bgm-mbtn');
       if (!b) return;
+      if (b.id === 'bgmUndoBtn') {
+        popUndo();
+        return;
+      }
       if (b.id === 'bgmAccBtn') {
         useFlat = !useFlat;
         b.textContent = useFlat ? '♭ 表記' : '♯ 表記';
@@ -917,6 +955,7 @@
       const btn = e.target.closest('.bgm-cell');
       if (!btn) return;
       e.preventDefault();
+      pushUndo();
       if (editMode === 'tie' && btn.dataset.kind === 'note') {
         handleTieDown(btn);
       } else {
@@ -951,15 +990,28 @@
       const b = e.target.closest('.bgm-bar');
       if (!b) return;
       if (b.id === 'bgmAddBar') {
-        if (song.bars.length < 8) {
+        if (song.bars.length < MAX_BARS) {
+          pushUndo();
+          song.bars.push(emptyBar());
+          curBar = song.bars.length - 1;
+          renderBarTabs(); renderGrid(); syncActiveIfUsed();
+          toast('✨ ' + song.bars.length + '小節めを追加したよ！');
+        }
+        return;
+      }
+      if (b.id === 'bgmDupBar') {
+        if (song.bars.length < MAX_BARS) {
+          pushUndo();
           song.bars.push(cloneBar(song.bars[curBar]));
           curBar = song.bars.length - 1;
           renderBarTabs(); renderGrid(); syncActiveIfUsed();
+          toast('📋 ' + song.bars.length + '小節めにコピーしたよ！');
         }
         return;
       }
       if (b.id === 'bgmDelBar') {
         if (song.bars.length > 1) {
+          pushUndo();
           song.bars.splice(curBar, 1);
           curBar = Math.min(curBar, song.bars.length - 1);
           renderBarTabs(); renderGrid(); syncActiveIfUsed();
@@ -978,12 +1030,14 @@
     });
     $('#bgmRandBtn').addEventListener('click', () => {
       Sound.init();
+      pushUndo();
       randomizeSong();
       syncActiveIfUsed();
       restartPreviewIfPlaying();
     });
     $('#bgmPresetBtn').addEventListener('click', () => {
       Sound.init();
+      pushUndo();
       presetIdx = (presetIdx + 1) % PRESETS.length;
       song = cloneSong(PRESETS[presetIdx]);
       curBar = 0;
@@ -993,6 +1047,7 @@
       toast('✨「' + song.name + '」を読み込んだよ');
     });
     $('#bgmClearBtn').addEventListener('click', () => {
+      pushUndo();
       song.bars[curBar] = emptyBar();
       renderGrid();
       syncActiveIfUsed();
@@ -1402,11 +1457,13 @@
       Sound.tap(); stopPreview();
       if (window.AF_openFeedback) window.AF_openFeedback('bgm', { defaultCat: 'maker' });
     });
-    $('#bgmCloseBtn').addEventListener('click', () => {
+    const closeBgmMaker = () => {
       stopPreview();
       if (save.settings.bgm) Sound.startBgm();
       showOv('title');
-    });
+    };
+    $('#bgmCloseBtn').addEventListener('click', closeBgmMaker);
+    if ($('#bgmTopBackBtn')) $('#bgmTopBackBtn').addEventListener('click', () => { Sound.tap(); closeBgmMaker(); });
     const toStage = $('#bBgmGalToStage');
     if (toStage) toStage.addEventListener('click', () => { Sound.tap(); stopGalPreview(); if (window.AF_openGallery) window.AF_openGallery(); });
     const toStage2 = $('#bBgmToStage');
@@ -1416,7 +1473,9 @@
 
   function openBgmMaker() {
     buildBgmMakerUI();
+    Sound.stopBgm();
     syncUI();
+    updateUndoBtn();
     showOv('bgm');
   }
   window.AF_openBgmMaker = openBgmMaker;
