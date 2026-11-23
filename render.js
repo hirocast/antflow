@@ -1148,7 +1148,7 @@ function renderTrayTo(g, needHc) {
       if (k === 0 && needHc && !G.hc) G.hc = headCounts(G.s);
       const rr = (k === 0 && G.hc) ? (G.hc[j] || 0) : 0;
       const y = trayHeadY + lerp(TY[k], TY[k + 1], fr) * headSize, dim = k === 0 && (save.settings.dim || isDanger) && rr === 0;
-      const al = (k === maxShow - 1 ? 1 - fr : 1) * (dim ? 0.52 : 1);
+      const al = k === maxShow - 1 ? 1 - fr : 1;
       drawBox(x, y, s, b.c, b.n, { alpha: al, numY: k > 0 ? 0.22 : 0.1, sx, sy }, g);
       if (dim && g === ctx) drawZz(x + s * 0.42, y - s * 0.4, s, g);
       if (k === 0 && isDanger && rr === 0) {
