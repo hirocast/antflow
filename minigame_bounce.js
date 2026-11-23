@@ -768,12 +768,11 @@
         if (vy > EPS) {
           consider((H + R - y) / vy, 'lost');
           if (shields > 0) consider((PAD_Y + 24 - R - y) / vy, 'shield');
-          const toPad = (PAD_Y - R - y) / vy;
-          if (toPad >= -EPS && toPad <= remaining + EPS &&
-              Math.abs(x + vx * toPad - paddle.x) <= paddle.w / 2 + R) {
-            consider(toPad, 'paddle');
-          }
         }
+        const padHit = sweep(x, y, vx, vy, {
+          x: paddle.x - paddle.w / 2, y: PAD_Y, w: paddle.w, h: PAD_H
+        }, remaining);
+        if (padHit) consider(padHit.time, 'paddle', padHit.nx, padHit.ny, padHit.push);
 
         const duration = collision ? collision.time : remaining;
         const endX = x + vx * duration, endY = y + vy * duration;
@@ -809,31 +808,57 @@
           message(shields ? `バリア発動（残り${shields}）` : 'バリア発動！');
           sound('bounceShield', 80);
         } else if (collision.type === 'paddle') {
-          dryBounces++;
-          const offset = clamp((ball.x - paddle.x) / (paddle.w / 2), -1, 1);
-          const spin = clamp(paddle.vx / 480, -0.32, 0.32);
-          let angle = clamp(offset * 1.06 + spin, -1.16, 1.16);
-          if (stage && stage.left <= 6 && dryBounces >= 8) {
-            let nearest = null, bestDist = Infinity;
-            for (const c of stage.cells) {
-              if (c.broken || c.skipped) continue;
-              const d = Math.hypot(c.x + c.w / 2 - ball.x, c.y + c.h / 2 - ball.y);
-              if (d < bestDist) { bestDist = d; nearest = c; }
+          if (collision.ny < -0.5) {
+            dryBounces++;
+            const offset = clamp((ball.x - paddle.x) / (paddle.w / 2), -1, 1);
+            const spin = clamp(paddle.vx / 480, -0.32, 0.32);
+            let angle = clamp(offset * 1.06 + spin, -1.16, 1.16);
+            if (stage && stage.left <= 6 && dryBounces >= 8) {
+              let nearest = null, bestDist = Infinity;
+              for (const c of stage.cells) {
+                if (c.broken || c.skipped) continue;
+                const d = Math.hypot(c.x + c.w / 2 - ball.x, c.y + c.h / 2 - ball.y);
+                if (d < bestDist) { bestDist = d; nearest = c; }
+              }
+              if (nearest) {
+                const aim = clamp(
+                  Math.atan2(nearest.x + nearest.w / 2 - ball.x, ball.y - (nearest.y + nearest.h / 2)),
+                  -1.14, 1.14
+                );
+                angle = angle * 0.6 + aim * 0.4;
+              }
             }
-            if (nearest) {
-              const aim = clamp(
-                Math.atan2(nearest.x + nearest.w / 2 - ball.x, ball.y - (nearest.y + nearest.h / 2)),
-                -1.14, 1.14
-              );
-              angle = angle * 0.6 + aim * 0.4;
+            ball.y = PAD_Y - R - SEPARATION;
+            ball.vx = Math.sin(angle) * speed();
+            ball.vy = -Math.cos(angle) * speed();
+            paddle.bump = 1;
+            addRing(ball.x, PAD_Y, '#a6e8ff', 22);
+            sound('bouncePaddle', 60, spin);
+          } else {
+            const { nx, ny, push } = collision;
+            const dot = vx * nx + vy * ny;
+            if (dot < 0) {
+              ball.vx -= 2 * dot * nx;
+              ball.vy -= 2 * dot * ny;
             }
+            if (nx !== 0 && nx * paddle.vx > 0) {
+              const minOut = Math.abs(paddle.vx) * 0.65 + 80;
+              if (ball.vx * nx < minOut) ball.vx = nx * minOut;
+            }
+            ball.x = clamp(ball.x + nx * push, LEFT + R, RIGHT - R);
+            ball.y = Math.max(TOP + R, ball.y + ny * push);
+            const padL = paddle.x - paddle.w / 2, padR = paddle.x + paddle.w / 2;
+            const cx = clamp(ball.x, padL, padR);
+            const cy = clamp(ball.y, PAD_Y, PAD_Y + PAD_H);
+            if (Math.hypot(ball.x - cx, ball.y - cy) < R - EPS) {
+              ball.y = PAD_Y - R - SEPARATION;
+              ball.vy = -Math.abs(ball.vy);
+            }
+            normalize(ball);
+            paddle.bump = 0.6;
+            addRing(ball.x - nx * R, ball.y - ny * R, '#a6e8ff', 18);
+            sound('bouncePaddle', 60, clamp(paddle.vx / 480, -0.32, 0.32));
           }
-          ball.y = PAD_Y - R - SEPARATION;
-          ball.vx = Math.sin(angle) * speed();
-          ball.vy = -Math.cos(angle) * speed();
-          paddle.bump = 1;
-          addRing(ball.x, PAD_Y, '#a6e8ff', 22);
-          sound('bouncePaddle', 60, spin);
         } else {
           if (collision.cell) {
             paint(collision.cell);
