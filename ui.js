@@ -3556,8 +3556,12 @@ function toggleDevMode(nextDev) {
 }
 function setAuto(on) {
   G.auto = on; G.autoPath = null; G.autoClearT = 0;
-  const b = $('#bDevAuto');
-  b.classList.toggle('on', on); b.textContent = on ? '■ 自動解答を止める' : '▶ 自動解答';
+  const txt = on ? '■ 自動解答を止める' : '▶ 自動解答';
+  for (const b of [$('#bDevAuto'), $('#bStageDevAuto')]) {
+    if (!b) continue;
+    b.classList.toggle('on', on);
+    b.textContent = txt;
+  }
 }
 function devGo(id) { if (id < 1 || id > TOTAL || G.loading) return; G.reveal = null; hideOv(); loadLevel(id); }
 function devStep(d) { const p = posOf(G.levelId) + d; if (p >= 1 && p <= TOTAL) devGo(idAt(p)); }
@@ -4072,6 +4076,7 @@ on('#bDevNext', () => devStep(1));
 on('#bDevClose', back);
 on('#bDevGen', devPregen);
 on('#bDevAuto', () => { const v = !G.auto; setAuto(v); if (v) hideOv(); });
+on('#bStageDevAuto', () => { Sound.init(); Sound.tap(); setAuto(!G.auto); });
 on('#bDevFirstRun', () => {
   G.firstSim = true;
   loadLevel(idAt(1));

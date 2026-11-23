@@ -101,7 +101,12 @@ footer{flex:0 0 64px;display:flex;gap:8px;justify-content:center;align-items:fle
 .dev-only{display:none!important}
 body.dev .ib.dev-only{display:inline-block!important}
 body.dev .big.dev-only{display:block!important}
+body.dev .dev-stage-bar.dev-only{display:flex!important}
 body.dev .ib{width:34px;font-size:15px}
+.dev-stage-bar{justify-content:center;padding:0 8px 4px;flex:0 0 auto}
+#bStageDevAuto{height:28px;padding:0 14px;border:2px solid #fff;border-radius:999px;background:#fff1d6;color:var(--ink);font:900 12px var(--rf);box-shadow:0 2px 0 #e2c48c;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+#bStageDevAuto:active{transform:translateY(2px);box-shadow:none}
+#bStageDevAuto.on{background:var(--mint);color:#fff;box-shadow:0 2px 0 var(--mintd)}
 .devbar{display:flex;gap:6px;margin:6px 0}
 .devbar button{flex:1;height:38px;border:none;border-radius:12px;background:#fff1d6;color:var(--ink);font:800 13px var(--rf);cursor:pointer}
 .devbar button.on{background:var(--mint);color:#fff}
