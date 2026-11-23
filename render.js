@@ -670,6 +670,10 @@ function pickCube(a) {
     }
   }
   if (!said) maybeSay(a, 'pick', 0.4);
+  if (!G.almostNotified && !G.pendingWin && G.vleft > 0 && G.level && G.level.total >= 12 && G.vleft <= Math.ceil(G.level.total * 0.25)) {
+    G.almostNotified = true;
+    popup(posOf(G.levelId) === 1 ? '✨ もうすぐ完成！' : '✨ あと少し！', bcx(), oy + G.s.H * cs * 0.32, '#ffd23f');
+  }
   if (G.vleft === 0 && G.pendingWin) {
     G.slowmo = 0.18;
     const r = canvas.getBoundingClientRect();
@@ -755,7 +759,8 @@ function updateBoxes(dt) {
       if (b.logicalDone && b.dispatched >= b.total && !b.queue.length) {
         b.state = 'leave'; b.t = 0; Sound.boxOut();
         const sx = slotX(b.slot), sy = slotY;
-        for (let p = 0; p < 5; p++) G.parts.push({ x: sx, y: sy, vx: (Math.random() - 0.5) * 140, vy: -Math.random() * 110 - 20, life: 0, max: 0.35, col: p === 0 ? '#ffd23f' : HEX[b.c], s: Math.max(2.5, slotSize * 0.11), star: p <= 1 });
+        for (let p = 0; p < 8; p++) G.parts.push({ x: sx, y: sy, vx: (Math.random() - 0.5) * 170, vy: -Math.random() * 135 - 25, life: 0, max: 0.42, col: p <= 1 ? '#ffd23f' : HEX[b.c], s: Math.max(2.6, slotSize * 0.12), star: p <= 2 });
+        if (typeof showMicroGuide === 'function' && !G.pendingWin) showMicroGuide('slot_freed', '✨', '箱が空いた！', 'スロットは5つまで置けるよ', 3.4);
       }
     } else if (b.state === 'leave' && b.t >= 0.18) {
       if (G.vslots[b.slot] === b) G.vslots[b.slot] = null;

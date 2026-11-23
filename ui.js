@@ -381,7 +381,8 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 #tut .tbub.down::before{display:block;bottom:-28px;border-top-color:#ffb6cd}
 #tut .tcv{flex:0 0 56px;width:56px;height:56px}
 #tut .tbody{flex:1;min-width:0;text-align:left}
-#tut .ttxt{margin:0;font-size:14px;font-weight:800;line-height:1.55;color:var(--ink)}
+#tut .ttxt{margin:0;font-size:13.5px;font-weight:800;line-height:1.5;color:var(--ink)}
+#tut .ttxt b{color:#e0487a;font-size:15px;font-weight:900}
 #tut .tfoot{display:flex;align-items:center;gap:6px;margin-top:6px}
 #tut .tcnt{font-size:11px;font-weight:900;color:#c9a0b4}
 #tut .tdo{font-size:12px;font-weight:900;color:#e46a92;animation:bump .6s ease infinite alternate}
@@ -393,6 +394,22 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 #tut .thand.hold{animation:thold 1.4s ease-in-out infinite}
 @keyframes thand{50%{transform:translateY(10px)}}
 @keyframes thold{0%{transform:translateY(12px)}20%,80%{transform:translateY(0) scale(.9)}100%{transform:translateY(12px)}}
+#mguide{position:fixed;left:50%;top:max(64px,calc(env(safe-area-inset-top) + 60px));transform:translate(-50%,-12px) scale(.96);opacity:0;pointer-events:none;z-index:26;max-width:min(92vw,340px);display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:18px;background:linear-gradient(135deg,#fffef8,#fff1dc);border:2.5px solid #ffd260;box-shadow:0 6px 18px rgba(45,20,65,.24);transition:opacity .22s ease,transform .22s cubic-bezier(.3,1.5,.5,1)}
+#mguide.on{opacity:1;transform:translate(-50%,0) scale(1);pointer-events:auto;cursor:pointer}
+#mguide .mg-ico{font-size:22px;line-height:1;flex:0 0 auto}
+#mguide .mg-body{text-align:left;min-width:0}
+#mguide .mg-t{font-size:13px;font-weight:900;color:#d63c72;line-height:1.25}
+#mguide .mg-s{font-size:11.5px;font-weight:800;color:var(--ink);line-height:1.3;margin-top:1px}
+.ngoal{display:none;margin:6px 0 4px;padding:7px 11px;border-radius:14px;background:linear-gradient(135deg,#fff8e2,#ffecf2);border:2px solid #ffd37a;text-align:left;cursor:pointer;transition:transform .08s}
+.ngoal.on{display:block}
+.ngoal:active{transform:scale(.98)}
+.ngoal-top{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11.5px;font-weight:900;color:#8a3a58;line-height:1.35}
+.ngoal-top b{color:#d93b70}
+.ngoal-bar{height:6px;border-radius:999px;background:rgba(217,59,112,.14);overflow:hidden;margin-top:4px}
+.ngoal-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#ffb84d,#ff5f98);transition:width .35s ease}
+.daily-chip{display:none;margin:5px 0 2px;padding:4px 10px;border-radius:999px;background:#fff4d9;border:1.5px solid #f7cf78;font-size:11px;font-weight:800;color:#935516;text-align:center}
+.daily-chip.on{display:inline-block}
+.day-next{margin:8px 0 4px;padding:5px 10px;border-radius:12px;background:#fff5dd;font-size:12px;font-weight:900;color:#a05712}
 `;
   document.head.appendChild(st);
 })();
@@ -518,14 +535,14 @@ function handleTalkLikeClick(e) {
     else if (act === 'skin') openSkins('title');
     else if (act === 'bingo') openBingo('title');
   });
-  $('#bPlay').insertAdjacentHTML('afterend', '<div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMBingo"><i>🎯</i>ビンゴ<em class="dot" id="bingoDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
+  $('#bPlay').insertAdjacentHTML('afterend', '<div id="homeNextGoal" class="ngoal"></div><div id="homeDailyChip" class="daily-chip"></div><div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMBingo"><i>🎯</i>ビンゴ<em class="dot" id="bingoDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
   if ($('#bTitleHelp') && $('#bTitleAlbum')) {
     const tr = document.createElement('div'); tr.className = 'cfrow'; tr.style.marginTop = '10px';
     $('#bTitleHelp').parentNode.insertBefore(tr, $('#bTitleHelp'));
     tr.appendChild($('#bTitleHelp')); tr.appendChild($('#bTitleAlbum'));
   }
   const tf = $('#ov-title .fine');
-  if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもクリアできる・何手でも戻せる';
+  if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもOK・何手でも戻せる';
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
   $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div><div class="restalk" id="resTalkBox"></div><div class="resvote" id="resCustomVote"></div>');
   $('#resCustomVote').addEventListener('click', async e => {
@@ -556,6 +573,7 @@ function handleTalkLikeClick(e) {
   $('#viewTalkBox').addEventListener('click', handleTalkLikeClick);
   const cr = document.createElement('div'); cr.className = 'cfrow clear-foot';
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
+  cr.insertAdjacentHTML('beforebegin', '<div id="clearNextGoal" class="ngoal"></div>');
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
   cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><div class="cfrow"><button class="big sec" id="bClearShare">📣 シェアする</button><button class="big sec" id="bClearHome">🏠 ホームへ</button></div><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
   if ($('#bSetClose')) {
@@ -611,8 +629,9 @@ function handleTalkLikeClick(e) {
         '<button class="big sec" id="bGachaClose">きせかえにもどる</button>' +
       '</div></div></div>' +
     '<div class="ov" id="ov-daily"><div class="card">' +
-      '<h2>🎁 ログインボーナス</h2><p id="dayMsg"></p><div class="dayrow" id="dayRow"></div>' +
-      '<button class="big pulse" id="bDayOk">うけとる！</button></div></div>' +
+      '<h2>🎁 ログインボーナス</h2><p id="dayMsg"></p><div class="dayrow" id="dayRow"></div><p class="day-next" id="dayNext"></p>' +
+      '<button class="big pulse" id="bDayOk">🎁 うけとって あそぶ！</button>' +
+      '<button class="link" id="bDayHome" style="display:block;margin:8px auto 0">🏠 ホームを見る</button></div></div>' +
     '<div class="ov" id="ov-confirm"><div class="card">' +
       '<h2 id="cfTitle"></h2><p class="cfdesc" id="cfDesc"></p><div class="cfcost" id="cfCost"></div>' +
       '<div class="cfrow"><button class="big sec" id="bCfCancel">やめる</button><button class="big mint" id="bCfOk">つかう！</button></div></div></div>');
@@ -1077,9 +1096,11 @@ function dailyCheck() {
   return true;
 }
 function showDaily() {
-  const P = G.dailyP, cur = (P.st - 1) % 7;
-  $('#dayMsg').textContent = P.st + '日れんぞくログイン！きょうのごほうび：🪙' + P.coins + '＋💡ヒント無料チケット×1＋🔍全部運べる無料チケット×1' + (P.ticket ? '＋🎟️おたからばこチケット' : '');
+  const P = G.dailyP, cur = (P.st - 1) % 7, nxt = (cur + 1) % 7;
+  $('#dayMsg').textContent = '🔥 ' + P.st + '日れんぞく！ 🪙' + P.coins + ' ＋ 💡無料券×1 ＋ 🔍無料券×1' + (P.ticket ? ' ＋ 🎟️ガチャ券' : '');
   $('#dayRow').innerHTML = LOGIN_REWARD.map((r, i) => '<div class="day' + (i < cur ? ' got' : i === cur ? ' today' : '') + '"><b>' + (i + 1) + '日</b>' + (i === 6 ? '🎟️' : '🪙') + '<br>' + r + '</div>').join('');
+  const dn = $('#dayNext');
+  if (dn) dn.textContent = '✨ あしたのログインで ' + (nxt === 6 ? '🎟️ガチャ券＋🪙' + LOGIN_REWARD[nxt] : '🪙' + LOGIN_REWARD[nxt]) + ' がもらえるよ！';
   showOv('daily');
 }
 
@@ -1125,7 +1146,8 @@ function applyLevel(id, L) {
   if (!L.custom && !G.firstSim) { save.level = id; persist(); }
   layout(); resetVisual();
   G.clearShown = false; G.loading = false;
-  G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false; G.lastTapT = G.rt;
+  G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false; G.almostNotified = false; G.lastTapT = G.rt;
+  if (typeof hideMicroGuide === 'function') hideMicroGuide();
   G.recCol = -1; G.maskAlpha = 0; G.pickFlashes = []; G.newReachFlashes = []; G.assignFlashes = []; G.prevVisReach = null; G.tapFlash = null;
   if (streakCharge > 0 && !G.overlay) {
     popup('🔥 ' + G.streak + '連続! FEVER+' + Math.round(streakCharge * 100) + '%', bcx(), oy + L.H * cs * 0.38, '#ffd23f');
@@ -1171,7 +1193,7 @@ function niceRead() {
   G.hudDirty = true;
   popup('ナイス先読み！', slotCX, slotY - slotSize * 0.95, '#7cffb0');
   Sound.nice();
-  Tut.add('nice');
+  showMicroGuide('nice', '✨', 'ナイス先読み！', 'クリア時にボーナスコイン +🪙', 3.2);
 }
 function feverDeliverBox(targetBoxId, maxCells) {
   if (!G.s || !G.s.boxes.length) return 0;
@@ -1307,6 +1329,9 @@ function onTapCol(j) {
   G.hc = null;
   G.hintCol = -1; G.boardDirty = true; G.lastTapT = G.rt;
   Sound.tap(); haptic(8);
+  if (posOf(G.levelId) === 1 && (!save.cleared[G.levelId] || G.firstSim) && G.moves.length === 1 && got > 0) {
+    popup('🐜 ゴー！', bcx(), oy + G.s.H * cs * 0.42, '#ffd23f');
+  }
   if (s.left === 0) {
     G.pendingWin = true;
     if (G.run) G.run.done = true;
@@ -1331,16 +1356,18 @@ function onTapCol(j) {
       if (typeof Sound.lastSpurt === 'function') Sound.lastSpurt();
     } else if (isJam(s)) G.pendingJam = true;
   }
-  // はじめて起きたことを、その場で1回だけ説明する
+  // はじめて起きたことを、操作を止めずに1回だけ伝える
   if (newId >= 0 && !G.pendingWin) {
-    if (got === 0) Tut.add('sleep', free);
-    else if (got < newN) Tut.add('partial', free);
+    if (got === 0) showMicroGuide('sleep', '💤', 'いま届かない箱', '外があくと自動で動くよ（置きすぎ注意）', 3.4);
+    else if (got < newN) showMicroGuide('partial', '📦', '届く分だけ運んだよ', '残りは道があくまでスロットで待機', 3.4);
     if (!save.flags.lp && !G.lpNotified && !Tut.gameBusy() && posOf(G.levelId) >= 3 && (got === 0 || got < newN)) {
       G.lpNotified = true;
-      toast('💡 迷ったら箱を「長押し」！置く前に届く数がわかるよ', 3200);
+      toast('💡 迷ったら箱を「長押し」！届く数がわかるよ', 3000);
     }
   }
-  if (!G.pendingWin && !G.pendingJam && s.boxes.length === SLOT_COUNT - 1) Tut.add('slot4');
+  if (!G.pendingWin && !G.pendingJam && s.boxes.length === SLOT_COUNT - 1) {
+    showMicroGuide('slot4', '⚠️', 'スロットあと1つ！', '届く色の箱を置いて空けよう', 3.4);
+  }
   G.hudDirty = true;
   updateTip();
 }
@@ -1509,7 +1536,7 @@ function showClear() {
   const shown = lines.map((l, i) => [l, i]).sort((a, b) => lineRank(a[0]) - lineRank(b[0]) || a[1] - b[1]).map(x => x[0]);
   save.coins += total;
   persist();
-  if (nx) setTimeout(() => { if (tok === G.clearTok && G.overlay === 'clear') ensureLevel(nx, () => {}); }, 900);
+  if (nx) setTimeout(() => { if (tok === G.clearTok && G.overlay === 'clear') ensureLevel(nx, () => {}); }, 180);
 
   Sound.fanfare(); haptic(30); Sound.duck(1.25);
   popText($('#clearTitle'), st === 3 ? 'パーフェクト！' : 'クリア！');
@@ -1647,6 +1674,7 @@ function showClear() {
     bn.textContent = 'アルバムを見る 📒';
   }
   bn.disabled = false;
+  if (typeof renderNextGoal === 'function') renderNextGoal('#clearNextGoal', 'clear');
   showOv('clear');
   Fx.rain(130);
   [0.25, 0.65, 1.05, 1.5].forEach((dd, i) => setTimeout(() => {
@@ -1717,7 +1745,7 @@ function showJam() {
   Sound.jam(); Sound.muffle(true); G.jamShake = 0.4; haptic(40);
   const say = '🐜「' + talkLine('jam') + '」', btn = $('#bJamRewind'), ub = $('#bJamUndo');
   const uLbl = payInfo('undo').ok ? priceLabel('undo') : '🐜応援むりょう！';
-  $('#jamMsg').textContent = say + ' どこで道を外れたか調べています。';
+  $('#jamMsg').textContent = say + ' 戻り先を探してるよ…';
   $('#bJamRetry').textContent = '⟳ 最初から（むりょう）';
   // 前回の表示を元に戻す（ボタンを隠したままにしない）
   btn.style.display = ''; btn.disabled = true; btn.textContent = '⏪ 戻り先を調べています…';
@@ -1728,7 +1756,7 @@ function showJam() {
   G.rewindTo = -1;
   if (!n) {
     btn.style.display = 'none'; ub.style.display = 'none';
-    $('#jamMsg').textContent = say + ' 最初からやりなおそう！';
+    $('#jamMsg').textContent = say + ' 最初からもう一度いこう！';
     return;
   }
   let k = 0;
@@ -1743,13 +1771,13 @@ function showJam() {
       btn.style.display = 'none';
       ub.classList.remove('sec');
       ub.textContent = '↶ 1手もどす（' + uLbl + '）';
-      $('#jamMsg').textContent = say + ' 1手前までは解ける状態だったよ。1手もどして別の箱を試そう！';
+      $('#jamMsg').textContent = say + ' あとちょっと！1手もどして別の箱を試そう';
       return;
     }
     G.rewindTo = t; btn.disabled = false;
     const rLbl = save.coins >= PRICE.rewind ? ('🪙' + PRICE.rewind) : '🐜応援むりょう！';
     btn.textContent = '⏪ ' + cnt + '手もどす（' + rLbl + '）';
-    $('#jamMsg').textContent = say + ' ' + cnt + '手前までは解ける状態だったよ。ワンタップで戻れるよ！';
+    $('#jamMsg').textContent = say + ' あとちょっと！⏪で解ける所まで一気に戻れるよ';
   };
   const step = () => {
     if (tok !== G.rewindTok) return;
@@ -1831,6 +1859,53 @@ function updateClearQueenBtn() {
   else if (!qs.max && qs.nextUnlock) btn.textContent = '👑 女王さまにエサ（🍬' + save.food + '｜次の解放まであと' + qs.toUnlock + '）';
   else btn.textContent = '👑 女王さまにエサをあげる（🍬' + save.food + '）';
 }
+function pickNextGoal() {
+  misCheck();
+  const qs = queenStatus(), bg = bingoSummary(), ts = totalStars();
+  if (bg.ready > 0) return { ico: '🎁', left: 'ビンゴ報酬がうけとれるよ！', right: 'タップで受取 ▶', pct: 100, go: 'bingo' };
+  if (qs.canUnlock) return { ico: '👑', left: '女王さまの新要素が解放できる！', right: '🍬' + save.food, pct: 100, go: 'queen' };
+  let bestMis = null, bestPct = -1;
+  for (const m of save.mis.list) {
+    if (m.done) continue;
+    const d = MISSION_POOL[m.i];
+    if (!d) continue;
+    const p = Math.min(m.p, d.n), pct = p / Math.max(1, d.n);
+    if (pct > bestPct) { bestPct = pct; bestMis = { d, p, rem: Math.max(1, d.n - p), pct }; }
+  }
+  const starNeed = (save.road + 1) * 10 - ts;
+  if (starNeed > 0 && starNeed <= 3) {
+    const curS = ts - save.road * 10;
+    const nextTk = (save.road + 1) % 3 === 0;
+    return { ico: '⭐', left: 'スターロードまで あと' + starNeed + '★！', right: nextTk ? '🪙100＋🎟️' : '🪙100', pct: Math.round(curS / 10 * 100), go: 'mis' };
+  }
+  if (bestMis) {
+    return { ico: '📋', left: bestMis.d.t + '（あと' + bestMis.rem + '）', right: '🪙' + bestMis.d.r, pct: Math.round(bestMis.pct * 100), go: 'mis' };
+  }
+  if (!qs.max && qs.canLvUp) return { ico: '👑', left: '女王さま Lv.' + qs.afterLv + ' にアップ可能！', right: '🍬' + save.food, pct: 100, go: 'queen' };
+  if (!qs.max && qs.toNext > 0) {
+    const need = qNeed(save.qlv);
+    return { ico: '👑', left: '女王さまLvアップまで あと🍬' + qs.toNext, right: save.qexp + '/' + need, pct: Math.round(save.qexp / Math.max(1, need) * 100), go: 'queen' };
+  }
+  const got = gotCount();
+  return { ico: '📒', left: 'アルバム完成まで あと' + Math.max(0, TOTAL - got) + '枚', right: got + '/' + TOTAL, pct: Math.round(got / Math.max(1, TOTAL) * 100), go: 'album' };
+}
+function renderNextGoal(sel, from) {
+  const el = $(sel);
+  if (!el) return;
+  const isFirst = !save.cleared[1] || !!G.firstSim;
+  if (from === 'title' && isFirst) { el.classList.remove('on'); el.innerHTML = ''; return; }
+  const g = pickNextGoal();
+  if (!g) { el.classList.remove('on'); return; }
+  el.classList.add('on');
+  el.innerHTML = '<div class="ngoal-top"><span>' + g.ico + ' ' + g.left + '</span><b>' + g.right + '</b></div><div class="ngoal-bar"><i style="width:' + clamp(g.pct, 4, 100) + '%"></i></div>';
+  el.onclick = () => {
+    Sound.tap();
+    if (g.go === 'bingo') openBingo(from);
+    else if (g.go === 'queen') openColony(from);
+    else if (g.go === 'mis') openMissions(from);
+    else if (g.go === 'album') openAlbum(from === 'title' ? true : from);
+  };
+}
 function renderTitle() {
   const isFirst = !save.cleared[1] || !!G.firstSim;
   const ovT = $('#ov-title');
@@ -1840,9 +1915,20 @@ function renderTitle() {
   const playBtn = $('#bPlay');
   if (playBtn) {
     const willLoadNext = G.clearShown || !G.level || (G.run && G.run.done);
-    if (isFirst) playBtn.textContent = 'あそぶ';
-    else if (willLoadNext) playBtn.textContent = 'あそぶ（Lv.' + posOf(save.level) + '）';
-    else if (!G.level.custom) playBtn.textContent = 'あそぶ（Lv.' + posOf(G.levelId) + '）';
+    if (isFirst) playBtn.textContent = '▶ さっそくあそぶ';
+    else if (willLoadNext) playBtn.textContent = '▶ あそぶ（Lv.' + posOf(save.level) + '）';
+    else if (!G.level.custom) playBtn.textContent = '▶ あそぶ（Lv.' + posOf(G.levelId) + '）';
+  }
+  renderNextGoal('#homeNextGoal', 'title');
+  const dc = $('#homeDailyChip');
+  if (dc) {
+    if (!isFirst && save.daily && save.daily.streak > 0) {
+      const nxt = save.daily.streak % 7;
+      dc.textContent = '🔥 ' + save.daily.streak + '日連続ログイン中｜あした: ' + (nxt === 6 ? '🎟️ガチャ券＋🪙' + LOGIN_REWARD[nxt] : '🪙' + LOGIN_REWARD[nxt]);
+      dc.classList.add('on');
+    } else {
+      dc.classList.remove('on');
+    }
   }
   misCheck();
   const qs = queenStatus(), ts = totalStars(), got = gotCount(), lv = save.qlv, maxQ = lv >= Q_MAX, bg = bingoSummary();
@@ -2206,12 +2292,12 @@ function drawSkinPrev(cv, t) {
 /* ================= UI ================= */
 // 上に出るひとことヒント：[何手目から, 何手目まで, 文]。チュートリアル中は出さない
 const TIPS = {
-  1: [[3, 7, 'とどく箱から置こう！外があくと内側もとどくよ']],
-  2: [[1, 5, '迷ったら長押し！運ばれるキャンディが光るよ']],
-  3: [[0, 4, '★★★の目安は上の時計。「はやさ 2x」も便利！']],
-  4: [[0, 4, '奥の色は、届かない箱を先に置く「先読み」がカギ！']],
-  5: [[0, 4, 'おやすみ（z）の箱をためすぎると渋滞するよ']],
-  6: [[0, 3, '渋滞しても「⏪」で解ける所まで戻れるよ']]
+  1: [[3, 7, '外側の箱からタップ！道があくと内側も届くよ']],
+  2: [[1, 5, '迷ったら長押し！運べるキャンディが光るよ']],
+  3: [[0, 4, '⏱ タイムで★★★！「はやさ 2x」も使おう']],
+  4: [[0, 4, '奥の箱は先置きOK！道があくと自動で動くよ']],
+  5: [[0, 4, '💤のおやすみ箱をためすぎると渋滞するよ']],
+  6: [[0, 3, '渋滞しても⏪で解ける所まで一気に戻れるよ']]
 };
 const hudCache = { lv: '', st: '', name: '', left: '', w: '', dis: null, spd: '', coin: -1 };
 function updateHUD() {
@@ -2738,71 +2824,67 @@ function tutCol() {
   return h.length ? h[0] : -1;
 }
 const tcol = () => TR.col(tutCol());
+// ---- プレイを止めない超短文マイクロガイド（1回だけ表示・タップまたは自動消去） ----
+const _mgState = { el: null, timer: 0 };
+function hideMicroGuide() {
+  clearTimeout(_mgState.timer); _mgState.timer = 0;
+  if (_mgState.el) _mgState.el.classList.remove('on');
+}
+function showMicroGuide(key, ico, title, sub, sec) {
+  if (G.auto || !key || save.tut[key]) return;
+  save.tut[key] = 1; persist();
+  if (!_mgState.el) {
+    const el = document.createElement('div');
+    el.id = 'mguide';
+    el.innerHTML = '<span class="mg-ico"></span><div class="mg-body"><div class="mg-t"></div><div class="mg-s"></div></div>';
+    el.addEventListener('click', hideMicroGuide);
+    document.body.appendChild(el);
+    _mgState.el = el;
+  }
+  const el = _mgState.el;
+  el.querySelector('.mg-ico').textContent = ico || '💡';
+  el.querySelector('.mg-t').textContent = title || '';
+  const subEl = el.querySelector('.mg-s');
+  subEl.textContent = sub || '';
+  subEl.style.display = sub ? '' : 'none';
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  clearTimeout(_mgState.timer);
+  _mgState.timer = setTimeout(hideMicroGuide, Math.round((sec || 3.2) * 1000));
+}
 const LESSONS = {
-  // ---- ステージの最初に出るレッスン ----
+  // ---- ステージの最初に出るレッスン（超短文＋太字強調で一目でわかる） ----
   basic: { lv: 1, steps: () => [
-    { mode: 'tap', col: tutCol, at: tcol, t: '光っている箱をタップして、アリさんにキャンディを運んでもらおう！' },
-    { mode: 'tap', col: tutCol, at: tcol, delay: 0.9, t: '外側から順番に運べるよ！つぎの箱もタップしよう。' },
-    { at: TR.slots, delay: 0.7, t: '箱は上に5つまで置けるよ。アリさんが全員出発すると空くから、ぜんぶ運んで絵を完成させよう！' }
+    { mode: 'tap', col: tutCol, at: tcol, t: '<b>光る箱をタップ！</b><br>アリがキャンディを運ぶよ' },
+    { mode: 'tap', col: tutCol, at: tcol, delay: 0.7, t: '<b>つぎの箱もタップ！</b><br>外側から順番にほどけるよ' }
   ] },
   hold: { lv: 1, steps: () => [
-    { mode: 'hold', col: tutCol, at: tcol, t: '光っている箱を「長押し」すると、運べるキャンディが事前にわかるよ！' },
-    { mode: 'until', until: () => !G.press && !G.preview, at: TR.board, t: '光ったぶんが運べるキャンディ！指をはなしたら、タップして運ぼう。' },
-    { mode: 'tap', col: tutCol, at: tcol, t: '迷ったら長押し！そのままタップしてみよう。' }
+    { mode: 'hold', col: tutCol, at: tcol, t: '<b>箱を「長押し」！</b><br>運べるキャンディが光るよ' },
+    { mode: 'until', until: () => !G.press && !G.preview, at: TR.board, t: '<b>光った分だけ運べる！</b><br>指をはなして自由に遊ぼう' }
   ] },
   star: { lv: 1, steps: () => [
-    { at: () => elRect('.prog', 4), t: 'ここからは★★★をねらってみよう！最初のタップから、最後の箱を置くまでのタイムで★が決まるよ。目安の秒数は時計のとなりに出ているよ。' },
-    { at: () => elRect('#bSpeed', 4), t: '「はやさ」で2倍速！アリさんが速くなってスロットも早く空くから、★をとりやすくなるよ。' }
+    { at: () => elRect('#bSpeed', 4), t: '<b>タイムで★★★！</b><br><b>はやさ 2x</b>でスピードUP！' }
   ] },
   read: { lv: 1, steps: () => [
-    { at: TR.tray, t: '奥の色の箱は、外側があくまで運べないよ。でも先にスロットに置いておけば、道があいたしゅんかんに運び出すよ。' },
-    { at: TR.slots, t: 'あとでぜんぶ運べたら「ナイス先読み」でボーナス！ただし置きすぎると渋滞するから、スロットの空きに気をつけてね。' },
-    { at: () => elRect('#bHint', 4), t: 'どうしても迷ったら💡ヒント。おすすめの箱が光るよ（コインを使うよ）。' }
+    { at: TR.slots, t: '<b>奥の箱は先置きOK！</b><br>道があくと自動で運ぶよ（置きすぎ注意）' }
   ] },
-  // ---- はじめて起きたときに出る説明（ゲーム画面） ----
-  sleep: { lv: 1, steps: i => [
-    { delay: 0.5, at: () => TR.slot(i), t: 'この色のキャンディは、今はどこからも通れないから「z」でおやすみ中。外側があくと自動で運び出すよ。でもスロットを1つ使うから、置きすぎに注意！' }
-  ] },
-  partial: { lv: 1, steps: i => [
-    { delay: 0.5, at: () => TR.slot(i), t: 'この箱は、今とどく分だけ先に運んだよ。のこりは道があくまでスロットで待つの。箱の数字が、のこりの数だよ。' }
-  ] },
-  slot4: { lv: 1, steps: () => [
-    { delay: 0.4, at: TR.slots, t: 'スロットがあと1つ！5つぜんぶうまると「渋滞」でストップしちゃう。今とどく色の箱を置いて、スロットを空けよう。' }
-  ] },
-  nice: { lv: 1, steps: () => [
-    { delay: 0.3, at: TR.slots, t: 'ナイス先読み！届かない箱を先に置いておいて、あとでぜんぶ運べたね。クリアのときにボーナスコインがもらえるよ。' }
-  ] },
-  fever: { lv: 1, steps: () => [
-    { at: TR.board, t: 'フィーバー！テンポよく運ぶと起きるよ。少しのあいだアリさんが速くなって、運んだエサが2倍！（説明中はフィーバーの時間も止まっているよ）' }
-  ] },
-  gold: { lv: 1, steps: () => [
-    { delay: 0.4, at: TR.gold, t: 'ピカピカ光っているのは「金のキャンディ」。運びだすと、クリアのときにコインのボーナスがもらえるよ！' }
-  ] },
-  // ---- はじめて開いた画面の説明 ----
+  // ---- はじめて開いた画面の説明（1ステップ超短文） ----
   jam: { ov: 'jam', steps: () => [
-    { delay: 0.6, at: () => elRect('#ov-jam .card', 2), t: '渋滞しちゃった…でもだいじょうぶ！上のボタンで、まだ解ける所まで一気にもどれるよ。「⟳ 最初から」は何回でもむりょう。「盤面を見る」で、どこでつまったか確かめてもいいよ。' }
+    { delay: 0.35, at: () => elRect('#ov-jam .card', 2), t: '<b>だいじょうぶ！</b><br><b>⏪ボタン</b>で解ける所まで一気に戻れるよ' }
   ] },
   coins: { ov: 'clear', steps: () => [
-    { delay: 1.8, scroll: '#resList', at: () => joinRect(elRect('#resList', 4), elRect('#ov-clear .restot', 4)), t: 'クリアのごほうび！タイムの★、コンボ、フィーバー、もどさずクリア…上手にあそぶほどコインがふえるよ。コインは↶もどす・💡ヒントに使えるよ。' },
-    { scroll: '#bClearQueen', at: '#bClearQueen', t: '運んだキャンディは「エサ」としてたまるよ。女王さまにあげると成長して、便利な力がふえるよ！' },
-    { scroll: '#bNext', at: '#bNext', t: 'つぎの絵にすすもう！クリアした絵はアルバム📒にたまっていくよ。' }
+    { delay: 1.0, scroll: '#ov-clear .restot', at: () => elRect('#ov-clear .restot', 4), t: '<b>🪙コイン＆🍬エサGET！</b><br>女王さま育成やヒントに使えるよ' }
   ] },
   home: { ov: 'title', steps: () => [
-    { delay: 0.5, at: () => elRect('.mrow', 6), t: 'ホームでは👑女王さまの育成、📋毎日かわるミッション、🎀きせかえができるよ。赤い点は、まだ達成していないミッションがあるしるし。' },
-    { at: () => elRect('#titleInfo', 6), t: 'ここには、もっているコイン🪙・あつめた★・女王さまのレベル👑が出るよ。' }
+    { delay: 0.35, at: () => elRect('.mrow', 6), t: '<b>🏠 ホームへようこそ！</b><br>女王さま育成・ミッション・きせかえが遊べるよ' }
   ] },
   queen: { ov: 'colony', steps: () => [
-    { delay: 0.4, at: '#qCv', queen: true, t: 'わたくしが女王よ。指揮官さん、いつもありがとう！' },
-    { scroll: '#bFeed', at: '#bFeed', queen: true, t: 'ステージで運んだキャンディは、エサとしてたまるの。「ごはんをあげる」で、わたくしが成長するわ。' },
-    { scroll: '#qPerks', at: '#qPerks', queen: true, t: 'レベルが上がると、おへやがふえて、「もどすがむりょう」などの特別な力がつくのよ。' }
+    { delay: 0.3, at: '#bFeed', queen: true, t: '<b>🍬ごはんをあげよう！</b><br>Lvアップで便利な特技がふえるわ' }
   ] },
   missions: { ov: 'missions', steps: () => [
-    { delay: 0.3, at: '#misList', t: 'ミッションは毎日3つ。ぜんぶ達成すると🪙100と、おたからばこの🎟️チケットがもらえるよ！' },
-    { scroll: '#roadBox', at: '#roadBox', t: 'スターロードは★を10こあつめるごとにごほうび。★★★をとり直すと★がふえるよ。' }
+    { delay: 0.25, at: '#misList', t: '<b>📋 毎日3つの目標！</b><br>ぜんぶ達成で<b>🪙100＋🎟️ガチャ券</b>' }
   ] },
   skins: { ov: 'skins', steps: () => [
-    { delay: 0.3, at: '#skGrid', t: 'きせかえには特別な力があるよ。つけているあいだだけ効果があるから、ステージに合わせてえらんでね。' },
-    { scroll: '#bGacha', at: '#bGacha', t: 'おたからばこで、まだ持っていないきせかえが出るよ。チケットがあればチケットを使うよ。' }
+    { delay: 0.25, at: '#skGrid', t: '<b>🎀 見た目＋特技つき！</b><br>おたからばこで新しいアリを集めよう' }
   ] }
 };
 const Tut = {
@@ -2855,7 +2937,7 @@ const Tut = {
   },
   holdMode() { return this.st === 'show' && this.mode() === 'hold'; },
   tapAny() {
-    if (this.st !== 'show' || this.mode() !== 'next' || G.rt - this.shownAt < 0.35) return;
+    if (this.st !== 'show' || this.mode() !== 'next' || G.rt - this.shownAt < 0.16) return;
     Sound.tap(); this.next();
   },
   nudge() {
@@ -2865,12 +2947,12 @@ const Tut = {
     Sound.deny(); haptic(15);
   },
   hide() { this.st = 'off'; if (this.el) this.el.root.classList.remove('on'); },
-  // はじめての場面を見つけたら、説明を予約する
+  // はじめての場面を見つけたら、説明を予約する（プレイ中の爽快イベントは止めないマイクロガイドで案内）
   poll() {
     const ov = G.overlay || null;
     if (!ov && G.s && !G.loading) {
-      if (G.fever.t > 0) this.add('fever');
-      if (G.gold.size && TR.gold()) this.add('gold');
+      if (G.fever.t > 0) showMicroGuide('fever', '🔥', 'FEVER 突入！', '速さUP＆エサ2倍！詰み防止つき', 3.4);
+      if (G.gold.size && TR.gold()) showMicroGuide('gold', '✨', '金のキャンディ発見！', '運ぶとクリア時に🪙+15ボーナス', 3.4);
     }
     if (ov === 'jam') this.add('jam');
     else if (ov === 'clear') this.add('coins');
@@ -2918,7 +3000,7 @@ const Tut = {
     const key = this.cur.n + ':' + this.cur.i, n = this.cur.steps.length;
     if (this.key !== key) {
       this.key = key; this.shownAt = G.rt;
-      E.txt.textContent = typeof s.t === 'function' ? s.t() : s.t;
+      E.txt.innerHTML = typeof s.t === 'function' ? s.t() : s.t;
       E.cnt.textContent = n > 1 ? (this.cur.i + 1) + ' / ' + n : '';
       E.next.style.display = m === 'next' ? '' : 'none';
       E.next.textContent = this.cur.i >= n - 1 ? 'OK！' : 'つぎへ ▶';
@@ -3012,7 +3094,7 @@ function drawTutAnt(cv, t, queen) {
 // チュートリアルをはじめから見る（Lv.1 から）
 function tutReplay() {
   save.tut = { replay: 1 }; persist();
-  Tut.q = []; Tut.cur = null; Tut.hide();
+  Tut.q = []; Tut.cur = null; Tut.hide(); hideMicroGuide();
   G.reveal = null; G.clearTok++;
   hideOv(); loadLevel(idAt(1));
   toast('🎓 Lv.1 から、もう一度教えるね！', 2400);
@@ -3020,16 +3102,16 @@ function tutReplay() {
 
 /* ================= あそびかた（ページめくり式。各ページに動く絵をつける） ================= */
 const HELP_PAGES = [
-  { k: 'tap', h: '👆 箱をタップ', t: '下の箱をタップすると、箱と同じ色のアリさんが出てきて、絵のキャンディを巣へ運ぶよ。キャンディをぜんぶ運べばクリア！' },
-  { k: 'outer', h: '🧱 外側からほどこう', t: 'アリさんが運べるのは、外側から通れるキャンディだけ。外のキャンディがなくなると、内側にも道ができるよ。' },
-  { k: 'hold', h: '✋ 長押しで確認', t: '箱を長押しすると、その箱で運ばれるキャンディが光って、運ぶ順番の番号が出るよ。似た色で迷ったら長押し！' },
-  { k: 'slots', h: '💤 スロットは5つ', t: '置いた箱はスロットに入るよ。今とどかない色の箱は「z」でおやすみ。5つぜんぶうまると渋滞でストップ！' },
-  { k: 'partial', h: '📦 のこりは待つ', t: '箱の数字が「今とどく数」より多いと、とどく分だけ運んで、のこりはスロットで待つよ。道があいたら続きを運ぶよ。' },
-  { k: 'read', h: '🧠 先読みでボーナス', t: '奥の色の箱を先に置いておくと、外があいたしゅんかんに運び出すよ。あとでぜんぶ運べたら「ナイス先読み」！' },
-  { k: 'time', h: '⏱️ タイムで★がきまる', t: '最初のタップから最後の箱を置くまでのタイムで★1〜3。「はやさ 2x」も使おう。ゆっくりでもクリアはできるよ。' },
-  { k: 'rewind', h: '⏪ 何手でももどせる', t: '渋滞しても、まだ解ける所まで一気にもどれるよ。↶もどす・💡ヒントはコインを使うよ。⟳最初からは何回でもむりょう。' },
-  { k: 'fever', h: '🔥 フィーバーと金のキャンディ', t: 'テンポよく運ぶとフィーバー！アリさんが速くなってエサ2倍＆フィーバー中は絶対に詰まないよ（お助けを使うとフィーバー時間が少し減るから、狙って運ぶほどお得！）。' },
-  { k: 'queen', h: '👑 女王さまを育てよう', t: '運んだキャンディはエサになるよ。女王さまにあげると成長して、おへやと特別な力がふえるよ。毎日のミッションもあるよ！' }
+  { k: 'tap', h: '👆 箱をタップ', t: '下の箱をタップすると同じ色のアリが出動！キャンディをぜんぶ運べばクリア！' },
+  { k: 'outer', h: '🧱 外側からほどこう', t: '運べるのは外から通れるキャンディだけ。外があくと内側にも道ができるよ。' },
+  { k: 'hold', h: '✋ 長押しで確認', t: '箱を長押しすると、運べるキャンディが光ってわかるよ。迷ったら長押し！' },
+  { k: 'slots', h: '💤 スロットは5つ', t: '届かない箱は「z」で待機。スロットが5つ全部うまると渋滞ストップ！' },
+  { k: 'partial', h: '📦 のこりは待機', t: '届く分だけ先に運んで、残りは道があくまでスロットで待つよ。' },
+  { k: 'read', h: '🧠 先読みボーナス', t: '奥の色の箱を先に置いて、あとで全部運べたら「ナイス先読み」で🪙ボーナス！' },
+  { k: 'time', h: '⏱️ タイムで★★★', t: 'クリアタイムで★1〜3。「はやさ 2x/3x」も活用しよう。ゆっくりでもクリアOK！' },
+  { k: 'rewind', h: '⏪ 何手でももどせる', t: '渋滞しても解ける所まで一気に戻れるよ。毎面1回目の「もどす」と「最初から」は無料！' },
+  { k: 'fever', h: '🔥 フィーバー＆金キャンディ', t: 'テンポよく運ぶとFEVER！速さUP＆エサ2倍＆詰み防止。金のキャンディは🪙+15！' },
+  { k: 'queen', h: '👑 女王さま育成', t: '集めたエサで女王さまがLvアップ！おへやと便利な特技がどんどん増えるよ。' }
 ];
 function openHelp(from) {
   G.helpFrom = from; G.helpPage = 0; G.helpT = G.rt;
@@ -3475,7 +3557,7 @@ on('#bGacha10', () => { Sound.init(); doGacha(10); });
 on('#bGachaAgain1', () => { Sound.init(); doGacha(1); });
 on('#bGachaAgain10', () => { Sound.init(); doGacha(10); });
 on('#bGachaClose', () => { Sound.tap(); showOv('skins'); });
-on('#bDayOk', () => {
+function claimDailyReward() {
   Sound.init();
   const P = G.dailyP;
   if (P) {
@@ -3488,8 +3570,9 @@ on('#bDayOk', () => {
     Sound.coin(); updateCoins(true);
     Fx.burst(innerWidth / 2, innerHeight * 0.4, 40, 320, ['star', 'dot']);
   }
-  showOv('title');
-});
+}
+on('#bDayOk', () => { claimDailyReward(); startPlay(); });
+on('#bDayHome', () => { claimDailyReward(); showOv('title'); });
 on('#bNext', () => {
   if (G.nextBusy) return;
   G.nextBusy = true; $('#bNext').disabled = true;
