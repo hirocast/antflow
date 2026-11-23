@@ -672,7 +672,11 @@ function pickCube(a) {
     // フィーバー：小さい面でも大きい面でも、1面で2〜3回たまるくらいの速さ
     if (!fev) { G.fever.g += 2.0 / G.level.total * (1 + Math.min(G.combo, 30) / 30) * G.perk.fever; if (G.fever.g >= 1) startFever(); }
     if (typeof addSkillCharge === 'function') addSkillCharge(1);
-    if (COMBO_MARK.indexOf(G.combo) >= 0) {
+    if (G.combo >= 100 && G.combo % 100 === 0) {
+      const mulStr = (1 + Math.floor(G.combo / 100) * 0.1).toFixed(1);
+      popup(G.combo + ' コンボ！⚡' + mulStr + 'x', bcx(), oy + G.s.H * cs * 0.22, '#ffd23f');
+      if (!said) { maybeSay(a, 'combo', 0.9); said = true; }
+    } else if (COMBO_MARK.indexOf(G.combo) >= 0) {
       popup(G.combo + ' コンボ！', bcx(), oy + G.s.H * cs * 0.22, G.combo >= 30 ? '#ffd23f' : G.combo >= 10 ? '#ff8fb3' : '#ffffff');
       if (!said) { maybeSay(a, 'combo', 0.9); said = true; }
     }
@@ -703,8 +707,8 @@ function startReturn(a) {
 }
 const _antVbs = [];
 function updateAnts(dt, rdt) {
-  const comboOn = G.combo >= 3 && G.ants.length > 0;
-  const comboMul = comboOn ? 1 + Math.min(0.26, G.combo * 0.012) + (G.perk ? G.perk.combo : 0) : 1;
+  const comboSteps = G.ants.length > 0 ? Math.floor(G.combo / 100) : 0;
+  const comboMul = comboSteps > 0 ? 1 + comboSteps * 0.1 + (G.perk ? G.perk.combo : 0) : 1;
   const fm = (G.fever.t > 0 ? 1.3 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1) * comboMul, gap = gapCells();
   _antVbs.length = 0;
   for (let k = 0, len = G.ants.length; k < len; k++) {
@@ -916,7 +920,8 @@ function drawFever() {
   const comboAge = G.time - G.comboT;
   if (G.combo >= 2 && G.ants.length > 0 && !G.overlay) {
     const sc = comboAge < 0.14 ? 1 + 0.22 * Math.sin((comboAge / 0.14) * Math.PI) : 1;
-    const txt = G.combo + ' COMBO!';
+    const cMul = Math.floor(G.combo / 100) * 0.1;
+    const txt = G.combo + ' COMBO!' + (cMul > 0 ? ' ⚡' + (1 + cMul).toFixed(1) + 'x' : '');
     ctx.save();
     ctx.font = fnt(900, 11.5);
     const cw = ctx.measureText(txt).width + 16, ch = 19;
