@@ -1143,7 +1143,7 @@ function applyLevel(id, L) {
   G.levelId = id; G.level = L; G.s = makeState(L);
   G.undo = []; G.moves = []; G.queued = null; G.solDirty = false; G.autoPath = null; G.autoAt = -1;
   // アリの歩く速さ。ANT_RATE を変えると全体の速さが変わる（1＝前の速さ、0.5＝半分）
-  const ANT_RATE = 0.72;
+  const ANT_RATE = 0.54;
   G.antSpeed = clamp((L.W + L.H) * 0.36, 8, 42) * ANT_RATE;
   G.run = { started: false, done: false, time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0, freeU: G.perk.freeUndo, freeH: G.perk.freeHint, newTalks: [], bingoSnap: bingoSnapshot() };
   G.par = parTimes(L); G.waitIds = new Set(); G.timerShown = -9;
