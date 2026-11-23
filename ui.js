@@ -3928,10 +3928,10 @@ layout();
     id: 'open-thanks-v1',
     maxDaily: 10,
     maxTotal: 0,
-    minChars: 6,
-    base: { c: 300, t: 1, h: 1, s: 1 },
-    imgBonus: { c: 100 },
-    makerBonus: { c: 200, t: 1 }
+    minChars: 15,
+    base: { c: 1000, t: 0, h: 1, s: 0 },
+    imgBonus: { c: 200 },
+    makerBonus: { c: 300, t: 0 }
   };
   const CATS = [
     ['maker', '🎨 つくる要望・不具合'],
@@ -4070,7 +4070,7 @@ layout();
       '<div class="fb-chips" id="fbMakerChips">' +
         MAKER_CHIPS.map(([k, lbl]) => '<button type="button" class="fb-chip" data-mk="' + k + '">' + lbl + '</button>').join('') +
       '</div>' +
-      '<div class="fb-auto-hint">🌟「こうしたら友達に送りたくなる！」「ここが描きにくい」など大歓迎！お礼も <b>🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t + '</b> 増量中✨</div>' +
+      '<div class="fb-auto-hint">🌟「こうしたら友達に送りたくなる！」「ここが描きにくい」など大歓迎！お礼も <b>🪙+' + FB_CAMPAIGN.makerBonus.c + (FB_CAMPAIGN.makerBonus.t ? '＆🎟️+' + FB_CAMPAIGN.makerBonus.t : '') + '</b> 増量中✨</div>' +
     '</div>' +
     '<div class="fb-bugbox" id="fbBugBox">' +
       '<div class="fb-blbl">① 何が起きましたか？（選ぶだけで送信可）</div>' +
@@ -4153,10 +4153,16 @@ layout();
     box.style.display = 'block';
     box.classList.toggle('done', !cs.eligible);
     if (cs.eligible) {
+      const baseParts = [];
+      if (FB_CAMPAIGN.base.c) baseParts.push('<span style="white-space:nowrap">🪙' + FB_CAMPAIGN.base.c + '</span>');
+      if (FB_CAMPAIGN.base.t) baseParts.push('<span style="white-space:nowrap">🎟️おたからばこ×' + FB_CAMPAIGN.base.t + '</span>');
+      if (FB_CAMPAIGN.base.h) baseParts.push('<span style="white-space:nowrap">💡ヒント×' + FB_CAMPAIGN.base.h + '</span>');
+      if (FB_CAMPAIGN.base.s) baseParts.push('<span style="white-space:nowrap">🔍全部運べる×' + FB_CAMPAIGN.base.s + '</span>');
+      const mkBonusTxt = '🪙+' + FB_CAMPAIGN.makerBonus.c + (FB_CAMPAIGN.makerBonus.t ? '＆🎟️+' + FB_CAMPAIGN.makerBonus.t : '');
       box.innerHTML =
         '<div class="fb-camp-hd"><span class="fb-camp-pill">🎁 期間限定</span><span>お礼キャンペーン開催中！</span></div>' +
-        '<div class="fb-camp-r">お礼：<span style="white-space:nowrap">🪙' + FB_CAMPAIGN.base.c + '</span>＋<span style="white-space:nowrap">🎟️おたからばこ×' + FB_CAMPAIGN.base.t + '</span>＋<span style="white-space:nowrap">💡ヒント×' + FB_CAMPAIGN.base.h + '</span>＋<span style="white-space:nowrap">🔍全部運べる×' + FB_CAMPAIGN.base.s + '</span></div>' +
-        '<div class="fb-camp-sub">🎨 <b>「つくる」要望・不具合はさらに 🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t + '！</b><br>📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>（1日' + (FB_CAMPAIGN.maxDaily || 10) + '回まで／本日あと<b>' + cs.rem + '回</b>）</div>';
+        '<div class="fb-camp-r">お礼：' + baseParts.join('＋') + '</div>' +
+        '<div class="fb-camp-sub">🎨 <b>「つくる」要望・不具合はさらに ' + mkBonusTxt + '！</b><br>📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>（' + FB_CAMPAIGN.minChars + '文字以上／1日' + (FB_CAMPAIGN.maxDaily || 10) + '回まで／本日あと<b>' + cs.rem + '回</b>）</div>';
     } else if (cs.todayDone && (FB_CAMPAIGN.maxTotal <= 0 || cs.st.count < FB_CAMPAIGN.maxTotal)) {
       box.innerHTML =
         '<div class="fb-camp-hd"><span>🎁 お礼キャンペーン（本日分 ' + cs.todayCount + '/' + (FB_CAMPAIGN.maxDaily || 10) + '回 受取済み ✅）</span></div>' +
@@ -4680,7 +4686,7 @@ layout();
         return;
       }
 
-      // お礼キャンペーンの付与判定（送信成功時のみ・6文字以上 or 症状/項目選択＋スクショ/ひとこと・1日10回まで）
+      // お礼キャンペーンの付与判定（送信成功時のみ・15文字以上 or 症状/項目選択＋スクショ/ひとこと・1日10回まで）
       const cs = campStatus();
       const qualifies = msg.length >= FB_CAMPAIGN.minChars || ((selCat === 'bug' || selCat === 'maker') && symptoms.length > 0 && (hasImg || msg.length >= 2));
       let rewarded = null;
@@ -4701,7 +4707,7 @@ layout();
         Fx.burst(innerWidth / 2, innerHeight * 0.35, 70, 420, ['star', 'conf', 'dot']);
         const rTxt = fmtReward(rewarded);
         const bonusNotes = [];
-        if (isMakerPost) bonusNotes.push('🎨つくるボーナス🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t);
+        if (isMakerPost) bonusNotes.push('🎨つくるボーナス🪙+' + FB_CAMPAIGN.makerBonus.c + (FB_CAMPAIGN.makerBonus.t ? '＆🎟️+' + FB_CAMPAIGN.makerBonus.t : ''));
         if (hasImg) bonusNotes.push('📷スクショ🪙+' + FB_CAMPAIGN.imgBonus.c);
         const th = $('#fbThanks');
         if (th) {
