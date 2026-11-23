@@ -4036,13 +4036,13 @@ function frame(now) {
   let dt = rdt;
   const h = G.s && !G.pendingJam ? headsOf(G.s) : null;
   if (G.s && !G.pendingJam) {
-    if (G.s.left === 0) dt *= 3.2;
-    else if ((h && h.length === 1) || (G.level && G.s.left <= Math.max(12, Math.floor(G.level.total * 0.15)) && h && !h.length)) dt *= 2.4;
+    if (G.s.left === 0) dt *= 2.5;
+    else if ((h && h.length === 1) || (G.level && G.s.left <= Math.max(12, Math.floor(G.level.total * 0.15)) && h && !h.length)) dt *= 1.55;
   }
   if (G.slowmo > 0) { G.slowmo -= rdt; dt *= 0.3; }
   if (h && h.length === 1 && !G.overlay && !G.loading && !G.pendingWin && !G.pendingJam && !G.auto && !G.press && !Tut.blocking()) {
     if (!G.oneColNotified) { G.oneColNotified = true; G.oneColT = G.rt + 0.25; toast('⚡ のこり1列！自動でおかたづけするよ', 2000); }
-    else if (G.rt >= G.oneColT && !G.queued && G.s.boxes.length < SLOT_COUNT) { onTapCol(h[0]); G.oneColT = G.rt + 0.14; }
+    else if (G.rt >= G.oneColT && !G.queued && G.s.boxes.length < SLOT_COUNT) { onTapCol(h[0]); G.oneColT = G.rt + 0.2; }
   }
   try {
     if (G.s && CW > 0) {
