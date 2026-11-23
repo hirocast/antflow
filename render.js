@@ -705,7 +705,7 @@ const _antVbs = [];
 function updateAnts(dt, rdt) {
   const comboOn = G.combo >= 3 && (G.time - G.comboT <= G.perk.combo);
   const comboMul = comboOn ? 1 + Math.min(0.26, G.combo * 0.012) : 1;
-  const fm = (G.fever.t > 0 ? 1.45 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1) * comboMul, gap = gapCells();
+  const fm = (G.fever.t > 0 ? 1.3 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1) * comboMul, gap = gapCells();
   _antVbs.length = 0;
   for (let k = 0, len = G.ants.length; k < len; k++) {
     const a = G.ants[k];
