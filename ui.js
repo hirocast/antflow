@@ -1409,12 +1409,30 @@ function syncQuickFbVis() {
     bk.classList.toggle('on', !hideBk);
   }
 }
+function resetRootScroll() {
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  if (document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
+  if (document.body && document.body.scrollTop) document.body.scrollTop = 0;
+}
+window.addEventListener('scroll', resetRootScroll, { passive: true });
 function showOv(name) {
+  resetRootScroll();
   G.overlay = name;
   pushCrumb(name);
-  document.querySelectorAll('.ov').forEach(o => o.classList.toggle('show', o.id === 'ov-' + name));
+  if (name === 'title') {
+    renderTitle();
+    if (typeof checkAppUpdate === 'function') checkAppUpdate(false);
+  }
+  document.querySelectorAll('.ov').forEach(o => {
+    const on = o.id === 'ov-' + name;
+    if (!on) { const oc = o.querySelector('.card'); if (oc) oc.scrollTop = 0; }
+    o.classList.toggle('show', on);
+  });
   const card = document.querySelector('#ov-' + name + ' .card');
-  if (card) card.scrollTop = 0;
+  if (card) {
+    card.scrollTop = 0;
+    requestAnimationFrame(() => { resetRootScroll(); if (G.overlay === name && card) card.scrollTop = 0; });
+  }
   if (name === 'title' || name === 'daily') {
     if (Sound.stageBgm) { Sound.stageBgm = null; Sound.step = 0; Sound.lyricQ = []; }
     if (typeof Sound.setScene === 'function') Sound.setScene('home');
@@ -1425,19 +1443,19 @@ function showOv(name) {
   } else if (name === 'load' || name === 'bgm') {
     if (typeof Sound.setScene === 'function') Sound.setScene(null);
   }
-  if (name === 'title') {
-    renderTitle();
-    if (typeof checkAppUpdate === 'function') checkAppUpdate(false);
-  }
   syncQuickFbVis();
   updateCoins();
 }
 function hideOv() {
+  resetRootScroll();
   G.overlay = null;
   if (typeof Sound.setScene === 'function') Sound.setScene(null);
   if (G.level) G.bgmBanner = save.settings.bgm !== false ? { title: Sound.bgmTitle(), t0: null } : null;
   pushCrumb('play' + (G.level ? '(Lv.' + posOf(G.levelId) + (G.level.custom ? '/自作' : '') + ')' : ''));
-  document.querySelectorAll('.ov').forEach(o => o.classList.remove('show'));
+  document.querySelectorAll('.ov').forEach(o => {
+    const oc = o.querySelector('.card'); if (oc) oc.scrollTop = 0;
+    o.classList.remove('show');
+  });
   syncQuickFbVis();
   updateCoins();
 }
@@ -3017,7 +3035,13 @@ const Tut = {
   enter() {
     const c = this.cur, s = this.step();
     c.t0 = G.rt; c.m0 = G.moves.length; this.shownAt = -1; this.key = '';
-    if (s && s.scroll) { const e = $(s.scroll); if (e && e.scrollIntoView) e.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    if (s && s.scroll) {
+      const e = $(s.scroll), card = e && e.closest ? e.closest('.card') : null;
+      if (card) {
+        const cr = card.getBoundingClientRect(), er = e.getBoundingClientRect();
+        card.scrollTo({ top: Math.max(0, card.scrollTop + (er.top - cr.top) - cr.height * 0.5 + er.height * 0.5), behavior: 'smooth' });
+      } else if (e && e.scrollIntoView) e.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
   },
   next() {
     if (!this.cur) return;
