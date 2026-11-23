@@ -1415,6 +1415,13 @@ function resetRootScroll() {
   if (document.body && document.body.scrollTop) document.body.scrollTop = 0;
 }
 window.addEventListener('scroll', resetRootScroll, { passive: true });
+function collapseHomeHist() {
+  if (typeof appUpd !== 'undefined' && (appUpd.openHist || appUpd.showAllHist)) {
+    appUpd.openHist = false;
+    appUpd.showAllHist = false;
+    if (typeof renderUpdateBox === 'function') renderUpdateBox();
+  }
+}
 function showOv(name) {
   resetRootScroll();
   G.overlay = name;
@@ -1422,6 +1429,8 @@ function showOv(name) {
   if (name === 'title') {
     renderTitle();
     if (typeof checkAppUpdate === 'function') checkAppUpdate(false);
+  } else {
+    collapseHomeHist();
   }
   document.querySelectorAll('.ov').forEach(o => {
     const on = o.id === 'ov-' + name;
@@ -1448,6 +1457,7 @@ function showOv(name) {
 }
 function hideOv() {
   resetRootScroll();
+  collapseHomeHist();
   G.overlay = null;
   if (typeof Sound.setScene === 'function') Sound.setScene(null);
   if (G.level) G.bgmBanner = save.settings.bgm !== false ? { title: Sound.bgmTitle(), t0: null } : null;
