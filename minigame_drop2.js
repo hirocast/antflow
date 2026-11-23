@@ -330,6 +330,7 @@
     }
     return {
       unlock,
+      tap: () => { unlock(); tone(587, 0, 0.05, 0.03); },
       pick: () => tone(660, 0, 0.06, 0.035),
       move: () => tone(480, 0, 0.04, 0.025),
       pop: (n) => tone(392 * 2 ** (Math.min(n, 12) / 12)),
