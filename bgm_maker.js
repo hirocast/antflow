@@ -59,15 +59,20 @@
     return n;
   }
   const NOTES = [
-    { label: 'ド↑', semi: 12, col: '#ff7aa6' },
-    { label: 'シ', semi: 11, col: '#ff9a5c' },
-    { label: 'ラ', semi: 9, col: '#ffc845' },
-    { label: 'ソ', semi: 7, col: '#84d966' },
-    { label: 'ファ', semi: 5, col: '#4ecdc4' },
-    { label: 'ミ', semi: 4, col: '#69b4ff' },
-    { label: 'レ', semi: 2, col: '#9b8aff' },
-    { label: 'ド', semi: 0, col: '#d484ff' },
-    { label: 'シ↓', semi: -1, col: '#ff8a80' }
+    { label: 'ド↑', flat: 'ド↑', semi: 12, col: '#ff7aa6' },
+    { label: 'シ', flat: 'シ', semi: 11, col: '#ff9a5c' },
+    { label: 'ラ#', flat: 'シ♭', semi: 10, col: '#e6ae4e', sharp: true },
+    { label: 'ラ', flat: 'ラ', semi: 9, col: '#ffc845' },
+    { label: 'ソ#', flat: 'ラ♭', semi: 8, col: '#a8cf55', sharp: true },
+    { label: 'ソ', flat: 'ソ', semi: 7, col: '#84d966' },
+    { label: 'ファ#', flat: 'ソ♭', semi: 6, col: '#5bc7a0', sharp: true },
+    { label: 'ファ', flat: 'ファ', semi: 5, col: '#4ecdc4' },
+    { label: 'ミ', flat: 'ミ', semi: 4, col: '#69b4ff' },
+    { label: 'レ#', flat: 'ミ♭', semi: 3, col: '#7d9fff', sharp: true },
+    { label: 'レ', flat: 'レ', semi: 2, col: '#9b8aff' },
+    { label: 'ド#', flat: 'レ♭', semi: 1, col: '#b684ff', sharp: true },
+    { label: 'ド', flat: 'ド', semi: 0, col: '#d484ff' },
+    { label: 'シ↓', flat: 'シ↓', semi: -1, col: '#ff8a80' }
   ];
   const INSTS = [
     { id: 'mallet', label: '🎹 もっきん' },
@@ -146,16 +151,11 @@
     return (base.slice(0, 18) + '改').slice(0, 20);
   }
 
-  const SCALE = [-1, 0, 2, 4, 5, 7, 9, 11, 12];
   function quantizeSemi(semi) {
+    semi = Math.round(Number(semi) || 0);
     while (semi < -1) semi += 12;
     while (semi > 12) semi -= 12;
-    let best = 0, bd = 999;
-    for (let i = 0; i < SCALE.length; i++) {
-      const d = Math.abs(semi - SCALE[i]);
-      if (d < bd) { bd = d; best = SCALE[i]; }
-    }
-    return best;
+    return semi;
   }
   function importBuiltinSong(key) {
     const title = (Sound.BGM_TITLES && Sound.BGM_TITLES[key]) || key;
@@ -239,6 +239,7 @@
   let playStep = 0;
   let paintVal = null;
   let editMode = 'note'; // 'note' | 'tie'
+  let useFlat = false;
   let tieDrag = null;
   let built = false;
 
@@ -521,7 +522,10 @@
     let html = '';
     for (let r = 0; r < NOTES.length; r++) {
       const nt = NOTES[r];
-      html += '<div class="bgm-lbl" style="color:' + nt.col + '">' + nt.label + '</div>';
+      const acc = nt.sharp ? ' acc' : '';
+      const lbl = useFlat ? nt.flat : nt.label;
+      const tip = nt.sharp ? (' title="' + nt.label + ' / ' + nt.flat + '"') : '';
+      html += '<div class="bgm-lbl' + acc + '" style="color:' + nt.col + '"' + tip + '>' + lbl + '</div>';
       for (let st = 0; st < 16; st++) {
         const on = bar.notes[st].indexOf(nt.semi) >= 0;
         const tie = !on && bar.ties && bar.ties[st] && bar.ties[st].indexOf(nt.semi) >= 0;
@@ -530,7 +534,7 @@
         const beat = st % 4 === 0 ? ' beat' : '';
         const cls = (on ? ' on' : '') + (tie ? ' tie' : '') + ((on || tie) && nextTie ? ' ext-r' : '') + (tie && prevAny ? ' ext-l' : '');
         const bg = (on || tie) ? ' style="background:' + nt.col + ';border-color:#fff"' : '';
-        html += '<button type="button" class="bgm-cell' + beat + cls + '" data-kind="note" data-semi="' + nt.semi + '" data-st="' + st + '"' + bg + '></button>';
+        html += '<button type="button" class="bgm-cell' + acc + beat + cls + '" data-kind="note" data-semi="' + nt.semi + '" data-st="' + st + '"' + bg + '></button>';
       }
     }
     // ドラム2行
@@ -750,10 +754,13 @@
 .bgm-mbtn{border:none;border-radius:10px;padding:6px 11px;min-height:30px;background:#fff1d6;color:var(--ink);font:800 11.5px var(--rf);cursor:pointer}
 .bgm-mbtn.on{background:var(--pink);color:#fff}
 .bgm-mhint{flex:1;text-align:right;font-size:10px;opacity:.7;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bgm-grid{display:grid;grid-template-columns:28px repeat(16,minmax(22px,1fr));gap:2px;background:#f8ecf2;padding:5px;border-radius:14px;border:2px solid #ffd3e2;touch-action:pan-x;user-select:none;overflow-x:auto}
+.bgm-grid{display:grid;grid-template-columns:32px repeat(16,minmax(22px,1fr));gap:2px;background:#f8ecf2;padding:5px;border-radius:14px;border:2px solid #ffd3e2;touch-action:pan-x;user-select:none;overflow-x:auto}
 .bgm-lbl{font:900 10px/1 var(--rf);display:flex;align-items:center;justify-content:center}
-.bgm-cell{height:27px;border:1px solid #ead8e2;border-radius:5px;background:#fff;padding:0;cursor:pointer}
+.bgm-lbl.acc{font-size:9px;background:#efe2ea;border-radius:5px;padding:2px 0}
+.bgm-cell{height:22px;border:1px solid #ead8e2;border-radius:5px;background:#fff;padding:0;cursor:pointer}
 .bgm-cell.beat{background:#fff7fb}
+.bgm-cell.acc{background:#efe4eb;border-color:#dfd0da}
+.bgm-cell.acc.beat{background:#f5ecf2}
 .bgm-cell.tie{opacity:.72;background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.32) 0 3px,transparent 3px 6px)}
 .bgm-cell.ext-r{border-top-right-radius:1px;border-bottom-right-radius:1px}
 .bgm-cell.ext-l{border-top-left-radius:1px;border-bottom-left-radius:1px}
@@ -803,7 +810,8 @@
         '<div class="bgm-mode" id="bgmMode">' +
           '<button type="button" class="bgm-mbtn on" data-mode="note">🎵 おく</button>' +
           '<button type="button" class="bgm-mbtn" data-mode="tie">〰️ のばす</button>' +
-          '<span class="bgm-mhint">音をのばしたい時は「のばす」</span>' +
+          '<button type="button" class="bgm-mbtn" id="bgmAccBtn" title="シャープ(♯)とフラット(♭)の表示を切り替え">♯ 表記</button>' +
+          '<span class="bgm-mhint">のばす時は「のばす」</span>' +
         '</div>' +
         '<div class="bgm-grid" id="bgmGrid"></div>' +
         '<div class="bgm-btns">' +
@@ -888,12 +896,20 @@
 
     $('#bgmMode').addEventListener('click', e => {
       const b = e.target.closest('.bgm-mbtn');
-      if (!b || !b.dataset.mode) return;
+      if (!b) return;
+      if (b.id === 'bgmAccBtn') {
+        useFlat = !useFlat;
+        b.textContent = useFlat ? '♭ 表記' : '♯ 表記';
+        b.classList.toggle('on', useFlat);
+        renderGrid();
+        return;
+      }
+      if (!b.dataset.mode) return;
       editMode = b.dataset.mode;
-      const btns = document.querySelectorAll('#bgmMode .bgm-mbtn');
+      const btns = document.querySelectorAll('#bgmMode .bgm-mbtn[data-mode]');
       for (let i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].dataset.mode === editMode);
       const hint = $('#bgmMode .bgm-mhint');
-      if (hint) hint.textContent = editMode === 'tie' ? '右へドラッグまたはタップでのばせるよ' : '音をのばしたい時は「のばす」';
+      if (hint) hint.textContent = editMode === 'tie' ? '右へドラッグまたはタップでのばせるよ' : 'のばす時は「のばす」';
     });
 
     const grid = $('#bgmGrid');
