@@ -374,16 +374,97 @@ function ensureLevel(id, cb) {
 }
 
 /* ================= セーブ ================= */
-let save = { level: 1, maxLevel: 1, cleared: {}, newArts: [], flags: { help: 0, lp: 0 }, settings: { sfx: true, bgm: true, vib: true, talk: true, steps: true, sfxVol: 90, bgmVol: 70, cb: false, wash: true, dim: true, info: false, fast: false, dev: false } };
+function defaultSave(devFlag) {
+  return {
+    level: 1,
+    maxLevel: 1,
+    cleared: {},
+    newArts: [],
+    flags: { help: 0, lp: 0 },
+    settings: { sfx: true, bgm: true, vib: true, talk: true, steps: true, sfxVol: 90, bgmVol: 70, cb: false, wash: true, dim: true, info: false, fast: false, dev: !!devFlag }
+  };
+}
+function normalizeSave(s, devFlag) {
+  s.level = clamp(s.level || 1, 1, TOTAL);
+  s.maxLevel = clamp(s.maxLevel || 1, 1, TOTAL);
+  if (!s.cleared || typeof s.cleared !== 'object') s.cleared = {};
+  for (const k in s.cleared) if (+k > TOTAL) delete s.cleared[k];
+  s.newArts = (Array.isArray(s.newArts) ? s.newArts : []).filter(i => i >= 1 && i <= TOTAL);
+  if (!s.settings || typeof s.settings !== 'object') s.settings = {};
+  s.settings.dev = !!devFlag;
+  return s;
+}
+function readRawSave(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function loadSaveFromKey(key, devFlag, fallbackSettings) {
+  const base = defaultSave(devFlag);
+  if (fallbackSettings && typeof fallbackSettings === 'object') {
+    base.settings = Object.assign({}, base.settings, fallbackSettings, { dev: !!devFlag });
+  }
+  const d = readRawSave(key);
+  if (d && typeof d === 'object') {
+    const merged = Object.assign({}, base, d, {
+      settings: Object.assign({}, base.settings, d.settings || {}),
+      flags: Object.assign({}, base.flags, d.flags || {}),
+      newArts: Array.isArray(d.newArts) ? d.newArts : []
+    });
+    return normalizeSave(merged, devFlag);
+  }
+  return normalizeSave(base, devFlag);
+}
+
+const devParam = typeof location !== 'undefined' && /[?&]dev\b/.test(location.search);
+let devMode = false;
+let initFallbackSettings = null;
 try {
-  const d = JSON.parse(localStorage.getItem(SAVE_KEY));
-  if (d) save = Object.assign({}, save, d, { settings: Object.assign({}, save.settings, d.settings || {}), flags: Object.assign({}, save.flags, d.flags || {}), newArts: Array.isArray(d.newArts) ? d.newArts : [] });
-} catch (e) { /* 破損データは無視 */ }
-save.level = clamp(save.level || 1, 1, TOTAL);
-save.maxLevel = clamp(save.maxLevel || 1, 1, TOTAL);
-for (const k in save.cleared) if (+k > TOTAL) delete save.cleared[k];
-save.newArts = save.newArts.filter(i => i >= 1 && i <= TOTAL);
-function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* 無視 */ } }
+  const storedMode = localStorage.getItem(DEV_MODE_KEY);
+  const normalRaw = readRawSave(SAVE_KEY);
+  if (storedMode === null) {
+    if (normalRaw && normalRaw.settings && normalRaw.settings.dev) {
+      devMode = true;
+      initFallbackSettings = Object.assign({}, normalRaw.settings);
+      normalRaw.settings.dev = false;
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(normalRaw)); } catch (e) {}
+      try { localStorage.setItem(DEV_MODE_KEY, '1'); } catch (e) {}
+    }
+  } else {
+    devMode = storedMode === '1';
+  }
+  if (devParam && !devMode) {
+    devMode = true;
+    try { localStorage.setItem(DEV_MODE_KEY, '1'); } catch (e) {}
+  }
+  if (devMode && !initFallbackSettings && normalRaw && normalRaw.settings) {
+    initFallbackSettings = Object.assign({}, normalRaw.settings);
+  }
+} catch (e) {
+  devMode = devParam;
+}
+
+function isDevMode() { return !!devMode; }
+function activeSaveKey() { return devMode ? DEV_SAVE_KEY : SAVE_KEY; }
+
+let save = loadSaveFromKey(activeSaveKey(), devMode, devMode ? initFallbackSettings : null);
+function persist() {
+  try {
+    if (save && save.settings) save.settings.dev = !!devMode;
+    localStorage.setItem(activeSaveKey(), JSON.stringify(save));
+  } catch (e) { /* 無視 */ }
+}
+function switchSaveMode(nextDev) {
+  nextDev = !!nextDev;
+  if (nextDev === devMode) return false;
+  persist();
+  const prevSettings = save && save.settings ? Object.assign({}, save.settings) : null;
+  devMode = nextDev;
+  try { localStorage.setItem(DEV_MODE_KEY, devMode ? '1' : '0'); } catch (e) {}
+  save = loadSaveFromKey(activeSaveKey(), devMode, devMode ? prevSettings : null);
+  return true;
+}
 function gotCount() { let n = 0; for (let i = 1; i <= TOTAL; i++) if (save.cleared[i]) n++; return n; }
 // 古い版で生成したステージを削除して容量を空ける
 try {

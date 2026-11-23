@@ -1931,7 +1931,7 @@ function pickNextGoal() {
 function renderNextGoal(sel, from) {
   const el = $(sel);
   if (!el) return;
-  const isFirst = !save.cleared[1] || !!G.firstSim;
+  const isFirst = (!save.cleared[1] && !save.settings.dev) || !!G.firstSim;
   if (from === 'title' && isFirst) { el.classList.remove('on'); el.innerHTML = ''; return; }
   const g = pickNextGoal();
   if (!g) { el.classList.remove('on'); return; }
@@ -1946,7 +1946,7 @@ function renderNextGoal(sel, from) {
   };
 }
 function renderTitle() {
-  const isFirst = !save.cleared[1] || !!G.firstSim;
+  const isFirst = (!save.cleared[1] && !save.settings.dev) || !!G.firstSim;
   const ovT = $('#ov-title');
   if (ovT) ovT.classList.toggle('first-run', isFirst);
   const el = $('#titleInfo');
@@ -3502,11 +3502,57 @@ function drawHelp(cv, k, t) {
 }
 
 /* ================= 開発モード ================= */
+function syncSettingsUI() {
+  document.querySelectorAll('[data-k]').forEach(inp => {
+    inp.checked = !!save.settings[inp.dataset.k];
+  });
+  document.querySelectorAll('[data-v]').forEach(inp => {
+    const k = inp.dataset.v, lab = $('#' + inp.dataset.l);
+    inp.value = save.settings[k];
+    if (lab) lab.textContent = inp.value;
+    inp.style.setProperty('--p', inp.value + '%');
+  });
+}
 function applyDev() {
   document.body.classList.toggle('dev', !!save.settings.dev);
   $('[data-k="dev"]').checked = !!save.settings.dev;
   if (!save.settings.dev) setAuto(false);
   G.hudDirty = true;
+}
+function toggleDevMode(nextDev) {
+  nextDev = !!nextDev;
+  if (!switchSaveMode(nextDev)) {
+    applyDev();
+    return false;
+  }
+  G.genBusy = false;
+  G.firstSim = false;
+  G.reveal = null;
+  G.clearTok++;
+  G.streak = 0;
+  metaInit(false);
+  Tut.q = []; Tut.cur = null; Tut.hide();
+  G.perk = perks();
+  G.spdMul = G.perk.speed;
+  antCache.clear();
+  mascotCache = null;
+  albumCvCache.clear();
+  buildSprites();
+  Sound.applyVol();
+  if (Sound.ctx) {
+    if (save.settings.bgm) Sound.startBgm();
+    else Sound.stopBgm();
+  }
+  syncSettingsUI();
+  applyDev();
+  hudCache.coin = -1;
+  updateBadge();
+  updateCoins();
+  refreshPrices();
+  loadLevel(save.level);
+  if (G.overlay === 'title') renderTitle();
+  if (G.overlay === 'dev' && !nextDev) hideOv();
+  return true;
 }
 function setAuto(on) {
   G.auto = on; G.autoPath = null; G.autoClearT = 0;
@@ -3532,7 +3578,7 @@ function renderDev() {
     grid.appendChild(btn);
   }
   grid.scrollTop = top;
-  $('#devSum').textContent = '全 ' + TOTAL + ' 面／生成済み ' + ready + '／クリア済み ' + gotCount();
+  $('#devSum').textContent = '全 ' + TOTAL + ' 面／生成済み ' + ready + '／クリア済み ' + gotCount() + '（開発用セーブ）';
 }
 function devPregen() {
   const btn = $('#bDevGen');
@@ -4007,11 +4053,15 @@ renderUpdateBox();
 checkAppUpdate(true);
 on('#bAppUpdate', runAppUpdate);
 on('#bReset', () => {
-  if (!confirm('クリア状況・アルバム・コイン・女王さま・きせかえをすべてリセットしますか？')) return;
+  const msg = isDevMode()
+    ? '開発モード用のセーブデータ（クリア状況・アルバム・コイン・女王さま・きせかえ）をリセットしますか？\n※通常セーブはそのまま残ります'
+    : 'クリア状況・アルバム・コイン・女王さま・きせかえをすべてリセットしますか？';
+  if (!confirm(msg)) return;
   save.level = idAt(1); save.maxLevel = 1; save.cleared = {}; save.newArts = [];
   metaInit(true);
   Tut.q = []; Tut.cur = null; Tut.hide();
-  G.perk = perks(); G.spdMul = G.perk.speed; antCache.clear();
+  G.perk = perks(); G.spdMul = G.perk.speed; G.streak = 0;
+  antCache.clear(); mascotCache = null; albumCvCache.clear();
   persist(); updateBadge(); updateCoins();
   hideOv(); loadLevel(idAt(1));
 });
@@ -4041,11 +4091,15 @@ document.querySelectorAll('[data-k]').forEach(inp => {
   const k = inp.dataset.k;
   inp.checked = !!save.settings[k];
   inp.addEventListener('change', () => {
+    if (k === 'dev') {
+      toggleDevMode(inp.checked);
+      toast(isDevMode() ? '🛠️ 開発モード ON（開発用セーブ）' : '開発モード OFF（通常セーブ）');
+      return;
+    }
     save.settings[k] = inp.checked; persist();
     if (k === 'cb') { buildSprites(); G.boardDirty = true; }
     if (k === 'wash') G.boardDirty = true;
     if (k === 'bgm') { Sound.init(); if (inp.checked) Sound.startBgm(); else Sound.stopBgm(); }
-    if (k === 'dev') applyDev();
     G.hudDirty = true;
   });
 });
@@ -4064,7 +4118,12 @@ let logoTaps = 0, logoT = 0;
 $('#mascot').addEventListener('click', () => {
   const now = Date.now();
   logoTaps = now - logoT < 600 ? logoTaps + 1 : 1; logoT = now;
-  if (logoTaps >= 5) { logoTaps = 0; save.settings.dev = !save.settings.dev; persist(); applyDev(); toast(save.settings.dev ? '🛠️ 開発モード ON' : '開発モード OFF'); }
+  if (logoTaps >= 5) {
+    logoTaps = 0;
+    const nextDev = !isDevMode();
+    toggleDevMode(nextDev);
+    toast(nextDev ? '🛠️ 開発モード ON（開発用セーブ）' : '開発モード OFF（通常セーブ）');
+  }
 });
 document.addEventListener('visibilitychange', () => {
   lastT = performance.now();
@@ -4072,7 +4131,6 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) checkAppUpdate(false);
 });
 if (window.ResizeObserver) new ResizeObserver(() => layout()).observe(stage); else window.addEventListener('resize', layout);
-if (/[?&]dev\b/.test(location.search)) { save.settings.dev = true; persist(); }
 
 /* ================= メインループ ================= */
 let lastT = performance.now(), lastDrawT = 0, lastOvDrawT = 0;
@@ -4173,7 +4231,7 @@ function frame(now) {
 })();
 updateBadge(); updateCoins(); applyDev(); refreshPrices();
 loadLevel(save.level);
-if (gotCount() === 0 && !save.daily.day) startPlay(); else if (dailyCheck()) showDaily(); else showOv('title');
+if (!isDevMode() && gotCount() === 0 && !save.daily.day) startPlay(); else if (dailyCheck()) showDaily(); else showOv('title');
 layout();
 /* ================= ホーム画面追加（アプリ化）ガイド ================= */
 (function initA2HS() {
@@ -4717,8 +4775,8 @@ layout();
     const miss = (window.AF_FILES || []).filter(f => (window.AF_LOADED || []).indexOf(f) < 0);
     let lsInfo = 'OK';
     try {
-      const raw = localStorage.getItem(SAVE_KEY) || '';
-      lsInfo = 'OK (' + Math.max(1, Math.round(raw.length / 1024)) + 'KB)';
+      const raw = localStorage.getItem(activeSaveKey()) || '';
+      lsInfo = 'OK (' + Math.max(1, Math.round(raw.length / 1024)) + 'KB' + (isDevMode() ? '/開発' : '') + ')';
     } catch (e) { lsInfo = '利用不可'; }
     const health = 'JS:' + loaded + (miss.length ? ' (欠損:' + miss.join(',') + ')' : '') + ' / 保存:' + lsInfo;
 
@@ -5278,7 +5336,18 @@ layout();
   function openTransfer() {
     let myStagesCnt = 0;
     try { myStagesCnt = (JSON.parse(localStorage.getItem('antflow-my-stages-v1') || '[]') || []).length; } catch (e) {}
-    $('#trSum').textContent = '現在の記録：クリア ' + gotCount() + '面 · 🪙' + save.coins + ' · マイ作品 ' + myStagesCnt + '件';
+    let clearedCnt = 0, coinsCnt = 0;
+    if (isDevMode()) {
+      const normal = readRawSave(SAVE_KEY);
+      if (normal && normal.cleared) {
+        for (let i = 1; i <= TOTAL; i++) if (normal.cleared[i]) clearedCnt++;
+      }
+      coinsCnt = normal && typeof normal.coins === 'number' ? normal.coins : 0;
+    } else {
+      clearedCnt = gotCount();
+      coinsCnt = save.coins;
+    }
+    $('#trSum').textContent = (isDevMode() ? '通常セーブの記録（開発用は対象外）：' : '現在の記録：') + 'クリア ' + clearedCnt + '面 · 🪙' + coinsCnt + ' · マイ作品 ' + myStagesCnt + '件';
     showOv('transfer');
   }
   on('#bSetTransfer', () => { Sound.tap(); openTransfer(); });
