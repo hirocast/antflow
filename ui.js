@@ -3926,7 +3926,8 @@ layout();
   const FB_CAMPAIGN = {
     active: true,
     id: 'open-thanks-v1',
-    maxTotal: 5,
+    maxDaily: 10,
+    maxTotal: 0,
     minChars: 6,
     base: { c: 300, t: 1, h: 1, s: 1 },
     imgBonus: { c: 100 },
@@ -4112,18 +4113,30 @@ layout();
   function loadCamp() {
     try {
       const o = JSON.parse(localStorage.getItem(FB_CAMP_KEY) || 'null');
-      if (o && o.id === FB_CAMPAIGN.id) return { id: o.id, count: Math.max(0, o.count | 0), lastDay: String(o.lastDay || '') };
+      if (o && o.id === FB_CAMPAIGN.id) {
+        return {
+          id: o.id,
+          count: Math.max(0, o.count | 0),
+          todayCount: Math.max(0, o.todayCount | 0),
+          lastDay: String(o.lastDay || '')
+        };
+      }
     } catch (e) {}
-    return { id: FB_CAMPAIGN.id, count: 0, lastDay: '' };
+    return { id: FB_CAMPAIGN.id, count: 0, todayCount: 0, lastDay: '' };
   }
   function saveCamp(st) {
     try { localStorage.setItem(FB_CAMP_KEY, JSON.stringify(st)); } catch (e) {}
   }
   function campStatus() {
     const st = loadCamp(), today = dayKey();
-    const rem = Math.max(0, FB_CAMPAIGN.maxTotal - st.count);
-    const todayDone = st.lastDay === today;
-    return { st, today, rem, todayDone, eligible: FB_CAMPAIGN.active && rem > 0 && !todayDone };
+    const isSameDay = st.lastDay === today;
+    const todayCount = isSameDay ? (st.todayCount > 0 ? st.todayCount : (st.count > 0 ? 1 : 0)) : 0;
+    const maxDaily = FB_CAMPAIGN.maxDaily || 10;
+    const todayRem = Math.max(0, maxDaily - todayCount);
+    const totalRem = FB_CAMPAIGN.maxTotal > 0 ? Math.max(0, FB_CAMPAIGN.maxTotal - st.count) : Infinity;
+    const rem = Math.min(todayRem, totalRem);
+    const todayDone = todayRem <= 0;
+    return { st, today, todayCount, todayRem, rem, todayDone, eligible: FB_CAMPAIGN.active && rem > 0 };
   }
   function refreshFbCampaignUI() {
     const cs = campStatus();
@@ -4143,11 +4156,11 @@ layout();
       box.innerHTML =
         '<div class="fb-camp-hd"><span class="fb-camp-pill">🎁 期間限定</span><span>お礼キャンペーン開催中！</span></div>' +
         '<div class="fb-camp-r">お礼：<span style="white-space:nowrap">🪙' + FB_CAMPAIGN.base.c + '</span>＋<span style="white-space:nowrap">🎟️おたからばこ×' + FB_CAMPAIGN.base.t + '</span>＋<span style="white-space:nowrap">💡ヒント×' + FB_CAMPAIGN.base.h + '</span>＋<span style="white-space:nowrap">🔍全部運べる×' + FB_CAMPAIGN.base.s + '</span></div>' +
-        '<div class="fb-camp-sub">🎨 <b>「つくる」要望・不具合はさらに 🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t + '！</b><br>📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>（1日1回／あと<b>' + cs.rem + '回</b>）</div>';
-    } else if (cs.rem > 0 && cs.todayDone) {
+        '<div class="fb-camp-sub">🎨 <b>「つくる」要望・不具合はさらに 🪙+' + FB_CAMPAIGN.makerBonus.c + '＆🎟️+' + FB_CAMPAIGN.makerBonus.t + '！</b><br>📷 スクショ添付でさらに <b>🪙+' + FB_CAMPAIGN.imgBonus.c + '</b>（1日' + (FB_CAMPAIGN.maxDaily || 10) + '回まで／本日あと<b>' + cs.rem + '回</b>）</div>';
+    } else if (cs.todayDone && (FB_CAMPAIGN.maxTotal <= 0 || cs.st.count < FB_CAMPAIGN.maxTotal)) {
       box.innerHTML =
-        '<div class="fb-camp-hd"><span>🎁 お礼キャンペーン（本日分は受取済み ✅）</span></div>' +
-        '<div class="fb-camp-sub">また明日送るとお礼がもらえます（残りあと' + cs.rem + '回）。要望・不具合の投稿はいつでもOK！</div>';
+        '<div class="fb-camp-hd"><span>🎁 お礼キャンペーン（本日分 ' + cs.todayCount + '/' + (FB_CAMPAIGN.maxDaily || 10) + '回 受取済み ✅）</span></div>' +
+        '<div class="fb-camp-sub">また明日送るとお礼がもらえます。要望・不具合の投稿はいつでもOK！</div>';
     } else {
       box.innerHTML =
         '<div class="fb-camp-hd"><span>🎉 お礼キャンペーン（' + FB_CAMPAIGN.maxTotal + '/' + FB_CAMPAIGN.maxTotal + '回）ぜんぶ受取済み！</span></div>' +
@@ -4667,7 +4680,7 @@ layout();
         return;
       }
 
-      // お礼キャンペーンの付与判定（送信成功時のみ・6文字以上 or 症状/項目選択＋スクショ/ひとこと・1日1回・上限5回）
+      // お礼キャンペーンの付与判定（送信成功時のみ・6文字以上 or 症状/項目選択＋スクショ/ひとこと・1日10回まで）
       const cs = campStatus();
       const qualifies = msg.length >= FB_CAMPAIGN.minChars || ((selCat === 'bug' || selCat === 'maker') && symptoms.length > 0 && (hasImg || msg.length >= 2));
       let rewarded = null;
@@ -4680,7 +4693,7 @@ layout();
         };
         grantReward(rewarded);
         persist();
-        saveCamp({ id: FB_CAMPAIGN.id, count: cs.st.count + 1, lastDay: cs.today });
+        saveCamp({ id: FB_CAMPAIGN.id, count: cs.st.count + 1, todayCount: cs.todayCount + 1, lastDay: cs.today });
         updateCoins(true);
         renderTitle();
         Sound.fanfare();
@@ -4697,7 +4710,7 @@ layout();
         }
         if (typeof window.AF_pushInboxItem === 'function') {
           window.AF_pushInboxItem({
-            id: 'fb-thanks-' + cs.today + '-' + (cs.st.count + 1),
+            id: 'fb-thanks-' + cs.today + '-' + (cs.todayCount + 1),
             kind: 'update',
             badge: '🎁 お礼プレゼント',
             title: (isMakerPost ? '「つくる」へのご意見のお礼を届けたよ！' : '要望・不具合報告のお礼を届けたよ！'),
