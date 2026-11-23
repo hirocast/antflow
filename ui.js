@@ -1183,7 +1183,7 @@ function feverDeliverBox(targetBoxId, maxCells) {
     const x = i % W, y = (i - x) / W, w = toW(x + 1, y + 1);
     for (let p = 0; p < 4; p++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 120 - 25, life: 0, max: 0.42, col: HEX[b.c], s: Math.max(2.5, antPx * 0.18), star: p === 0 });
     if (G.run) {
-      G.run.candies++; G.run.food += G.fever.t > 0 ? 2 : 1;
+      G.run.candies++; G.run.food += 1;
       if (G.gold.has(i)) { G.gold.delete(i); G.run.gold++; }
     }
     delivered++;
@@ -1242,7 +1242,9 @@ function onTapCol(j) {
     const dig = feverDeliverBox(newId, 3);
     if (dig > 0) {
       got += dig;
-      popup('FEVER掘り!', bcx(), oy + G.s.H * cs * 0.38, '#ff7aa6', true);
+      G.fever.t = Math.max(0, G.fever.t - 0.6);
+      popup('FEVER掘り! -0.6s', bcx(), oy + G.s.H * cs * 0.38, '#ff7aa6', true);
+      if (G.fever.t <= 0) endFever();
     }
   }
   if (newId >= 0 && got === 0) G.waitIds.add(newId);
@@ -1253,10 +1255,16 @@ function onTapCol(j) {
   Sound.tap(); haptic(8);
   if (s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
   else if (isJam(s)) {
-    if (G.fever.t > 0 && (G.fever.rescue | 0) > 0) {
-      G.fever.rescue--;
-      if (feverDeliverBox(0, 999) > 0) {
-        popup('FEVER救済!', bcx(), oy + G.s.H * cs * 0.45, '#ff9a3c', true);
+    if (G.fever.t > 0) {
+      let rescued = false;
+      while (s.left > 0 && isJam(s) && s.boxes.length > 0) {
+        if (feverDeliverBox(0, 999) <= 0) break;
+        rescued = true;
+      }
+      if (rescued) {
+        G.fever.t = Math.max(0, G.fever.t - 1.5);
+        popup('FEVER救済! -1.5s', bcx(), oy + G.s.H * cs * 0.45, '#ff9a3c', true);
+        if (G.fever.t <= 0) endFever();
       }
     }
     if (s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
@@ -2969,7 +2977,7 @@ const HELP_PAGES = [
   { k: 'read', h: '🧠 先読みでボーナス', t: '奥の色の箱を先に置いておくと、外があいたしゅんかんに運び出すよ。あとでぜんぶ運べたら「ナイス先読み」！' },
   { k: 'time', h: '⏱️ タイムで★がきまる', t: '最初のタップから最後の箱を置くまでのタイムで★1〜3。「はやさ 2x」も使おう。ゆっくりでもクリアはできるよ。' },
   { k: 'rewind', h: '⏪ 何手でももどせる', t: '渋滞しても、まだ解ける所まで一気にもどれるよ。↶もどす・💡ヒントはコインを使うよ。⟳最初からは何回でもむりょう。' },
-  { k: 'fever', h: '🔥 フィーバーと金のキャンディ', t: 'テンポよく運ぶとフィーバー！アリさんが速くなって、エサが2倍＆奥のキャンディも運べて詰みにくくなるよ。ピカピカの金のキャンディはコインのボーナスだよ。' },
+  { k: 'fever', h: '🔥 フィーバーと金のキャンディ', t: 'テンポよく運ぶとフィーバー！アリさんが速くなってエサ2倍＆フィーバー中は絶対に詰まないよ（お助けを使うとフィーバー時間が少し減るから、狙って運ぶほどお得！）。' },
   { k: 'queen', h: '👑 女王さまを育てよう', t: '運んだキャンディはエサになるよ。女王さまにあげると成長して、おへやと特別な力がふえるよ。毎日のミッションもあるよ！' }
 ];
 function openHelp(from) {
