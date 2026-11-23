@@ -90,13 +90,17 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .upd-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px}
 .upd-hitem b{font-size:11px;color:#c0507a;display:block;margin-bottom:2px}
 .upd-ok{border:none;border-radius:9px;padding:2px 8px;background:#ffd8e6;color:#a02854;font:900 10px var(--rf);cursor:pointer;margin-left:6px}
-.fb-cats{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:8px 0}
+.fb-cats{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:4px 0 8px}
+.fb-cat-hint{font-size:10.5px;font-weight:800;color:#8a5a6e;text-align:left;margin:6px 0 0}
 .fb-cat{border:2px solid #ffd3e2;border-radius:12px;padding:7px 6px;background:#fff;color:var(--ink);font:800 11.5px var(--rf);cursor:pointer;box-shadow:0 2px 0 #f2c8d8}
 .fb-cat.on{background:linear-gradient(#ff9fbf,#ff6f9e);color:#fff;border-color:#fff;box-shadow:0 2px 0 #d64575}
 .fb-ta,.fb-in{width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:14px;padding:9px 11px;font:700 13px/1.5 var(--rf);color:var(--ink);background:#fff;user-select:text;-webkit-user-select:text;touch-action:auto}
 .fb-ta{min-height:78px;resize:vertical}
 .fb-in{margin-top:6px}
-.fb-cnt{text-align:right;font-size:10.5px;color:#9a7a8a;font-weight:700;margin:2px 2px 4px}
+.fb-cnt{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10.5px;color:#9a7a8a;font-weight:700;margin:4px 2px 4px}
+.fb-qsend{border:none;border-radius:999px;padding:5px 12px;background:linear-gradient(#ff8cb4,#ff5a8a);color:#fff;font:900 11.5px var(--rf);box-shadow:0 2px 0 #d43f6b;cursor:pointer}
+.fb-qsend:active{transform:translateY(1px);box-shadow:none}
+.fb-qsend:disabled{opacity:.6}
 .fb-hist{margin-top:10px;padding-top:8px;border-top:2px dotted #ffd3e2;text-align:left}
 .fb-hitem{background:#fff;border:1.5px solid #ffe0ea;border-radius:11px;padding:6px 8px;margin-top:5px;font-size:11px;line-height:1.45}
 .fb-hitem b{color:#c0507a;font-size:10.5px;display:block;margin-bottom:2px}
@@ -591,8 +595,10 @@ function handleTalkLikeClick(e) {
   $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button><button class="big sec" id="bSetFeedback">💬 要望・不具合を送る</button><button class="big sec" id="bSetA2hs">📲 ホーム画面に追加（アプリ化）</button>');
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
+  const titleAlbum = $('#bTitleAlbum');
+  if (titleAlbum) titleAlbum.insertAdjacentHTML('afterend', '<div class="cfrow" style="margin-top:8px"><button class="big sec" id="bTitleSet">⚙️ せってい</button><button class="big sec" id="bTitleFeedback">💬 要望・不具合</button></div>');
   const titleCard = $('#ov-title .card');
-  if (titleCard) titleCard.insertAdjacentHTML('beforeend', '<div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleDrop">🎨 ドロップぬりえ</button><button class="big mint" id="bTitleTsum">🎮 ありんこチェイン</button></div><div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleDrop2">🖌️ ドロップぬりえDX</button><button class="big mint" id="bTitleTsum2">🐜 ありんこチェインDX</button></div><div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleSnipe">🎯 ピクセルスナイプ</button><button class="big mint" id="bTitleBounce">🏓 ピクセルアート崩し</button></div><button class="big sec" id="bTitleFeedback" style="margin-top:8px">💬 要望・不具合を送る</button><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button><button class="link" id="bTitleSet" style="display:block;margin:12px auto 0">⚙️ せってい</button>');
+  if (titleCard) titleCard.insertAdjacentHTML('beforeend', '<div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleDrop">🎨 ドロップぬりえ</button><button class="big mint" id="bTitleTsum">🎮 ありんこチェイン</button></div><div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleDrop2">🖌️ ドロップぬりえDX</button><button class="big mint" id="bTitleTsum2">🐜 ありんこチェインDX</button></div><div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleSnipe">🎯 ピクセルスナイプ</button><button class="big mint" id="bTitleBounce">🏓 ピクセルアート崩し</button></div><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
   // あそびかた：ページめくり式に作りかえる
   $('#ov-help .help').innerHTML =
     '<div class="hpic" id="hPic"><canvas id="hCv"></canvas><b class="hnum" id="hNum"></b></div>' +
@@ -4292,12 +4298,13 @@ layout();
     a2hs: '📲 ホーム画面に追加'
   };
   const PLACEHOLDERS = {
+    none: '気になったことやアイデア・応援メッセージなどを自由に書いてね（カテゴリーを選ばなくてもそのまま送れます！）',
     maker: '例：こんな描き方ツールが欲しい／友達にシェアするときここが分かりにくい／こんな演出があったら自慢したくなる！（上の項目を選べば空欄でもOK）',
     idea: '例：こんな新機能があったら楽しそう！／ここがもっと使いやすいと嬉しい',
     bug: 'くわしい状況があればひとこと（上の症状を選べば、書かずにそのまま送ってもOK！）',
     other: '例：〇〇のステージを作ってほしい！／ありんこ隊への応援メッセージなど'
   };
-  let selCat = 'maker', selScene = 'title', prevOv = 'title', sending = false, attachedImg = null, liveCtx = null;
+  let selCat = '', selScene = 'title', prevOv = 'title', sending = false, attachedImg = null, liveCtx = null;
   const selSyms = new Set(), selMaker = new Set();
 
   // 直近の操作ログ（ボタンID等の技術タグのみ・入力文字や個人情報は一切記録しない）
@@ -4365,8 +4372,9 @@ layout();
     '<div class="fb-ctx" id="fbCtxBadge" style="display:none"></div>' +
     '<div class="fb-camp" id="fbCamp" style="display:none"></div>' +
     '<div class="fb-thanks" id="fbThanks"></div>' +
+    '<div class="fb-cat-hint" id="fbCatHint">カテゴリー（選ばなくてもそのまま送れます）</div>' +
     '<div class="fb-cats" id="fbCats">' +
-    CATS.map(([k, lbl], i) => '<button type="button" class="fb-cat' + (i === 0 ? ' on' : '') + '" data-cat="' + k + '">' + lbl + '</button>').join('') +
+    CATS.map(([k, lbl]) => '<button type="button" class="fb-cat" data-cat="' + k + '">' + lbl + '</button>').join('') +
     '</div>' +
     '<div class="fb-bugbox" id="fbMakerBox">' +
       '<div class="fb-blbl">🎨「つくる・シェア」で気になること（1タップ複数選択OK）</div>' +
@@ -4385,8 +4393,8 @@ layout();
         BUG_SCENES.map(([k, lbl]) => '<button type="button" class="fb-chip" data-scene="' + k + '">' + lbl + '</button>').join('') +
       '</div>' +
     '</div>' +
-    '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="' + PLACEHOLDERS.maker + '"></textarea>' +
-    '<div class="fb-cnt"><span id="fbCnt">0</span> / 500</div>' +
+    '<textarea id="fbText" class="fb-ta" maxlength="500" placeholder="' + PLACEHOLDERS.none + '"></textarea>' +
+    '<div class="fb-cnt"><span><span id="fbCnt">0</span> / 500</span><button type="button" class="fb-qsend" id="bFbQuickSend">📮 送る！</button></div>' +
     '<input type="file" id="fbFile" accept="image/*" style="display:none">' +
     '<div class="fb-imgrow">' +
       '<button type="button" class="fb-imgbtn" id="bFbPick">📷 スクショを選ぶ</button>' +
@@ -4584,7 +4592,7 @@ layout();
     $('#fbMakerChips').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', selMaker.has(x.dataset.mk)));
     $('#fbScenes').querySelectorAll('.fb-chip').forEach(x => x.classList.toggle('on', x.dataset.scene === selScene));
     const ta = $('#fbText');
-    if (ta && PLACEHOLDERS[selCat]) ta.placeholder = PLACEHOLDERS[selCat];
+    if (ta) ta.placeholder = PLACEHOLDERS[selCat] || PLACEHOLDERS.none;
     const snap = $('#bFbSnap');
     if (snap) {
       const kind = liveCtx ? liveCtx.snapKind : '';
@@ -4768,6 +4776,7 @@ layout();
   }
   function syncReplyModeUI() {
     const isReply = !!replyTarget;
+    if ($('#fbCatHint')) $('#fbCatHint').style.display = isReply ? 'none' : '';
     if ($('#fbCats')) $('#fbCats').style.display = isReply ? 'none' : '';
     if ($('#fbCamp')) $('#fbCamp').style.display = isReply ? 'none' : '';
     if ($('#fbNick')) $('#fbNick').style.display = isReply ? 'none' : '';
@@ -4775,7 +4784,29 @@ layout();
     if ($('#fbMakerBox') && isReply) $('#fbMakerBox').classList.remove('on');
     if ($('#fbHist')) $('#fbHist').style.display = isReply ? 'none' : '';
     const ta = $('#fbText');
-    if (ta) ta.placeholder = isReply ? '運営からの質問への詳しい状況・お返事を書いてね（スクショ添付もOK！）' : '内容を入力してね（500文字まで）';
+    if (ta) ta.placeholder = isReply ? '運営からの質問への詳しい状況・お返事を書いてね（スクショ添付もOK！）' : (PLACEHOLDERS[selCat] || PLACEHOLDERS.none);
+  }
+  function fitFbViewport() {
+    if (!ov.classList.contains('on')) return;
+    const vv = window.visualViewport;
+    if (vv && vv.height > 0 && vv.height < window.innerHeight - 40) {
+      ov.style.top = Math.max(0, vv.offsetTop) + 'px';
+      ov.style.bottom = 'auto';
+      ov.style.height = vv.height + 'px';
+    } else {
+      ov.style.top = '';
+      ov.style.bottom = '';
+      ov.style.height = '';
+    }
+  }
+  function resetFbViewport() {
+    ov.style.top = '';
+    ov.style.bottom = '';
+    ov.style.height = '';
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitFbViewport);
+    window.visualViewport.addEventListener('scroll', fitFbViewport);
   }
   function openFeedback(from, opts) {
     replyTarget = null;
@@ -4783,7 +4814,7 @@ layout();
     prevOv = curOv || 'play';
     liveCtx = captureLiveContext(prevOv);
     selScene = guessScene(prevOv);
-    if (opts && opts.defaultCat) selCat = opts.defaultCat;
+    selCat = (opts && opts.defaultCat !== undefined) ? opts.defaultCat : '';
     const ni = $('#fbNick');
     if (ni && !ni.value) {
       try { ni.value = localStorage.getItem(FB_NICK_KEY) || ''; } catch (e) {}
@@ -4800,6 +4831,7 @@ layout();
     refreshFbCampaignUI();
     renderHist();
     showOv('feedback');
+    fitFbViewport();
     if ($('#fbBody')) $('#fbBody').scrollTop = 0;
   }
   window.AF_openFeedback = openFeedback;
@@ -4818,6 +4850,7 @@ layout();
     }
     syncReplyModeUI();
     showOv('feedback');
+    fitFbViewport();
     if ($('#fbBody')) $('#fbBody').scrollTop = 0;
     if ($('#fbText')) $('#fbText').focus();
   }
@@ -4827,7 +4860,8 @@ layout();
     const b = e.target.closest('[data-cat]');
     if (!b) return;
     Sound.tap();
-    selCat = b.dataset.cat;
+    const cat = b.dataset.cat;
+    selCat = (selCat === cat) ? '' : cat;
     syncBugPanelUI();
   });
   $('#fbSyms').addEventListener('click', e => {
@@ -4856,6 +4890,24 @@ layout();
   $('#fbText').addEventListener('input', () => {
     const el = $('#fbCnt');
     if (el) el.textContent = String($('#fbText').value.length);
+  });
+  $('#fbText').addEventListener('focus', () => {
+    setTimeout(() => {
+      fitFbViewport();
+      const ta = $('#fbText');
+      if (ta && ta.scrollIntoView) ta.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 220);
+  });
+  $('#fbText').addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      const btn = $('#bFbSend');
+      if (btn) btn.click();
+    }
+  });
+  on('#bFbQuickSend', () => {
+    const btn = $('#bFbSend');
+    if (btn) btn.click();
   });
   on('#bFbPick', () => { const f = $('#fbFile'); if (f) f.click(); });
   on('#bFbSnap', () => {
@@ -4886,21 +4938,22 @@ layout();
       toast('⚠️ ' + (err && err.message ? err.message : '画像を添付できませんでした'), 3400);
     }
   });
-  on('#bTitleFeedback', () => openFeedback('title', { defaultCat: 'maker' }));
+  on('#bTitleFeedback', () => openFeedback('title'));
   on('#bSetFeedback', () => openFeedback('settings'));
   on('#bHudFb', () => openFeedback('play', { defaultCat: 'bug' }));
   on('#bQuickFb', () => {
     const cur = G.overlay || 'play';
-    const defCat = MAKER_OVS.has(cur) ? 'maker' : (cur === 'title' ? 'maker' : 'bug');
+    const defCat = MAKER_OVS.has(cur) ? 'maker' : (cur === 'title' ? '' : 'bug');
     openFeedback(cur, { defaultCat: defCat });
   });
   on('#bFbClose', () => {
+    resetFbViewport();
     if (prevOv && prevOv !== 'feedback' && prevOv !== 'play') showOv(prevOv);
     else hideOv();
   });
   on('#bFbSend', async () => {
     if (sending) return;
-    const ta = $('#fbText'), ni = $('#fbNick'), btn = $('#bFbSend');
+    const ta = $('#fbText'), ni = $('#fbNick'), btn = $('#bFbSend'), qbtn = $('#bFbQuickSend');
     const msg = (ta ? ta.value : '').trim();
     const symptoms = selCat === 'bug'
       ? BUG_SYMPTOMS.filter(([k]) => selSyms.has(k)).map(([, lbl]) => lbl)
@@ -4926,6 +4979,7 @@ layout();
     try { if (nick) localStorage.setItem(FB_NICK_KEY, nick); } catch (e) {}
     sending = true;
     btn.disabled = true; btn.textContent = '📮 送信中…';
+    if (qbtn) { qbtn.disabled = true; qbtn.textContent = '送信中…'; }
     try {
       if (replyTarget) {
         const rPayload = {
@@ -5056,6 +5110,7 @@ layout();
     } finally {
       sending = false;
       btn.disabled = false; btn.textContent = '📮 送る！';
+      if (qbtn) { qbtn.disabled = false; qbtn.textContent = '📮 送る！'; }
     }
   });
 

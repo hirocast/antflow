@@ -155,9 +155,16 @@ function drawHat(g, u, skin) {
       g.restore();
       break;
     case 'devil':
-      for (const [x, r] of [[0.22, -0.35], [0.64, 0.3]]) {
-        g.save(); g.translate(x * u, -0.62 * u); g.rotate(r);
-        g.beginPath(); g.moveTo(-0.12 * u, 0.06 * u); g.lineTo(0, -0.34 * u); g.lineTo(0.12 * u, 0.06 * u); g.closePath(); fs('#b8336a');
+      for (const s of [-1, 1]) {
+        g.save();
+        g.translate(hx + s * 0.34 * u, ty + 0.04 * u);
+        g.beginPath();
+        g.moveTo(-s * 0.13 * u, 0.08 * u);
+        g.quadraticCurveTo(s * 0.24 * u, -0.14 * u, s * 0.28 * u, -0.48 * u);
+        g.quadraticCurveTo(s * 0.06 * u, -0.22 * u, s * 0.12 * u, 0.06 * u);
+        g.closePath();
+        g.strokeStyle = '#4a1228';
+        fs('#e6224b');
         g.restore();
       }
       break;
@@ -223,10 +230,11 @@ function drawHat(g, u, skin) {
       }
       break;
     case 'bear':
-      for (const [x, r] of [[0.2, -0.3], [0.66, 0.3]]) {
-        g.save(); g.translate(x * u, -0.62 * u); g.rotate(r);
-        ell(g, 0, -0.06 * u, 0.17 * u, 0.17 * u); fs('#9c6644');
-        ell(g, 0, -0.05 * u, 0.09 * u, 0.09 * u); g.fillStyle = '#e6ccb2'; g.fill();
+      for (const s of [-1, 1]) {
+        g.save();
+        g.translate(hx + s * 0.38 * u, ty - 0.04 * u);
+        ell(g, 0, 0, 0.23 * u, 0.23 * u); fs('#9c6644');
+        ell(g, 0, 0.01 * u, 0.12 * u, 0.12 * u); g.fillStyle = '#f3d5b5'; g.fill();
         g.restore();
       }
       break;

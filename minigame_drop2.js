@@ -404,6 +404,9 @@
         background:#101122b0;border-radius:14px;width:min(70vw,260px);height:min(70vw,260px)}
       #afdrop .afdrop-zbox canvas{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
       #afdrop .afdrop-zmeta{font-size:12px;color:#cfd4ff;margin:4px 0 0}
+      #afdrop .afdrop-complete-banner{margin:6px 0 2px;padding:8px 12px;border-radius:12px;
+        background:linear-gradient(135deg,#ffe27a,#ff9b54);color:#3a1d00;font-weight:900;font-size:13.5px;
+        box-shadow:0 3px 0 #c96e1f;letter-spacing:.02em}
       @media(max-width:350px){#afdrop .afdrop-head{gap:4px}#afdrop .afdrop-head button{padding-inline:6px}}
     `;
     document.head.appendChild(style);
@@ -421,6 +424,7 @@
     const unlocked = new Set((galleryWritable ? sv[galleryKey] : []).map(String));
     const artIds = new Set(arts.map((a) => String(a.id)));
     const galleryCount = () => [...unlocked].filter((id) => artIds.has(id)).length;
+    const isGalleryComplete = () => arts.length > 0 && galleryCount() >= arts.length;
     const audio = makeAudio();
     const reduceMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const priorFocus = document.activeElement;
@@ -751,18 +755,24 @@
       clearCoinsPaid += CFG.clearCoins;
       sv.coins = count(sv.coins) + CFG.clearCoins;
       sv.minigameDrop2HighScore = Math.max(count(sv.minigameDrop2HighScore), score);
+      const wasComplete = isGalleryComplete();
       if (!unlocked.has(id)) {
         unlocked.add(id);
         if (galleryWritable) sv[galleryKey].push(art.id);
       }
+      const justCompletedAll = !wasComplete && isGalleryComplete();
       persistSave(true);
       if (closed) return;
 
       audio.complete();
       clearing = { start: t, duration: reduceMotion ? 850 : 1550 };
       notice('かんせい！ ' + art.name, 'art', '#ffe078', clearing.duration);
-      notice(`+${CFG.clearCoins}コイン${left > 0 ? `  ＋${CFG.bonusMs / 1000}秒` : ''}`,
-        'reward', '#a2ffd8', clearing.duration);
+      if (justCompletedAll) {
+        notice(`👑 図鑑コンプリート！ 全${arts.length}枚！`, 'reward', '#ffe078', clearing.duration);
+      } else {
+        notice(`+${CFG.clearCoins}コイン${left > 0 ? `  ＋${CFG.bonusMs / 1000}秒` : ''}`,
+          'reward', '#a2ffd8', clearing.duration);
+      }
       if (!reduceMotion) {
         sparks = Array.from({ length: 60 }, (_, i) => {
           const a = Math.random() * Math.PI * 2;
@@ -867,11 +877,12 @@
     }
 
     function showTitle() {
+      const compTag = isGalleryComplete() ? ' 👑 コンプリート！' : '';
       const lines = [
         '同じ色・記号を縦か横に3つ以上そろえると、絵の形に沿って塗られます。',
         '4個以上をまとめて消すと★ボム。タップで、絵にいちばん多く残っている色を消せます。',
         `${CFG.rushCombo}コンボでラッシュ。ドロップを動かし始めてから1手${CFG.moveMs / 1000}秒です。`,
-        `ハイスコア ${count(sv.minigameDrop2HighScore)}点　図鑑 ${galleryCount()} / ${arts.length}`
+        `ハイスコア ${count(sv.minigameDrop2HighScore)}点　図鑑 ${galleryCount()} / ${arts.length}${compTag}`
       ];
       if (demo) lines.push('既存の作品データが見つからないため、デモ作品を使用しています。');
       if (!galleryWritable) lines.push('図鑑の保存形式が異なるため、このプレイの解放状況は保存しません。');
@@ -880,10 +891,11 @@
     }
 
     function showResult() {
+      const compTag = isGalleryComplete() ? ' 👑 コンプリート！' : '';
       showPanel('タイムアップ！', [
         `スコア ${result.score}点　ハイスコア ${result.high}点`,
         `完成 ${result.completed}枚　獲得 +${result.coins}コイン`,
-        `図鑑 ${galleryCount()} / ${arts.length}`
+        `図鑑 ${galleryCount()} / ${arts.length}${compTag}`
       ], [['もう一度', 'start'], ['図鑑', 'gallery', true], ['閉じる', 'close', true]]);
     }
 
@@ -974,8 +986,17 @@
       }
       galleryFrom = phase;
       if (phase === 'play') pausedAt = now();
-      const card = showPanel(demo ? 'デモ作品の図鑑' : '完成アート図鑑',
-        [`${galleryCount()} / ${arts.length} 枚（タップで拡大）`], [['戻る', 'back']]);
+      const comp = isGalleryComplete();
+      const card = showPanel((demo ? 'デモ作品の図鑑' : '完成アート図鑑') + (comp ? ' 👑' : ''),
+        [`${galleryCount()} / ${arts.length} 枚${comp ? ' 👑 コンプリート！' : ''}（タップで拡大）`], [['戻る', 'back']]);
+      if (comp) {
+        const banner = document.createElement('div');
+        banner.className = 'afdrop-complete-banner';
+        banner.textContent = `🎉 コンプリート！ 全${arts.length}枚のピクセルアートを集めたよ！`;
+        const actions = card.querySelector('.afdrop-actions');
+        if (actions) card.insertBefore(banner, actions);
+        else card.append(banner);
+      }
       const grid = document.createElement('div');
       grid.className = 'afdrop-gallery';
       arts.forEach((art, idx) => {
