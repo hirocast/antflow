@@ -1138,7 +1138,7 @@ function pickGold(L) {
 function applyLevel(id, L) {
   if (G.scanId !== id) G.scanId = 0;
   G.levelId = id; G.level = L; G.s = makeState(L);
-  G.undo = []; G.moves = []; G.queued = null; G.solDirty = false;
+  G.undo = []; G.moves = []; G.queued = null; G.solDirty = false; G.autoPath = null; G.autoAt = -1;
   // アリの歩く速さ。ANT_RATE を変えると全体の速さが変わる（1＝前の速さ、0.5＝半分）
   const ANT_RATE = 0.72;
   G.antSpeed = clamp((L.W + L.H) * 0.36, 8, 42) * ANT_RATE;
@@ -3561,7 +3561,7 @@ function devTick() {
   const sol = G.level.solution;
   if (followsSolution() && G.moves.length < sol.length) j = sol[G.moves.length];
   else {
-    if (!G.autoPath || G.autoAt !== G.moves.length) {
+    if (!G.autoPath || !G.autoPath.length || G.autoAt !== G.moves.length) {
       const r = solve(G.s, 2000, 200000);
       G.autoPath = r.path ? r.path.slice() : null;
       G.autoAt = G.moves.length;
