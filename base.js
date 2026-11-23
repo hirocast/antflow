@@ -1328,7 +1328,7 @@ const SKINS = [
 ];
 // 女王アリのレベルで増える力・おへや・称号
 const Q_MAX = 300;
-const qNeed = lv => 200 + 150 * lv;
+const qNeed = lv => Math.round((80 + 20 * lv + 0.05 * lv * lv) / 10) * 10;
 const Q_PERKS = [
   [3, 'もどすが1面1回むりょう'], [5, 'ヒントが20%オフ'], [6, 'フィーバーがたまりやすい'], [8, 'もどすが1面2回むりょう'], [10, '金のキャンディが出やすい'],
   [12, 'ヒントが40%オフ'], [15, 'もどすが1面3回むりょう'], [20, 'フィーバーがもっとたまりやすい'], [25, 'アリさんの足が速くなる（+10%）'], [30, 'フィーバーが長く続く（11.5秒）'],
@@ -1508,9 +1508,18 @@ function perks() {
     bonus: (q >= 300 ? 350 : q >= 295 ? 200 : q >= 190 ? 100 : q >= 95 ? 50 : q >= 45 ? 20 : 0) + (f.bonus ? Math.round(f.bonus * mul) : 0)
   };
 }
-// タイムの★：[★★★の上限秒, ★★の上限秒]。箱の数とむずかしさで決める
+// タイムの★：[★★★の上限秒, ★★の上限秒]。操作時間（箱数）と運搬時間（総マス数・盤面サイズ）に育成進捗の補正を加えて決める
 function parTimes(L) {
-  const nb = L.cols.reduce((a, c) => a + c.length, 0), d = starsAt(posOf(L.id)), p3 = Math.round((5 + nb * (1.3 + 0.12 * d)) * perks().par);
+  const pos = L.custom ? 0 : posOf(L.id);
+  const nb = L.cols.reduce((a, c) => a + c.length, 0);
+  const d = (L.custom && L.metrics && L.metrics.stars) || starsAt(pos);
+  const tot = L.total || (nb * 10);
+  const baseSpd = clamp(((L.W || 20) + (L.H || 20)) * 0.36, 8, 42) * 0.72;
+  const carry = (tot / baseSpd) * clamp(tot / 900, 0.42, 1.05);
+  const tapPart = pos >= 1 && pos <= 2 ? nb * 1.15 + 7 : nb * (0.76 + d * 0.04) + carry * 0.52 + 6;
+  const progAdj = pos >= 1 ? 1 - clamp((pos - 70) / 30, 0, 1) * 0.12 : 1;
+  const flowPart = (carry * 0.98 + nb * 0.36 + 6) * progAdj;
+  const p3 = Math.round(Math.max(tapPart, flowPart) * perks().par);
   return [p3, Math.round(p3 * 1.8)];
 }
 const timeStars = (t, par) => t <= par[0] ? 3 : t <= par[1] ? 2 : 1;

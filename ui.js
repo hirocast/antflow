@@ -693,6 +693,9 @@ function metaInit(force) {
   save.skinCnt.none = 1;
   if (save.skins.indexOf(save.skin) < 0) save.skin = 'none';
   save.qlv = clamp(Math.floor(save.qlv) || 1, 1, Q_MAX);
+  save.qexp = Math.max(0, Math.floor(save.qexp) || 0);
+  while (save.qlv < Q_MAX && save.qexp >= qNeed(save.qlv)) { save.qexp -= qNeed(save.qlv); save.qlv++; }
+  if (save.qlv >= Q_MAX) save.qexp = 0;
   save.coins = Math.max(0, Math.floor(save.coins) || 0);
   save.food = Math.max(0, Math.floor(save.food) || 0);
   save.hintT = Math.max(0, Math.floor(save.hintT) || 0);
