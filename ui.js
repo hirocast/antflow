@@ -1224,6 +1224,7 @@ function feverDeliverBox(targetBoxId, maxCells) {
     if (G.s.grid[i] !== b.c) continue;
     G.s.grid[i] = -1; G.s.left--; b.rem--;
     if (G.vgrid[i] >= 0) { G.vgrid[i] = -1; G.vver++; G.vleft--; eraseCell(i); G.boardSoft = true; }
+    if (G.pgrid && G.pgrid[i] >= 0) { G.pgrid[i] = -1; G.pver++; }
     if (vb) { vb.picked++; vb.dispatched++; }
     const x = i % W, y = (i - x) / W, w = toW(x + 1, y + 1);
     for (let p = 0; p < 4; p++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 120 - 25, life: 0, max: 0.42, col: HEX[b.c], s: Math.max(2.5, antPx * 0.18), star: p === 0 });
@@ -2580,6 +2581,7 @@ function skillDeliverFromSlots(maxCount) {
       if (G.s.grid[i] !== b.c) continue;
       G.s.grid[i] = -1; G.s.left--; b.rem--;
       if (G.vgrid[i] >= 0) { G.vgrid[i] = -1; G.vver++; G.vleft--; eraseCell(i); G.boardSoft = true; }
+      if (G.pgrid && G.pgrid[i] >= 0) { G.pgrid[i] = -1; G.pver++; }
       if (vb) { vb.picked++; vb.dispatched++; }
       const x = i % W, y = (i - x) / W, w = toW(x + 1, y + 1);
       hitSlots.add(sIdx);
