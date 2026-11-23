@@ -2303,12 +2303,12 @@ function drawSkinPrev(cv, t) {
 const TIPS = {
   1: [[3, 7, '外側の箱からタップ！道があくと内側も届くよ']],
   2: [[1, 5, '迷ったら長押し！運べるキャンディが光るよ']],
-  3: [[0, 4, '⏱ タイムで★★★！「はやさ 2x」も使おう']],
+  3: [[0, 4, '⏱ タイムで★★★！コンボやフィーバーでスピードUP！']],
   4: [[0, 4, '奥の箱は先置きOK！道があくと自動で動くよ']],
   5: [[0, 4, '💤のおやすみ箱をためすぎると渋滞するよ']],
   6: [[0, 3, '渋滞しても⏪で解ける所まで一気に戻れるよ']]
 };
-const hudCache = { lv: '', st: '', name: '', left: '', w: '', dis: null, spd: '', coin: -1 };
+const hudCache = { lv: '', st: '', name: '', left: '', w: '', dis: null, coin: -1 };
 function updateHUD() {
   G.hudDirty = false;
   if (!G.level) return;
@@ -2317,14 +2317,13 @@ function updateHUD() {
   const lv = isCustom ? 'オリジナル' : 'Lv.' + pos, stars = isCustom ? '🎨' : '★'.repeat(st) + '☆'.repeat(5 - st);
   const name = G.level.name;
   const left = 'のこり ' + G.vleft + ' / ' + G.level.total;
-  const dis = !G.undo.length, spd = G.speed + 'x';
+  const dis = !G.undo.length;
   const coin = runEarnedCoins(G.run);
   if (hudCache.lv !== lv) { hudCache.lv = lv; $('#lvNum').textContent = lv; }
   if (hudCache.st !== stars) { hudCache.st = stars; $('#lvStars').textContent = stars; }
   if (hudCache.name !== name) { hudCache.name = name; $('#lvName').textContent = name; }
   if (hudCache.left !== left) { hudCache.left = left; $('#leftTxt').textContent = left; }
   if (hudCache.dis !== dis) { hudCache.dis = dis; $('#bUndo').disabled = dis; }
-  if (hudCache.spd !== spd) { hudCache.spd = spd; $('#spdIco').textContent = spd; }
   if (hudCache.coin !== coin) { const up = hudCache.coin >= 0 && coin > hudCache.coin; hudCache.coin = coin; updateCoins(up); }
 }
 function updateTimer() {
@@ -2969,7 +2968,7 @@ const LESSONS = {
     { mode: 'until', until: () => !G.press && !G.preview, at: TR.board, t: '<b>光った分だけ運べる！</b><br>指をはなして自由に遊ぼう' }
   ] },
   star: { lv: 1, steps: () => [
-    { at: () => elRect('#bSpeed', 4), t: '<b>タイムで★★★！</b><br><b>はやさ 2x</b>でスピードUP！' }
+    { at: () => elRect('#timeTxt', 4), t: '<b>タイムで★★★！</b><br>コンボやフィーバーで速くなるよ' }
   ] },
   read: { lv: 1, steps: () => [
     { at: TR.slots, t: '<b>奥の箱は先置きOK！</b><br>道があくと自動で運ぶよ（置きすぎ注意）' }
@@ -3215,7 +3214,7 @@ const HELP_PAGES = [
   { k: 'slots', h: '💤 スロットは5つ', t: '届かない箱は「z」で待機。スロットが5つ全部うまると渋滞ストップ！' },
   { k: 'partial', h: '📦 のこりは待機', t: '届く分だけ先に運んで、残りは道があくまでスロットで待つよ。' },
   { k: 'read', h: '🧠 先読みボーナス', t: '奥の色の箱を先に置いて、あとで全部運べたら「ナイス先読み」で🪙ボーナス！' },
-  { k: 'time', h: '⏱️ タイムで★★★', t: 'クリアタイムで★1〜3。「はやさ 2x/3x」も活用しよう。ゆっくりでもクリアOK！' },
+  { k: 'time', h: '⏱️ タイムで★★★', t: 'クリアタイムで★1〜3。コンボやフィーバー・スキルで速くなるよ！ゆっくりでもクリアOK！' },
   { k: 'rewind', h: '⏪ 何手でももどせる', t: '渋滞しても解ける所まで一気に戻れるよ。毎面1回目の「もどす」と「最初から」は無料！' },
   { k: 'fever', h: '🔥 フィーバー＆金キャンディ', t: 'テンポよく運ぶとFEVER！速さUP＆エサ2倍＆詰み防止。金のキャンディは🪙+15！' },
   { k: 'queen', h: '👑 女王さま育成', t: '集めたエサで女王さまがLvアップ！おへやと便利な特技がどんどん増えるよ。' }
@@ -3529,7 +3528,7 @@ function devTick() {
   }
   if (j < 0) { setAuto(false); toast('自動解答：この局面からは解けません'); return; }
   onTapCol(j);
-  G.autoAt = G.moves.length; G.autoNext = G.rt + 0.2 / G.speed;
+  G.autoAt = G.moves.length; G.autoNext = G.rt + 0.2;
 }
 
 /* ================= 入力・ボタン ================= */
@@ -3584,7 +3583,6 @@ window.addEventListener('keydown', e => {
   else if (k === 'z' || k === 'backspace') doUndo();
   else if (k === 'r') doRetry();
   else if (k === 'h') doHint();
-  else if (k === 'f') $('#bSpeed').click();
   else if (save.settings.dev && k === '[') devStep(-1);
   else if (save.settings.dev && k === ']') devStep(1);
 });
@@ -3623,11 +3621,6 @@ on('#bViewBack', () => openAlbum(G.fromTitle));
 on('#bViewPlay', () => { hideOv(); loadLevel(G.viewId); });
 on('#bUndo', doUndo);
 on('#bRetry', doRetry);
-on('#bSpeed', () => {
-  Sound.init(); Sound.tap();
-  G.speed = G.speed === 1 ? 2 : G.speed === 2 ? 3 : 1;
-  save.settings.fast = G.speed; persist(); G.hudDirty = true;
-});
 on('#bHint', () => { Sound.init(); doHint(); });
 on('#bScan', () => { Sound.init(); doScan(); });
 on('#bSkill', () => { Sound.init(); doMainSkill(); });
@@ -4040,7 +4033,7 @@ function frame(now) {
   const rdt = Math.min(0.05, Math.max(0, rawMs / 1000));
   lastT = now;
   G.rt += rdt;
-  let dt = rdt * G.speed;
+  let dt = rdt;
   const h = G.s && !G.pendingJam ? headsOf(G.s) : null;
   if (G.s && !G.pendingJam) {
     if (G.s.left === 0) dt *= 3.2;
@@ -4103,7 +4096,6 @@ function frame(now) {
 }
 
 /* ================= 起動 ================= */
-G.speed = save.settings.fast === 3 ? 3 : save.settings.fast ? 2 : 1;
 (function buildTitleLogo() {
   const el = $('#ttl');
   if (!el) return;
@@ -4567,7 +4559,6 @@ layout();
         ', のこり:' + G.s.left + '/' + G.level.total +
         ', スロット:' + G.s.boxes.length + '/' + SLOT_COUNT + (slots ? '[' + slots + ']' : '') +
         ', アリ:' + (G.ants ? G.ants.length : 0) +
-        ', 速度:' + G.speed + 'x' +
         ', undo:' + (G.undo ? G.undo.length : 0) +
         (stFlags.length ? ', 状態:' + stFlags.join('/') : '') + ')';
     }

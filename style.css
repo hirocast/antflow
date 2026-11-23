@@ -24,7 +24,6 @@ footer{flex:0 0 64px;display:flex;gap:8px;justify-content:center;align-items:fle
 .fb small{font-size:10.5px;font-weight:800;white-space:nowrap;letter-spacing:-0.02em}
 #bUndo{background:var(--sky);box-shadow:0 4px 0 var(--skyd)}
 #bRetry{background:var(--pink);box-shadow:0 4px 0 var(--pinkd)}
-#bSpeed{background:var(--yel);box-shadow:0 4px 0 var(--yeld)}
 #bHint{background:var(--mint);box-shadow:0 4px 0 var(--mintd)}
 .fb:active,.ib:active,.big:active{transform:translateY(3px);box-shadow:none!important}
 .fb:disabled{opacity:.45}
