@@ -49,7 +49,8 @@ const Sound = {
         this.applyVol(true);
       }
       if (this.ctx.state === 'suspended') this.ctx.resume();
-      if (save.settings.bgm) this.startBgm();
+      const inBgmMaker = typeof G !== 'undefined' && (G.overlay === 'bgm' || G.overlay === 'bgm-gal' || G.overlay === 'bgm-builtin' || G.overlay === 'bgm-posthelp');
+      if (save.settings.bgm && !inBgmMaker) this.startBgm();
     } catch (e) { /* 音声非対応 */ }
   },
   // 設定の音量（0〜100）を、耳で感じる大きさに近い曲線で反映する
