@@ -389,8 +389,20 @@
       #afdrop .afdrop-actions{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}
       #afdrop .afdrop-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));
         gap:6px;margin-top:10px}
-      #afdrop .afdrop-gallery div{padding:5px;background:#10112280;border-radius:8px;font-size:10px;overflow-wrap:anywhere}
+      #afdrop .afdrop-gallery button{display:flex;flex-direction:column;align-items:center;gap:4px;
+        padding:6px 5px;background:#10112280;color:#f8f6ff;border-radius:8px;font-size:10px;
+        font-weight:700;line-height:1.25;min-height:0;overflow-wrap:anywhere}
+      #afdrop .afdrop-gallery button:active{transform:scale(.96);background:#1c2046}
       #afdrop .afdrop-gallery canvas{display:block;width:100%;height:52px;object-fit:contain;image-rendering:pixelated}
+      #afdrop .afdrop-zoom{position:absolute;inset:0;z-index:4;display:grid;place-items:center;
+        padding:14px;background:#0a0b18e8}
+      #afdrop .afdrop-zoom[hidden]{display:none}
+      #afdrop .afdrop-zcard{width:min(100%,360px);background:#292d57;border:1px solid #ffffff26;
+        border-radius:18px;padding:16px;text-align:center;box-shadow:0 14px 36px #00000080}
+      #afdrop .afdrop-zbox{display:grid;place-items:center;margin:8px auto 10px;padding:12px;
+        background:#101122b0;border-radius:14px;width:min(70vw,260px);height:min(70vw,260px)}
+      #afdrop .afdrop-zbox canvas{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+      #afdrop .afdrop-zmeta{font-size:12px;color:#cfd4ff;margin:4px 0 0}
       @media(max-width:350px){#afdrop .afdrop-head{gap:4px}#afdrop .afdrop-head button{padding-inline:6px}}
     `;
     document.head.appendChild(style);
@@ -874,6 +886,85 @@
       ], [['もう一度', 'start'], ['図鑑', 'gallery', true], ['閉じる', 'close', true]]);
     }
 
+    let zoomBox = null;
+    let zoomTrigger = null;
+
+    function drawArtCanvas(cv, art, isOpen) {
+      cv.width = art.w;
+      cv.height = art.h;
+      const c = cv.getContext('2d');
+      art.pixels.forEach((n, p) => {
+        if (n < 0) return;
+        c.fillStyle = isOpen ? art.colors[n] : '#74799a';
+        c.fillRect(p % art.w, Math.floor(p / art.w), 1, 1);
+      });
+    }
+
+    function closeZoom() {
+      if (!zoomBox || zoomBox.hidden) return;
+      zoomBox.hidden = true;
+      zoomBox.replaceChildren();
+      el.panel.inert = false;
+      if (zoomTrigger?.isConnected) zoomTrigger.focus({ preventScroll: true });
+      zoomTrigger = null;
+    }
+
+    function openZoom(index, trigger) {
+      if (closed || !arts.length) return;
+      if (trigger) zoomTrigger = trigger;
+      let cur = ((index % arts.length) + arts.length) % arts.length;
+      if (!zoomBox) {
+        zoomBox = document.createElement('div');
+        zoomBox.className = 'afdrop-zoom';
+        zoomBox.hidden = true;
+        zoomBox.addEventListener('click', (e) => {
+          if (e.target === zoomBox) { audio.tap(); closeZoom(); }
+        });
+        root.append(zoomBox);
+      }
+      const renderZoom = () => {
+        const art = arts[cur];
+        const isOpen = unlocked.has(String(art.id));
+        const zcard = document.createElement('div');
+        zcard.className = 'afdrop-zcard';
+        const title = document.createElement('h2');
+        title.textContent = isOpen ? `No.${art.no} ${art.name}` : `No.${art.no} ？？？`;
+        const box = document.createElement('div');
+        box.className = 'afdrop-zbox';
+        const big = document.createElement('canvas');
+        drawArtCanvas(big, art, isOpen);
+        box.append(big);
+        const meta = document.createElement('p');
+        meta.className = 'afdrop-zmeta';
+        meta.textContent = isOpen
+          ? `${art.w}×${art.h} マス（${art.colors.length}色）`
+          : 'ゲームで完成させると色がつくよ！';
+        const bar = document.createElement('div');
+        bar.className = 'afdrop-actions';
+        const prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'secondary';
+        prevBtn.textContent = '◀ まえ';
+        prevBtn.addEventListener('click', () => { audio.tap(); cur = (cur - 1 + arts.length) % arts.length; renderZoom(); });
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.textContent = 'とじる';
+        closeBtn.addEventListener('click', () => { audio.tap(); closeZoom(); });
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'secondary';
+        nextBtn.textContent = 'つぎ ▶';
+        nextBtn.addEventListener('click', () => { audio.tap(); cur = (cur + 1) % arts.length; renderZoom(); });
+        bar.append(prevBtn, closeBtn, nextBtn);
+        zcard.append(title, box, meta, bar);
+        zoomBox.replaceChildren(zcard);
+      };
+      renderZoom();
+      zoomBox.hidden = false;
+      el.panel.inert = true;
+      zoomBox.querySelector('.afdrop-actions button:nth-child(2)')?.focus({ preventScroll: true });
+    }
+
     function openGallery() {
       if (closed || drag || userPaused || !['title', 'play', 'result'].includes(phase) || galleryFrom !== null) return;
       if (phase === 'play' && now() >= deadline) {
@@ -883,28 +974,24 @@
       galleryFrom = phase;
       if (phase === 'play') pausedAt = now();
       const card = showPanel(demo ? 'デモ作品の図鑑' : '完成アート図鑑',
-        [`${galleryCount()} / ${arts.length} 枚`], [['戻る', 'back']]);
+        [`${galleryCount()} / ${arts.length} 枚（タップで拡大）`], [['戻る', 'back']]);
       const grid = document.createElement('div');
       grid.className = 'afdrop-gallery';
-      for (const art of arts) {
-        const tile = document.createElement('div');
+      arts.forEach((art, idx) => {
+        const tile = document.createElement('button');
+        tile.type = 'button';
         const thumb = document.createElement('canvas');
-        thumb.width = art.w;
-        thumb.height = art.h;
-        const c = thumb.getContext('2d');
         const isOpen = unlocked.has(String(art.id));
-        art.pixels.forEach((n, p) => {
-          if (n < 0) return;
-          c.fillStyle = isOpen ? art.colors[n] : '#74799a';
-          c.fillRect(p % art.w, Math.floor(p / art.w), 1, 1);
-        });
+        drawArtCanvas(thumb, art, isOpen);
         tile.append(thumb, document.createTextNode(isOpen ? art.name : `No.${art.no}　？？？`));
+        tile.addEventListener('click', () => { audio.tap(); openZoom(idx, tile); });
         grid.append(tile);
-      }
+      });
       card.append(grid);
     }
 
     function closeGallery() {
+      closeZoom();
       const from = galleryFrom;
       galleryFrom = null;
       if (from === 'play') {
@@ -1032,7 +1119,8 @@
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        if (userPaused) resumeGame();
+        if (zoomBox && !zoomBox.hidden) closeZoom();
+        else if (userPaused) resumeGame();
         else if (galleryFrom !== null) closeGallery();
         else close();
         return;
