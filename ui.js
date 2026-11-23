@@ -67,6 +67,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
 #ov-title .home-h2{display:none}
 #ov-title .card p{margin:4px 0;font-size:13px;line-height:1.5}
+#ov-title .cfrow .big{font-size:13.5px;padding:0 6px;line-height:1.15;min-width:0}
 #ov-title.first-run .card{padding:26px 18px 24px!important}
 #ov-title.first-run .card > :not(#mascot):not(#ttl):not(#bPlay):not(p:not(.fine)){display:none!important}
 #ov-title.first-run #bPlay{width:84%;max-width:300px;padding:18px 20px;font-size:20px;margin:16px auto 8px;animation:afBreathe 1.4s ease-in-out infinite}
@@ -595,8 +596,8 @@ function handleTalkLikeClick(e) {
   $('#bSetHelp').insertAdjacentHTML('beforebegin', '<button class="big sec" id="bSetTut">🎓 チュートリアルをもう一度</button><button class="big sec" id="bSetFeedback">💬 要望・不具合を送る</button><button class="big sec" id="bSetA2hs">📲 ホーム画面に追加（アプリ化）</button>');
   $('#bJamClose').insertAdjacentHTML('afterend', '<button class="link" id="bJamHome" style="display:block;margin:10px auto 0">🏠 ホームへもどる</button>');
   $('#bAlbumClose').insertAdjacentHTML('afterend', '<button class="link" id="bAlbumHome" style="display:none;margin:10px auto 0">🏠 ホームへもどる</button>');
-  const titleAlbum = $('#bTitleAlbum');
-  if (titleAlbum) titleAlbum.insertAdjacentHTML('afterend', '<div class="cfrow" style="margin-top:8px"><button class="big sec" id="bTitleSet">⚙️ せってい</button><button class="big sec" id="bTitleFeedback">💬 要望・不具合</button></div>');
+  const titleHelpRow = $('#bTitleAlbum')?.closest('.cfrow') || $('#bTitleAlbum');
+  if (titleHelpRow) titleHelpRow.insertAdjacentHTML('afterend', '<div class="cfrow" style="margin-top:8px"><button class="big sec" id="bTitleSet">⚙️ せってい</button><button class="big sec" id="bTitleFeedback">💬 要望・不具合</button></div>');
   const titleCard = $('#ov-title .card');
   if (titleCard) titleCard.insertAdjacentHTML('beforeend', '<div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleDrop">🎨 ドロップぬりえ</button><button class="big mint" id="bTitleTsum">🎮 ありんこチェイン</button></div><div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleDrop2">🖌️ ドロップぬりえDX</button><button class="big mint" id="bTitleTsum2">🐜 ありんこチェインDX</button></div><div class="cfrow" style="margin-top:8px"><button class="big mint" id="bTitleSnipe">🎯 ピクセルスナイプ</button><button class="big mint" id="bTitleBounce">🏓 ピクセルアート崩し</button></div><button class="big mint" id="bTitleA2hs" style="display:none;margin-top:8px">📲 ホーム画面に追加して広く遊ぶ</button>');
   // あそびかた：ページめくり式に作りかえる
