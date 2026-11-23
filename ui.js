@@ -1159,6 +1159,53 @@ function niceRead() {
   Sound.nice();
   Tut.add('nice');
 }
+function feverDeliverBox(targetBoxId, maxCells) {
+  if (!G.s || !G.s.boxes.length) return 0;
+  let bi = -1;
+  if (targetBoxId) {
+    bi = G.s.boxes.findIndex(x => x.id === targetBoxId);
+  } else {
+    let bestRem = 9999;
+    for (let i = 0; i < G.s.boxes.length; i++) {
+      if (G.s.boxes[i].rem > 0 && G.s.boxes[i].rem < bestRem) { bestRem = G.s.boxes[i].rem; bi = i; }
+    }
+  }
+  if (bi < 0) return 0;
+  const b = G.s.boxes[bi];
+  const vb = G.vboxes.find(v => v.id === b.id);
+  const W = G.s.W;
+  let delivered = 0;
+  for (let i = 0; i < G.s.grid.length && b.rem > 0 && delivered < maxCells; i++) {
+    if (G.s.grid[i] !== b.c) continue;
+    G.s.grid[i] = -1; G.s.left--; b.rem--;
+    if (G.vgrid[i] >= 0) { G.vgrid[i] = -1; G.vver++; G.vleft--; eraseCell(i); G.boardSoft = true; }
+    if (vb) { vb.picked++; vb.dispatched++; }
+    const x = i % W, y = (i - x) / W, w = toW(x + 1, y + 1);
+    for (let p = 0; p < 4; p++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 120 - 25, life: 0, max: 0.42, col: HEX[b.c], s: Math.max(2.5, antPx * 0.18), star: p === 0 });
+    if (G.run) {
+      G.run.candies++; G.run.food += G.fever.t > 0 ? 2 : 1;
+      if (G.gold.has(i)) { G.gold.delete(i); G.run.gold++; }
+    }
+    delivered++;
+  }
+  if (b.rem <= 0) {
+    if (vb) vb.logicalDone = true;
+    G.waitIds.delete(b.id);
+    G.s.boxes.splice(bi, 1);
+  }
+  if (delivered > 0) {
+    const ev = [];
+    resolve(G.s, ev);
+    for (const e of ev) {
+      const evb = G.vboxes.find(v => v.id === e.id);
+      if (!evb) continue;
+      if (e.type === 'assign') evb.queue.push(...e.cells);
+      else if (e.type === 'done') { evb.logicalDone = true; G.waitIds.delete(e.id); }
+    }
+    G.rc = reachableCounts(G.s); G.hc = null; G.boardDirty = true; G.hudDirty = true;
+  }
+  return delivered;
+}
 function onTapCol(j) {
   if (G.overlay || !G.s || G.pendingWin || G.loading) return;
   const s = G.s;
@@ -1191,6 +1238,13 @@ function onTapCol(j) {
       }
     }
   }
+  if (G.fever.t > 0 && newId >= 0 && got === 0 && s.left > 0) {
+    const dig = feverDeliverBox(newId, 3);
+    if (dig > 0) {
+      got += dig;
+      popup('FEVER掘り!', bcx(), oy + G.s.H * cs * 0.38, '#ff7aa6', true);
+    }
+  }
   if (newId >= 0 && got === 0) G.waitIds.add(newId);
   G.trayOff[j] = trayGap;
   G.rc = reachableCounts(s);
@@ -1198,7 +1252,16 @@ function onTapCol(j) {
   G.hintCol = -1; G.boardDirty = true; G.lastTapT = G.rt;
   Sound.tap(); haptic(8);
   if (s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
-  else if (isJam(s)) G.pendingJam = true;
+  else if (isJam(s)) {
+    if (G.fever.t > 0 && (G.fever.rescue | 0) > 0) {
+      G.fever.rescue--;
+      if (feverDeliverBox(0, 999) > 0) {
+        popup('FEVER救済!', bcx(), oy + G.s.H * cs * 0.45, '#ff9a3c', true);
+      }
+    }
+    if (s.left === 0) { G.pendingWin = true; if (G.run) G.run.done = true; }
+    else if (isJam(s)) G.pendingJam = true;
+  }
   // はじめて起きたことを、その場で1回だけ説明する
   if (newId >= 0 && !G.pendingWin) {
     if (got === 0) Tut.add('sleep', free);
@@ -2906,7 +2969,7 @@ const HELP_PAGES = [
   { k: 'read', h: '🧠 先読みでボーナス', t: '奥の色の箱を先に置いておくと、外があいたしゅんかんに運び出すよ。あとでぜんぶ運べたら「ナイス先読み」！' },
   { k: 'time', h: '⏱️ タイムで★がきまる', t: '最初のタップから最後の箱を置くまでのタイムで★1〜3。「はやさ 2x」も使おう。ゆっくりでもクリアはできるよ。' },
   { k: 'rewind', h: '⏪ 何手でももどせる', t: '渋滞しても、まだ解ける所まで一気にもどれるよ。↶もどす・💡ヒントはコインを使うよ。⟳最初からは何回でもむりょう。' },
-  { k: 'fever', h: '🔥 フィーバーと金のキャンディ', t: 'テンポよく運ぶとフィーバー！アリさんが速くなって、エサが2倍。ピカピカの金のキャンディはコインのボーナスだよ。' },
+  { k: 'fever', h: '🔥 フィーバーと金のキャンディ', t: 'テンポよく運ぶとフィーバー！アリさんが速くなって、エサが2倍＆奥のキャンディも運べて詰みにくくなるよ。ピカピカの金のキャンディはコインのボーナスだよ。' },
   { k: 'queen', h: '👑 女王さまを育てよう', t: '運んだキャンディはエサになるよ。女王さまにあげると成長して、おへやと特別な力がふえるよ。毎日のミッションもあるよ！' }
 ];
 function openHelp(from) {

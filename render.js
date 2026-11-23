@@ -608,7 +608,7 @@ function eraseCell(i) {
 const COMBO_MARK = [10, 20, 30, 50, 75, 100, 150, 200, 300, 500];
 function startFever() {
   const R = G.run;
-  G.fever.g = 0; G.fever.t = G.perk.feverT;
+  G.fever.g = 0; G.fever.t = G.perk.feverT; G.fever.rescue = 2;
   if (R) R.fevers++;
   document.body.classList.add('fever');
   if (typeof Sound.setFever === 'function') Sound.setFever(true);
@@ -621,7 +621,7 @@ function startFever() {
   if (a) maybeSay(a, 'fever', 1, true);
 }
 function endFever() {
-  G.fever.t = 0;
+  G.fever.t = 0; G.fever.rescue = 0;
   document.body.classList.remove('fever');
   if (typeof Sound.setFever === 'function') Sound.setFever(false);
 }
