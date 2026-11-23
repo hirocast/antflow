@@ -653,7 +653,7 @@ function pickCube(a) {
   if (Math.abs(a.tx - a.x) > 0.01) a.face = a.tx > a.x ? 1 : -1;
   const w = toW(a.tx, a.ty), R = G.run, fev = G.fever.t > 0;
   for (let k = 0; k < (fev ? 8 : 6); k++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 175, vy: -Math.random() * 150 - 45, life: 0, max: 0.42, col: fev && k % 2 ? pick(POP) : HEX[a.c], s: Math.max(2.5, antPx * 0.17), star: k <= 1 });
-  if (G.time - G.comboT > G.perk.combo) G.combo = 0;
+  if (G.ants.length === 0) G.combo = 0;
   Sound.pop(G.combo++);
   G.comboT = G.time;
   if (G.rt - G.lastVib > 0.09) { haptic(8); G.lastVib = G.rt; }
@@ -703,8 +703,8 @@ function startReturn(a) {
 }
 const _antVbs = [];
 function updateAnts(dt, rdt) {
-  const comboOn = G.combo >= 3 && (G.time - G.comboT <= G.perk.combo);
-  const comboMul = comboOn ? 1 + Math.min(0.26, G.combo * 0.012) : 1;
+  const comboOn = G.combo >= 3 && G.ants.length > 0;
+  const comboMul = comboOn ? 1 + Math.min(0.26, G.combo * 0.012) + (G.perk ? G.perk.combo : 0) : 1;
   const fm = (G.fever.t > 0 ? 1.3 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1) * comboMul, gap = gapCells();
   _antVbs.length = 0;
   for (let k = 0, len = G.ants.length; k < len; k++) {
@@ -751,6 +751,7 @@ function updateAnts(dt, rdt) {
       }
     }
   }
+  if (G.ants.length === 0 && G.combo > 0) G.combo = 0;
   for (let i = 0; i < _antVbs.length; i++) _antVbs[i]._ants.length = 0;
   _antVbs.length = 0;
   const bdt = rdt == null ? dt : rdt;
@@ -911,10 +912,9 @@ function drawFever() {
     ctx.fillText(near ? '🔥 あと少しでFEVER!' : '🔥 FEVER ' + Math.round(pct * 100) + '%', cx, ty + 0.5);
     ctx.restore();
   }
-  // ライブコンボバッジ（2コンボ以上で残り受付時間バーと一緒に弾む）
+  // ライブコンボバッジ（2コンボ以上、盤面にアリが残っている間は継続）
   const comboAge = G.time - G.comboT;
-  if (G.combo >= 2 && comboAge <= G.perk.combo && !G.overlay) {
-    const rem = clamp(1 - comboAge / Math.max(0.1, G.perk.combo), 0, 1);
+  if (G.combo >= 2 && G.ants.length > 0 && !G.overlay) {
     const sc = comboAge < 0.14 ? 1 + 0.22 * Math.sin((comboAge / 0.14) * Math.PI) : 1;
     const txt = G.combo + ' COMBO!';
     ctx.save();
@@ -926,10 +926,8 @@ function drawFever() {
     ctx.fillStyle = G.combo >= 25 ? '#ff9a00' : G.combo >= 10 ? '#ff4d7e' : '#ff6f9f';
     roundRect(ctx, -cw / 2, -ch / 2, cw, ch, ch / 2); ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    roundRect(ctx, -cw * 0.36, ch / 2 - 4, cw * 0.72 * rem, 2.2, 1.1); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(txt, 0, -0.5);
+    ctx.fillText(txt, 0, 0.5);
     ctx.restore();
   }
 }
