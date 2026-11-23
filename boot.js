@@ -1,6 +1,6 @@
 // File: boot.js
 // 読み込みチェック：各 .js の最後の行で、自分のファイル名を AF_LOADED に登録する
-window.AF_APP_VER = '20261121cs';
+window.AF_APP_VER = '20261121ct';
 window.AF_LOADED = [];
 window.AF_ERR_LOG = [];
 window.AF_pushErr = function (msg) {

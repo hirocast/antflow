@@ -1567,6 +1567,7 @@ function drawGuides() {
   }
 }
 function followsSolution() {
+  if (G.solDirty) return false;
   const sol = G.level.solution;
   if (G.moves.length > sol.length) return false;
   for (let i = 0; i < G.moves.length; i++) if (G.moves[i] !== sol[i]) return false;

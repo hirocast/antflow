@@ -1138,7 +1138,7 @@ function pickGold(L) {
 function applyLevel(id, L) {
   if (G.scanId !== id) G.scanId = 0;
   G.levelId = id; G.level = L; G.s = makeState(L);
-  G.undo = []; G.moves = []; G.queued = null;
+  G.undo = []; G.moves = []; G.queued = null; G.solDirty = false;
   // アリの歩く速さ。ANT_RATE を変えると全体の速さが変わる（1＝前の速さ、0.5＝半分）
   const ANT_RATE = 0.72;
   G.antSpeed = clamp((L.W + L.H) * 0.36, 8, 42) * ANT_RATE;
@@ -1239,6 +1239,7 @@ function feverDeliverBox(targetBoxId, maxCells) {
     G.s.boxes.splice(bi, 1);
   }
   if (delivered > 0) {
+    G.solDirty = true;
     const ev = [];
     resolve(G.s, ev);
     for (const e of ev) {
@@ -2600,6 +2601,7 @@ function skillDeliverFromSlots(maxCount) {
   }
   hitSlots.forEach(si => addSkillFx({ kind: 'ring', x: slotX(si), y: slotY, r0: slotSize * 0.3, r1: slotSize * 1.15, col: '#ffd23f', fill: '#ffd23f', lw: 4.5, dur: 0.5 }));
   if (delivered > 0) {
+    G.solDirty = true;
     G.nestBounce = 1;
     const ev = [];
     resolve(G.s, ev);
@@ -3551,14 +3553,30 @@ function devTick() {
     return;
   }
   G.autoClearT = 0;
-  if (G.overlay === 'jam') { setAuto(false); return; }
-  if (G.overlay || G.pendingWin || G.rt < G.autoNext || G.vslots.indexOf(null) < 0 || G.s.boxes.length >= SLOT_COUNT) return;
+  if (G.overlay === 'jam') { setAuto(false); toast('自動解答：詰まったため停止しました'); return; }
+  if (G.overlay || G.pendingWin || G.pendingJam || G.rt < G.autoNext || G.vslots.indexOf(null) < 0 || G.s.boxes.length >= SLOT_COUNT) return;
   let j = -1;
   const sol = G.level.solution;
   if (followsSolution() && G.moves.length < sol.length) j = sol[G.moves.length];
   else {
-    if (!G.autoPath || G.autoAt !== G.moves.length) { const r = solve(G.s, 800, 80000); G.autoPath = r.path ? r.path.slice() : null; G.autoAt = G.moves.length; }
-    if (G.autoPath && G.autoPath.length) j = G.autoPath.shift();
+    if (!G.autoPath || G.autoAt !== G.moves.length) {
+      const r = solve(G.s, 2000, 200000);
+      G.autoPath = r.path ? r.path.slice() : null;
+      G.autoAt = G.moves.length;
+      if (!G.autoPath && r.aborted) {
+        let bestJ = -1, bestScore = -1e9;
+        for (const k of headsOf(G.s)) {
+          const t = cloneState(G.s);
+          place(t, k, null);
+          if (t.left === 0) { bestJ = k; break; }
+          if (isJam(t)) continue;
+          const sc = (G.s.boxes.length - t.boxes.length) * 1000 + (G.s.left - t.left);
+          if (sc > bestScore) { bestScore = sc; bestJ = k; }
+        }
+        if (bestJ >= 0) j = bestJ;
+      }
+    }
+    if (j < 0 && G.autoPath && G.autoPath.length) j = G.autoPath.shift();
   }
   if (j < 0) { setAuto(false); toast('自動解答：この局面からは解けません'); return; }
   onTapCol(j);
