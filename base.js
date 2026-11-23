@@ -1328,7 +1328,7 @@ const SKINS = [
 ];
 // 女王アリのレベルで増える力・おへや・称号
 const Q_MAX = 300;
-const qNeed = lv => Math.round((80 + 20 * lv + 0.05 * lv * lv) / 10) * 10;
+const qNeed = lv => Math.round((100 + 38 * lv + 0.085 * lv * lv) / 10) * 10;
 const Q_PERKS = [
   [3, 'もどすが1面1回むりょう'], [5, 'ヒントが20%オフ'], [6, 'フィーバーがたまりやすい'], [8, 'もどすが1面2回むりょう'], [10, '金のキャンディが出やすい'],
   [12, 'ヒントが40%オフ'], [15, 'もどすが1面3回むりょう'], [20, 'フィーバーがもっとたまりやすい'], [25, 'アリさんの足が速くなる（+20%）'], [30, 'フィーバーが長く続く（11.5秒）'],
@@ -1517,9 +1517,9 @@ function parTimes(L) {
   const baseSpd = clamp(((L.W || 20) + (L.H || 20)) * 0.36, 8, 42) * 0.58;
   const carry = (tot / baseSpd) * clamp(tot / 900, 0.42, 1.05);
   const tapPart = pos >= 1 && pos <= 2 ? nb * 1.15 + 7 : nb * (0.76 + d * 0.04) + carry * 0.52 + 6;
-  const progAdj = pos >= 1 ? 1 - clamp((pos - 65) / 35, 0, 1) * 0.33 : 1;
-  const flowPart = (carry * 0.94 + nb * 0.34 + 6) * progAdj;
-  const p3 = Math.round(Math.max(tapPart, flowPart) * perks().par);
+  const progAdj = pos >= 1 ? 1 - clamp((pos - 65) / 40, 0, 1) * 0.26 : 1;
+  const flowPart = carry * 0.94 + nb * 0.34 + 6;
+  const p3 = Math.round(Math.max(tapPart, flowPart) * progAdj * perks().par);
   return [p3, Math.round(p3 * 1.8)];
 }
 const timeStars = (t, par) => t <= par[0] ? 3 : t <= par[1] ? 2 : 1;
