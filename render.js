@@ -883,56 +883,78 @@ function drawFever() {
   if (!G.s) return;
   const W = G.s.W, H = G.s.H, p = framePad - 1, bx = ox - cs - p, by = oy - cs - p, bw = (W + 2) * cs + p * 2, bh = (H + 2) * cs + p * 2;
   const cx = bcx(), ty = Math.max(11, by + 1);
-  if (G.fever.t > 0) {
+  const minLeft = 6, maxRight = Math.max(minLeft + 40, boardSide ? Math.min(CW - 6, panelL - 4) : CW - 6);
+  const hasFeverT = G.fever.t > 0;
+  const hasFeverG = !hasFeverT && G.fever.g > 0.01 && !G.overlay;
+  let fTxt = '', tw = 0, gwBase = 0, gw = 0, near = false, feverMaxW = 0;
+  if (hasFeverT) {
+    fTxt = '🔥 FEVER ' + G.fever.t.toFixed(1) + 's';
+    ctx.font = fnt(900, 12.5);
+    tw = Math.max(110, Math.max(ctx.measureText('🔥 FEVER 88.8s').width, ctx.measureText(fTxt).width) + 20);
+    feverMaxW = tw;
+  } else if (hasFeverG) {
+    near = G.fever.g >= 0.75;
+    const pulse = near ? 1 + 0.04 * Math.sin(G.rt * 12) : 1;
+    gwBase = clamp(bw * 0.42, 86, 132);
+    gw = gwBase * pulse;
+    feverMaxW = gwBase * 1.04;
+  }
+  // ライブコンボバッジ（2コンボ以上、盤面にアリが残っている間は継続。サイズ固定で画面内に収める）
+  const showCombo = G.combo >= 2 && G.ants.length > 0 && !G.overlay;
+  let cTxt = '', cw = 0, cbx = 0, cLeft = maxRight;
+  if (showCombo) {
+    const cMul = Math.floor(G.combo / 100) * 0.1;
+    cTxt = G.combo + ' COMBO!' + (cMul > 0 ? ' ⚡' + (1 + cMul).toFixed(1) + 'x' : '');
+    const digits = G.combo >= 1000 ? '8888' : G.combo >= 100 ? '888' : '88';
+    const refTxt = digits + ' COMBO!' + (cMul > 0 ? ' ⚡1.8x' : '');
+    ctx.font = fnt(900, 11.5);
+    const rawCw = Math.max(ctx.measureText(refTxt).width, ctx.measureText(cTxt).width) + 16;
+    const wantRight = feverMaxW > 0 ? Math.max(bx + bw - 4, cx + feverMaxW / 2 + 6 + rawCw) : bx + bw - 4;
+    const cRight = Math.min(maxRight, wantRight);
+    const availCw = Math.max(60, cRight - minLeft - (feverMaxW > 0 ? feverMaxW + 6 : 0));
+    cw = Math.min(rawCw, availCw);
+    cbx = Math.max(minLeft + cw / 2, cRight - cw / 2);
+    cLeft = cbx - cw / 2;
+  }
+  const fcx = showCombo && feverMaxW > 0 ? Math.max(minLeft + feverMaxW / 2, Math.min(cx, cLeft - 6 - feverMaxW / 2)) : cx;
+  if (hasFeverT) {
     ctx.lineWidth = 5; ctx.strokeStyle = 'hsl(' + ((G.rt * 240) % 360) + ',95%,62%)';
     roundRect(ctx, bx, by, bw, bh, 24); ctx.stroke();
-    const txt = '🔥 FEVER ' + G.fever.t.toFixed(1) + 's';
     ctx.font = fnt(900, 12.5);
-    const tw = Math.max(110, ctx.measureText(txt).width + 20);
-    ctx.fillStyle = 'rgba(65,30,75,0.85)'; roundRect(ctx, cx - tw / 2, ty - 10, tw, 20, 10); ctx.fill();
+    ctx.fillStyle = 'rgba(65,30,75,0.85)'; roundRect(ctx, fcx - tw / 2, ty - 10, tw, 20, 10); ctx.fill();
     const pct = clamp(G.fever.t / Math.max(1, G.perk.feverT), 0, 1);
     if (pct > 0) {
-      ctx.save(); roundRect(ctx, cx - tw / 2 + 1.5, ty - 8.5, tw - 3, 17, 8.5); ctx.clip();
+      ctx.save(); roundRect(ctx, fcx - tw / 2 + 1.5, ty - 8.5, tw - 3, 17, 8.5); ctx.clip();
       ctx.fillStyle = 'hsl(' + ((G.rt * 240 + 180) % 360) + ',90%,58%)';
-      ctx.fillRect(cx - tw / 2, ty - 10, tw * pct, 20);
+      ctx.fillRect(fcx - tw / 2, ty - 10, tw * pct, 20);
       ctx.restore();
     }
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; roundRect(ctx, cx - tw / 2, ty - 10, tw, 20, 10); ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, ty + 0.5);
-  } else if (G.fever.g > 0.01 && !G.overlay) {
-    const pct = clamp(G.fever.g, 0, 1), near = pct >= 0.75;
-    const pulse = near ? 1 + 0.04 * Math.sin(G.rt * 12) : 1;
-    const gw = clamp(bw * 0.42, 86, 132) * pulse, gh = 16;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; roundRect(ctx, fcx - tw / 2, ty - 10, tw, 20, 10); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(fTxt, fcx, ty + 0.5, tw - 12);
+  } else if (hasFeverG) {
+    const pct = clamp(G.fever.g, 0, 1), gh = 16;
     ctx.save();
-    ctx.fillStyle = 'rgba(70,40,75,0.72)'; roundRect(ctx, cx - gw / 2, ty - gh / 2, gw, gh, gh / 2); ctx.fill();
-    ctx.save(); roundRect(ctx, cx - gw / 2 + 1.5, ty - gh / 2 + 1.5, gw - 3, gh - 3, (gh - 3) / 2); ctx.clip();
-    const fg = ctx.createLinearGradient(cx - gw / 2, 0, cx + gw / 2, 0);
+    ctx.fillStyle = 'rgba(70,40,75,0.72)'; roundRect(ctx, fcx - gw / 2, ty - gh / 2, gw, gh, gh / 2); ctx.fill();
+    ctx.save(); roundRect(ctx, fcx - gw / 2 + 1.5, ty - gh / 2 + 1.5, gw - 3, gh - 3, (gh - 3) / 2); ctx.clip();
+    const fg = ctx.createLinearGradient(fcx - gw / 2, 0, fcx + gw / 2, 0);
     fg.addColorStop(0, '#ff5a9a'); fg.addColorStop(1, '#ffd23f');
-    ctx.fillStyle = fg; ctx.fillRect(cx - gw / 2, ty - gh / 2, gw * pct, gh);
+    ctx.fillStyle = fg; ctx.fillRect(fcx - gw / 2, ty - gh / 2, gw * pct, gh);
     ctx.restore();
     ctx.strokeStyle = near ? '#ffd23f' : 'rgba(255,255,255,0.88)'; ctx.lineWidth = 1.5;
-    roundRect(ctx, cx - gw / 2, ty - gh / 2, gw, gh, gh / 2); ctx.stroke();
+    roundRect(ctx, fcx - gw / 2, ty - gh / 2, gw, gh, gh / 2); ctx.stroke();
     ctx.font = fnt(900, 10); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(near ? '🔥 あと少しでFEVER!' : '🔥 FEVER ' + Math.round(pct * 100) + '%', cx, ty + 0.5);
+    ctx.fillText(near ? '🔥 あと少しでFEVER!' : '🔥 FEVER ' + Math.round(pct * 100) + '%', fcx, ty + 0.5, gw - 8);
     ctx.restore();
   }
-  // ライブコンボバッジ（2コンボ以上、盤面にアリが残っている間は継続）
-  const comboAge = G.time - G.comboT;
-  if (G.combo >= 2 && G.ants.length > 0 && !G.overlay) {
-    const sc = comboAge < 0.14 ? 1 + 0.22 * Math.sin((comboAge / 0.14) * Math.PI) : 1;
-    const cMul = Math.floor(G.combo / 100) * 0.1;
-    const txt = G.combo + ' COMBO!' + (cMul > 0 ? ' ⚡' + (1 + cMul).toFixed(1) + 'x' : '');
+  if (showCombo) {
+    const ch = 19;
     ctx.save();
     ctx.font = fnt(900, 11.5);
-    const cw = ctx.measureText(txt).width + 16, ch = 19;
-    const cbx = clamp(bx + bw - cw / 2 - 6, cx + 62 + cw / 2, CW - cw / 2 - 4);
-    const cby = ty;
-    ctx.translate(cbx, cby); ctx.scale(sc, sc);
     ctx.fillStyle = G.combo >= 25 ? '#ff9a00' : G.combo >= 10 ? '#ff4d7e' : '#ff6f9f';
-    roundRect(ctx, -cw / 2, -ch / 2, cw, ch, ch / 2); ctx.fill();
+    roundRect(ctx, cbx - cw / 2, ty - ch / 2, cw, ch, ch / 2); ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(txt, 0, 0.5);
+    ctx.fillText(cTxt, cbx, ty + 0.5, cw - 12);
     ctx.restore();
   }
 }
