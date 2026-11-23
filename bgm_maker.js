@@ -58,22 +58,34 @@
     }
     return n;
   }
-  const NOTES = [
-    { label: 'ド↑', flat: 'ド↑', semi: 12, col: '#ff7aa6' },
-    { label: 'シ', flat: 'シ', semi: 11, col: '#ff9a5c' },
-    { label: 'ラ#', flat: 'シ♭', semi: 10, col: '#e6ae4e', sharp: true },
-    { label: 'ラ', flat: 'ラ', semi: 9, col: '#ffc845' },
-    { label: 'ソ#', flat: 'ラ♭', semi: 8, col: '#a8cf55', sharp: true },
-    { label: 'ソ', flat: 'ソ', semi: 7, col: '#84d966' },
-    { label: 'ファ#', flat: 'ソ♭', semi: 6, col: '#5bc7a0', sharp: true },
-    { label: 'ファ', flat: 'ファ', semi: 5, col: '#4ecdc4' },
-    { label: 'ミ', flat: 'ミ', semi: 4, col: '#69b4ff' },
-    { label: 'レ#', flat: 'ミ♭', semi: 3, col: '#7d9fff', sharp: true },
-    { label: 'レ', flat: 'レ', semi: 2, col: '#9b8aff' },
-    { label: 'ド#', flat: 'レ♭', semi: 1, col: '#b684ff', sharp: true },
-    { label: 'ド', flat: 'ド', semi: 0, col: '#d484ff' },
-    { label: 'シ↓', flat: 'シ↓', semi: -1, col: '#ff8a80' }
+  const BASE_NOTES = [
+    { label: 'ド', flat: 'ド', col: '#d484ff' },
+    { label: 'ド#', flat: 'レ♭', col: '#b684ff', sharp: true },
+    { label: 'レ', flat: 'レ', col: '#9b8aff' },
+    { label: 'レ#', flat: 'ミ♭', col: '#7d9fff', sharp: true },
+    { label: 'ミ', flat: 'ミ', col: '#69b4ff' },
+    { label: 'ファ', flat: 'ファ', col: '#4ecdc4' },
+    { label: 'ファ#', flat: 'ソ♭', col: '#5bc7a0', sharp: true },
+    { label: 'ソ', flat: 'ソ', col: '#84d966' },
+    { label: 'ソ#', flat: 'ラ♭', col: '#a8cf55', sharp: true },
+    { label: 'ラ', flat: 'ラ', col: '#ffc845' },
+    { label: 'ラ#', flat: 'シ♭', col: '#e6ae4e', sharp: true },
+    { label: 'シ', flat: 'シ', col: '#ff9a5c' }
   ];
+  function makeNoteDef(semi) {
+    const pc = ((semi % 12) + 12) % 12;
+    const oct = Math.floor(semi / 12);
+    const b = BASE_NOTES[pc];
+    const suf = oct < 0 ? '↓' : (oct === 1 ? '↑' : (oct >= 2 ? '↑↑' : ''));
+    const col = semi === 12 ? '#ff7aa6' : (semi === -1 ? '#ff8a80' : b.col);
+    return { label: b.label + suf, flat: b.flat + suf, semi, col, sharp: !!b.sharp };
+  }
+  function getOctaveNotes(oct) {
+    const range = oct < 0 ? [-12, 0] : (oct > 0 ? [12, 24] : [-1, 12]);
+    const list = [];
+    for (let s = range[1]; s >= range[0]; s--) list.push(makeNoteDef(s));
+    return list;
+  }
   const INSTS = [
     { id: 'mallet', label: '🎹 もっきん' },
     { id: 'chip', label: '🎵 ピコピコ' },
@@ -154,8 +166,8 @@
 
   function quantizeSemi(semi) {
     semi = Math.round(Number(semi) || 0);
-    while (semi < -1) semi += 12;
-    while (semi > 12) semi -= 12;
+    while (semi < -12) semi += 12;
+    while (semi > 24) semi -= 12;
     return semi;
   }
   function importBuiltinSong(key) {
@@ -241,6 +253,7 @@
   let paintVal = null;
   let editMode = 'note'; // 'note' | 'tie'
   let useFlat = false;
+  let curOct = 0; // -1: ひくい, 0: ふつう, 1: たかい
   let tieDrag = null;
   let built = false;
   const undoStack = [];
@@ -536,13 +549,31 @@
     if (playing) startPreview();
   }
 
+  function updateOctaveDots() {
+    const bar = song.bars[curBar];
+    const btns = document.querySelectorAll('#bgmOct .bgm-obtn');
+    for (let i = 0; i < btns.length; i++) {
+      const oct = +btns[i].dataset.oct;
+      btns[i].classList.toggle('on', oct === curOct);
+      let has = false;
+      for (let st = 0; st < 16 && !has; st++) {
+        const arr = bar.notes[st];
+        for (let k = 0; k < arr.length; k++) {
+          const s = arr[k];
+          if ((oct < 0 && s <= -2) || (oct === 0 && s >= 0 && s <= 11) || (oct > 0 && s >= 13)) { has = true; break; }
+        }
+      }
+      btns[i].classList.toggle('has', has);
+    }
+  }
   function renderGrid() {
     const grid = $('#bgmGrid');
     if (!grid) return;
     const bar = song.bars[curBar];
+    const notes = getOctaveNotes(curOct);
     let html = '';
-    for (let r = 0; r < NOTES.length; r++) {
-      const nt = NOTES[r];
+    for (let r = 0; r < notes.length; r++) {
+      const nt = notes[r];
       const acc = nt.sharp ? ' acc' : '';
       const lbl = useFlat ? nt.flat : nt.label;
       const tip = nt.sharp ? (' title="' + nt.label + ' / ' + nt.flat + '"') : '';
@@ -558,6 +589,7 @@
         html += '<button type="button" class="bgm-cell' + acc + beat + cls + '" data-kind="note" data-semi="' + nt.semi + '" data-st="' + st + '"' + bg + '></button>';
       }
     }
+    updateOctaveDots();
     // ドラム2行
     html += '<div class="bgm-lbl">🥁</div>';
     for (let st = 0; st < 16; st++) {
@@ -787,6 +819,11 @@
 .bgm-mbtn:disabled{opacity:.4;cursor:default}
 .mktab.bgm-back{flex:0 0 auto;padding:0 10px;background:#fff1d6;color:var(--ink)}
 .bgm-mhint{flex:1;text-align:right;font-size:10px;opacity:.7;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bgm-oct{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:5px}
+.bgm-obtn{position:relative;border:none;border-radius:10px;padding:5px 6px;min-height:28px;background:#fff1d6;color:var(--ink);font:800 11px var(--rf);cursor:pointer}
+.bgm-obtn.on{background:#7d6bff;color:#fff}
+.bgm-obtn.has::after{content:'';position:absolute;top:4px;right:6px;width:6px;height:6px;border-radius:50%;background:#ff5a9a}
+.bgm-obtn.on.has::after{background:#ffe078}
 .bgm-grid{display:grid;grid-template-columns:32px repeat(16,minmax(22px,1fr));gap:2px;background:#f8ecf2;padding:5px;border-radius:14px;border:2px solid #ffd3e2;touch-action:pan-x;user-select:none;overflow-x:auto}
 .bgm-lbl{font:900 10px/1 var(--rf);display:flex;align-items:center;justify-content:center}
 .bgm-lbl.acc{font-size:9px;background:#efe2ea;border-radius:5px;padding:2px 0}
@@ -846,6 +883,11 @@
           '<button type="button" class="bgm-mbtn" id="bgmAccBtn" title="シャープ(♯)とフラット(♭)の表示を切り替え">♯ 表記</button>' +
           '<button type="button" class="bgm-mbtn" id="bgmUndoBtn" disabled>↶ もどす</button>' +
           '<span class="bgm-mhint">のばす時は「のばす」</span>' +
+        '</div>' +
+        '<div class="bgm-oct" id="bgmOct">' +
+          '<button type="button" class="bgm-obtn" data-oct="-1">🔉 ひくい音</button>' +
+          '<button type="button" class="bgm-obtn on" data-oct="0">🎵 ふつう</button>' +
+          '<button type="button" class="bgm-obtn" data-oct="1">🔊 たかい音</button>' +
         '</div>' +
         '<div class="bgm-grid" id="bgmGrid"></div>' +
         '<div class="bgm-btns">' +
@@ -948,6 +990,13 @@
       for (let i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].dataset.mode === editMode);
       const hint = $('#bgmMode .bgm-mhint');
       if (hint) hint.textContent = editMode === 'tie' ? '右へドラッグまたはタップでのばせるよ' : 'のばす時は「のばす」';
+    });
+
+    $('#bgmOct').addEventListener('click', e => {
+      const b = e.target.closest('.bgm-obtn');
+      if (!b) return;
+      curOct = +b.dataset.oct;
+      renderGrid();
     });
 
     const grid = $('#bgmGrid');
