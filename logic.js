@@ -381,7 +381,7 @@ function defaultSave(devFlag) {
     cleared: {},
     newArts: [],
     flags: { help: 0, lp: 0 },
-    settings: { sfx: true, bgm: true, vib: true, talk: true, steps: true, sfxVol: 90, bgmVol: 70, cb: false, wash: true, dim: true, info: false, fast: false, dev: !!devFlag }
+    settings: { sfx: true, bgm: true, vib: true, talk: true, steps: false, sfxVol: 90, bgmVol: 70, cb: false, wash: true, dim: true, info: false, fast: false, dev: !!devFlag }
   };
 }
 function normalizeSave(s, devFlag) {

@@ -710,7 +710,7 @@ Sound.fever = function () {
 };
 Sound.gold = function () {
   if (!this.ok()) return;
-  [1318.5, 1760, 2093].forEach((f, i) => this.bell(f, i * 0.07, 0.06, 0.6));
+  [1318.5, 1760, 2093].forEach((f, i) => this.bell(f, i * 0.07, 0.035, 0.6));
 };
 Sound.coin = function () {
   if (!this.ok()) return;
@@ -720,7 +720,7 @@ Sound.coin = function () {
 Sound.nice = function () { if (this.ok()) [659.25, 987.77].forEach((f, i) => this.mallet(f, i * 0.08, 0.1)); };
 Sound.perfectBox = function () { if (this.ok()) [523.25, 659.25, 783.99].forEach((f, i) => this.mallet(f, i * 0.045, 0.085)); };
 Sound.chain = function (n) { if (this.ok()) [587.33, 739.99, 880, 1174.66].slice(0, Math.min(4, 2 + (n || 1))).forEach((f, i) => this.mallet(f, i * 0.055, 0.1)); };
-Sound.lastSpurt = function () { if (this.ok()) [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.bell(f, i * 0.05, 0.065, 0.45)); };
+Sound.lastSpurt = function () { if (this.ok()) [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.bell(f, i * 0.05, 0.045, 0.45)); };
 
 /* ================= 育成・経済（セーブに項目を足す。古いセーブもそのまま使える） ================= */
 // tut：見おわったチュートリアルの記録

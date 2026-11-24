@@ -231,17 +231,24 @@ const Sound = {
   },
   tap() {
     if (!this.ok()) return;
-    this.tone(392 * this.vary(), 0.12, { vol: 0.16, glide: 0.8, attack: 0.004 });
-    this.tone(784, 0.05, { vol: 0.03, type: 'triangle' });
-    this.noise(0, 0.025, 0.04, 1400, 'bandpass', 1);
+    const f = 523.25 * this.vary();
+    this.tone(f, 0.085, { vol: 0.18, glide: 1.18, attack: 0.002 });
+    this.tone(f * 2, 0.045, { vol: 0.055, type: 'triangle', attack: 0.002 });
+    this.noise(0, 0.018, 0.035, 2200, 'bandpass', 1.4);
   },
   land() {
     if (!this.ok()) return;
-    this.tone(196 * this.vary(), 0.1, { vol: 0.12, glide: 0.75, attack: 0.003 });
-    this.noise(0, 0.04, 0.03, 700, 'bandpass', 1);
+    this.tone(196 * this.vary(), 0.09, { vol: 0.05, glide: 0.75, attack: 0.003 });
+    this.noise(0, 0.035, 0.015, 700, 'bandpass', 1);
   },
-  boxOut() { if (this.ok()) this.tone(330 * this.vary(), 0.1, { vol: 0.07, glide: 1.5, attack: 0.01 }); },
-  // キャンディを拾う音：コンボに合わせて5音音階を気持ちよく駆け上がり、節目のコンボでキラキラ倍音を重ねる
+  boxOut() {
+    if (!this.ok()) return;
+    const f = 587.33 * this.vary();
+    this.tone(f, 0.11, { vol: 0.13, glide: 1.45, attack: 0.003 });
+    this.mallet(f * 1.5, 0.035, 0.11);
+    this.bell(f * 2, 0.055, 0.055, 0.24);
+  },
+  // キャンディを拾う音：コンボに合わせて5音音階を気持ちよく駆け上がり、節目のコンボでキラキラ倍音を重ねる（自動進行のため控えめ音量）
   pop(combo) {
     if (!this.ok()) return;
     const now = this.ctx.currentTime;
@@ -249,7 +256,7 @@ const Sound = {
     this.lastPop = now;
     this.popTimes = this.popTimes.filter(t => now - t < 1);
     this.popTimes.push(now);
-    const vol = 0.16 / Math.sqrt(Math.max(1, this.popTimes.length / 3));
+    const vol = 0.075 / Math.sqrt(Math.max(1, this.popTimes.length / 3));
     const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
     let semi;
     if (typeof combo === 'number' && combo >= 0) {
@@ -265,9 +272,9 @@ const Sound = {
     }
     const freq = 261.63 * Math.pow(2, semi / 12) * this.vary();
     this.mallet(freq, 0, vol);
-    this.noise(0, 0.028, vol * 0.28, 2400, 'bandpass', 1.2);
+    this.noise(0, 0.024, vol * 0.22, 2400, 'bandpass', 1.2);
     if (typeof combo === 'number' && combo >= 4 && ((combo + 1) % 5 === 0)) {
-      this.bell(freq * 1.5, 0.015, vol * 0.28, 0.32);
+      this.bell(freq * 1.5, 0.015, vol * 0.22, 0.32);
     }
   },
   thump() {
@@ -275,12 +282,12 @@ const Sound = {
     const now = this.ctx.currentTime;
     if (now - this.lastThump < 0.1) return;
     this.lastThump = now;
-    this.tone(150 * this.vary(), 0.08, { vol: 0.06, glide: 0.7, attack: 0.004 });
+    this.tone(150 * this.vary(), 0.08, { vol: 0.03, glide: 0.7, attack: 0.004 });
   },
   squeak() {
     if (!this.ok()) return;
-    this.tone(587 * this.vary(), 0.08, { vol: 0.045, glide: 1.25, attack: 0.01 });
-    this.tone(698, 0.09, { vol: 0.04, glide: 1.2, attack: 0.01, when: 0.08 });
+    this.tone(587 * this.vary(), 0.08, { vol: 0.024, glide: 1.25, attack: 0.01 });
+    this.tone(698, 0.09, { vol: 0.02, glide: 1.2, attack: 0.01, when: 0.08 });
   },
   deny() {
     if (!this.ok()) return;
