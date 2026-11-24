@@ -1287,6 +1287,8 @@ const BINGO_CARDS = [
 /* ================= 育成・経済のデータ ================= */
 // PRICE：便利機能とおたからばこの値段（コイン）
 const PRICE = { undo: 20, hint: 30, rewind: 40, box: 3000, scan: 200 };
+// FEVER_CANDIES：どの盤面でも巣に入れたキャンディ基本200個でフィーバー突入（育成・スキン特典で短縮）
+const FEVER_CANDIES = 200;
 // SHOP_PACKS：ショップの販売パック定義（標準ガチャ相場 ¥300〜320/回・10連 ¥3,200 基準）
 const SHOP_PACKS = [
   { id: 'starter', cat: 'set', e: '🌱', n: 'おためし応援パック', tag: '1回限定・超おとく', priceJpy: 480, food: 30000, coins: 6000, tickets: 3, once: true, desc: 'ガチャ券3まい＋コイン6,000（計5回分）＋エサ3万のお得スターター！' },

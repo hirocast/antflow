@@ -724,7 +724,7 @@ Sound.lastSpurt = function () { if (this.ok()) [523.25, 659.25, 783.99, 1046.5].
 
 /* ================= 育成・経済（セーブに項目を足す。古いセーブもそのまま使える） ================= */
 // tut：見おわったチュートリアルの記録
-const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skinCnt: { none: 1 }, skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {}, seenTalk: [], bingo: { card: 0, claimed: {} }, shopBought: {}, shopReceipts: [] };
+const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, feverG: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skinCnt: { none: 1 }, skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {}, seenTalk: [], bingo: { card: 0, claimed: {} }, shopBought: {}, shopReceipts: [] };
 let seenTalkSet = new Set();
 function metaInit(force) {
   for (const k in META_DEF) {
@@ -752,6 +752,7 @@ function metaInit(force) {
   save.qexp = Math.max(0, Math.floor(save.qexp) || 0);
   while (save.qlv < Q_MAX && save.qexp >= qNeed(save.qlv)) { save.qexp -= qNeed(save.qlv); save.qlv++; }
   if (save.qlv >= Q_MAX) save.qexp = 0;
+  save.feverG = clamp(Number(save.feverG) || 0, 0, 0.99);
   save.coins = Math.max(0, Math.floor(save.coins) || 0);
   save.food = Math.max(0, Math.floor(save.food) || 0);
   save.tickets = Math.max(0, Math.floor(save.tickets) || 0);
@@ -1208,8 +1209,9 @@ function applyLevel(id, L) {
   G.run = { started: false, done: false, time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0, freeU: G.perk.freeUndo, freeH: G.perk.freeHint, newTalks: [], bingoSnap: bingoSnapshot() };
   G.par = parTimes(L); G.waitIds = new Set(); G.timerShown = -9;
   endFever();
+  const carryFever = (!L.custom && !G.firstSim) ? clamp(save.feverG || 0, 0, 0.99) : 0;
   const streakCharge = (!G.firstSim && (G.streak || 0) >= 1) ? Math.min(0.45, (G.streak || 0) * 0.15) : 0;
-  G.fever.g = streakCharge;
+  G.fever.g = Math.min(0.95, carryFever + streakCharge);
   const sk = getSkinSkill(save.skin);
   G.skill = { g: 0, max: Math.min(sk.pNeed, Math.max(10, Math.round(L.total * 0.35))), freezeT: 0, boostT: 0 };
   if (typeof updateSkillBtn === 'function') updateSkillBtn();
@@ -1221,8 +1223,14 @@ function applyLevel(id, L) {
   G.oneColNotified = false; G.oneColT = 0; G.lpNotified = false; G.almostNotified = false; G.lastTapT = G.rt;
   if (typeof hideMicroGuide === 'function') hideMicroGuide();
   G.recCol = -1; G.maskAlpha = 0; G.pickFlashes = []; G.newReachFlashes = []; G.assignFlashes = []; G.prevVisReach = null; G.tapFlash = null;
-  if (streakCharge > 0 && !G.overlay) {
-    popup('🔥 ' + G.streak + '連続! FEVER+' + Math.round(streakCharge * 100) + '%', bcx(), oy + L.H * cs * 0.38, '#ffd23f');
+  if (G.fever.g > 0 && !G.overlay) {
+    const pctStr = Math.round(G.fever.g * 100) + '%';
+    const msg = carryFever > 0 && streakCharge > 0
+      ? '🔥 もちこし＋' + G.streak + '連続! FEVER ' + pctStr
+      : carryFever > 0
+        ? '🔥 ゲージもちこし! FEVER ' + pctStr
+        : '🔥 ' + G.streak + '連続! FEVER+' + pctStr;
+    popup(msg, bcx(), oy + L.H * cs * 0.38, '#ffd23f');
   }
   Sound.setBgm(L.name, L.theme);
   if (!G.overlay) G.bgmBanner = save.settings.bgm !== false ? { title: Sound.bgmTitle(), t0: null } : null;
@@ -1589,6 +1597,7 @@ function showClear() {
   const R = G.run || { time: 0, candies: 0, food: 0, maxCombo: 0, fevers: 0, fcoin: 0, gold: 0, nice: 0, undos: 0, hints: 0 };
   G.clearShown = true; G.nextBusy = false; G.scanId = 0; refreshPrices();
   endFever();
+  if (!isCustom && !G.firstSim) save.feverG = clamp(G.fever.g || 0, 0, 0.99);
   G.streak = (G.streak || 0) + 1;
   const t = Math.max(0.1, Math.round(R.time * 10) / 10), par = G.par || parTimes(G.level), st = timeStars(t, par);
   const prev = !isCustom && save.best[id], firstS3 = !isCustom && st === 3 && !(prev && prev.s >= 3), newBest = !!prev && t < prev.t;
@@ -1757,7 +1766,8 @@ function showClear() {
     $('#albumBar').style.width = (100 * got / TOTAL) + '%';
     if (first) { $('#albumNew').classList.add('on'); Sound.albumIn(); }
   }, 850);
-  const nc = $('#nextCv'), bn = $('#bNext'), nxtFev = Math.min(45, G.streak * 15);
+  const nc = $('#nextCv'), bn = $('#bNext');
+  const nxtCarry = Math.round((save.feverG || 0) * 100), nxtStreak = Math.min(45, G.streak * 15), nxtFev = Math.min(95, nxtCarry + nxtStreak);
   if (isCustom) {
     nc.style.display = 'none';
     $('#nextLabel').textContent = 'オリジナルステージ';
@@ -1766,9 +1776,11 @@ function showClear() {
   } else if (nx) {
     const na = getArt(nx);
     drawThumb(nc, na, 52, !save.cleared[nx]); nc.style.display = '';
-    $('#nextLabel').textContent = '🔥 ' + G.streak + 'れんぞく！つぎはFEVER +' + nxtFev + '%でスタート！';
+    $('#nextLabel').textContent = nxtCarry > 0
+      ? '🔥 もちこし' + nxtCarry + '%＋' + G.streak + 'れんぞく！つぎはFEVER ' + nxtFev + '%スタート！'
+      : '🔥 ' + G.streak + 'れんぞく！つぎはFEVER +' + nxtFev + '%でスタート！';
     $('#nextName').textContent = 'つぎは「' + na.theme + '」の絵！（' + na.W + '×' + na.H + '）';
-    bn.textContent = 'つぎへ ▶（🔥FEVER+' + nxtFev + '%）';
+    bn.textContent = 'つぎへ ▶（🔥FEVER ' + nxtFev + '%）';
   } else {
     nc.style.display = 'none';
     $('#nextLabel').textContent = 'おめでとう！';

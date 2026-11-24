@@ -669,8 +669,6 @@ function pickCube(a) {
       Sound.gold(); maybeSay(a, 'gold', 1, true); said = true;
       for (let k = 0; k < 10; k++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 260, vy: -Math.random() * 220 - 60, life: 0, max: 0.7, col: '#ffd23f', s: Math.max(3, antPx * 0.22), star: true });
     }
-    // フィーバー：小さい面でも大きい面でも、1面で2〜3回たまるくらいの速さ
-    if (!fev) { G.fever.g += 2.0 / G.level.total * (1 + Math.min(G.combo, 30) / 30) * G.perk.fever; if (G.fever.g >= 1) startFever(); }
     if (typeof addSkillCharge === 'function') addSkillCharge(1);
     if (G.combo >= 100 && G.combo % 100 === 0) {
       const mulStr = (1 + Math.floor(G.combo / 100) * 0.1).toFixed(1);
@@ -746,6 +744,16 @@ function updateAnts(dt, rdt) {
       if (a.state === 'out') { a.state = 'pick'; a.t = 0; pickCube(a); }
       else {
         a.state = 'enter'; a.t = 0; G.nestBounce = 1; Sound.thump();
+        // フィーバー：どの盤面でも一定個数（FEVER_CANDIES=200）を巣に入れたら突入（育成・スキン特典で加速、クリア直前の戻り分は次面持ち越し用に蓄積）
+        if (G.run && G.fever.t <= 0) {
+          const step = (1 / FEVER_CANDIES) * ((G.perk && G.perk.fever) || 1);
+          if (!G.pendingWin) {
+            G.fever.g += step;
+            if (G.fever.g >= 1) startFever();
+          } else {
+            G.fever.g = Math.min(0.95, G.fever.g + step);
+          }
+        }
         if (Math.random() < 0.28) G.parts.push({ x: nestX, y: nestY - nestR * 0.4, vx: (Math.random() - 0.5) * 60, vy: -90, life: 0, max: 0.5, col: '#ffd45e', s: antPx * 0.3, star: true });
         // にぎわっているときは、穴のふちから土の粒がこぼれる
         if (G.ants.length >= 4 && Math.random() < 0.5) {
