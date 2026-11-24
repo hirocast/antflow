@@ -1540,8 +1540,9 @@ function drawSpotlightAndFlashes() {
     }
     const cells = G.nextReachCells;
     if (cells && cells.length) {
-      const pulse = redMot ? 0.95 : 0.78 + 0.22 * Math.sin(G.rt * 5.2);
-      const ins = Math.max(1, cs * 0.08), sz = Math.max(2, cs - ins * 2), r = Math.max(1.5, cs * 0.22);
+      const wave = redMot ? 0.8 : 0.5 + 0.5 * Math.sin(G.rt * 4.5);
+      const pulse = 0.55 + 0.45 * wave;
+      const ins = Math.max(0.8, cs * 0.06), sz = Math.max(2, cs - ins * 2), r = Math.max(1.5, cs * 0.22);
       ctx.save();
       ctx.beginPath();
       for (let i = 0; i < cells.length; i += 2) {
@@ -1553,12 +1554,23 @@ function drawSpotlightAndFlashes() {
         ctx.arcTo(rx, ry, rx + sz, ry, r);
         ctx.closePath();
       }
-      ctx.strokeStyle = 'rgba(75,35,75,' + (0.85 * pulse).toFixed(3) + ')';
-      ctx.lineWidth = Math.max(2.8, cs * 0.22);
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.04 + 0.18 * wave).toFixed(3) + ')';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(55,22,60,' + (0.9 * pulse).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(3.2, cs * 0.26);
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,246,140,' + (0.98 * pulse).toFixed(3) + ')';
-      ctx.lineWidth = Math.max(1.5, cs * 0.11);
+      ctx.strokeStyle = 'rgba(255,255,255,' + pulse.toFixed(3) + ')';
+      ctx.lineWidth = Math.max(1.8, cs * 0.14);
       ctx.stroke();
+      if (cs >= 12) {
+        const sr = Math.max(2, cs * 0.17);
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.7 + 0.3 * wave).toFixed(3) + ')';
+        for (let i = 0; i < cells.length; i += 2) {
+          const sx = ox + cells[i] * cs + ins + sz * 0.8, sy = oy + cells[i + 1] * cs + ins + sz * 0.2;
+          starPath(ctx, sx, sy, sr, sr * 0.36, 4);
+          ctx.fill();
+        }
+      }
       ctx.restore();
     }
   }
