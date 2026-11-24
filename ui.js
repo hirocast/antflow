@@ -2775,9 +2775,7 @@ function updateSkillBtn() {
   b.classList.toggle('ready', ready);
 }
 function calcSkillMax(pNeed, total) {
-  if (!total) return pNeed;
-  if (total <= 60) return Math.min(pNeed, Math.max(10, Math.round(total * 0.32)));
-  return Math.min(90, Math.max(pNeed, Math.round(pNeed + Math.max(0, total - 100) * 0.12)));
+  return total ? Math.min(pNeed, Math.max(10, Math.round(total * 0.35))) : pNeed;
 }
 function addSkillCharge(n) {
   if (!G.skill || G.skill.g >= G.skill.max) return;
