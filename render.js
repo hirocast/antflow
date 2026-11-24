@@ -452,13 +452,14 @@ function makeCube(ci, px, washed) {
   const c = document.createElement('canvas');
   c.width = c.height = px;
   const g = c.getContext('2d');
-  paintCandy(g, 0, 0, px, ci);
-  if (save.settings.cb && px >= 16) {
-    g.font = '700 ' + Math.round(px * 0.42) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const sub = washed ? Math.max(2, Math.round(px * 0.68)) : px;
+  const off = (px - sub) / 2;
+  paintCandy(g, off, off, sub, ci);
+  if (save.settings.cb && sub >= 14) {
+    g.font = '700 ' + Math.round(sub * 0.42) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = LIGHT.has(ci) ? 'rgba(70,50,60,.75)' : 'rgba(255,255,255,.92)';
-    g.fillText(SYM[ci], px / 2, px * 0.45);
+    g.fillText(SYM[ci], px / 2, off + sub * 0.45);
   }
-  if (washed) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(0, 0, px, px); }
   return c;
 }
 function buildSprites() {
