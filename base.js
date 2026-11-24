@@ -1383,7 +1383,7 @@ const MISSION_POOL = [
   { k: 'noassist', n: 1, t: 'もどす・ヒントなしでクリア', r: 80 },
   { k: 'feed', n: 1, t: '女王さまにごはんをあげる', r: 40 }
 ];
-const LOGIN_REWARD = [50, 60, 80, 100, 120, 150, 300];
+const LOGIN_REWARD = [500, 600, 800, 1000, 1200, 1500, 3000];
 // きせかえスキルレベル（ツムツム風育成）
 const SKIN_MAX_LV = 5;
 const SKIN_SLV_THRESH = [1, 2, 4, 7, 11];
