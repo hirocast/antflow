@@ -1527,37 +1527,39 @@ function drawSpotlightAndFlashes() {
     }
     ctx.restore();
   }
-  // 運び終わったあとに新しく一番外側になるマスの境界を光らせる
+  // 運び終わったあとに新しく一番外側になるマスをくっきり枠取りして光らせる
   if (save.settings.wash && s.left < G.vleft && !G.overlay) {
     if (G.nextReachS !== s || G.nextReachLeft !== s.left || G.nextReachVver !== G.vver) {
       G.nextReachS = s; G.nextReachLeft = s.left; G.nextReachVver = G.vver;
       if (!dist) dist = visDist(ne.ex, ne.ey);
-      const EW = W + 2, sDist = bfs(s.grid, W, H, ne.ex, ne.ey), edges = [];
+      const sDist = bfs(s.grid, W, H, ne.ex, ne.ey), cells = [];
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         const idx = y * W + x;
         if (s.grid[idx] < 0 || cubeDist(sDist, W, x, y) < 0 || cubeDist(dist, W, x, y) >= 0) continue;
-        if (sDist[(y + 1) * EW + (x + 2)] >= 0) edges.push(x + 1, y, x + 1, y + 1);
-        if (sDist[(y + 1) * EW + x] >= 0) edges.push(x, y, x, y + 1);
-        if (sDist[(y + 2) * EW + (x + 1)] >= 0) edges.push(x, y + 1, x + 1, y + 1);
-        if (sDist[y * EW + (x + 1)] >= 0) edges.push(x, y, x + 1, y);
+        cells.push(x, y);
       }
-      G.nextReachEdges = edges;
+      G.nextReachCells = cells;
     }
-    const edges = G.nextReachEdges;
-    if (edges && edges.length) {
-      const pulse = redMot ? 0.9 : 0.72 + 0.25 * Math.sin(G.rt * 5.2);
+    const cells = G.nextReachCells;
+    if (cells && cells.length) {
+      const pulse = redMot ? 0.95 : 0.78 + 0.22 * Math.sin(G.rt * 5.2);
+      const ins = Math.max(1, cs * 0.08), sz = Math.max(2, cs - ins * 2), r = Math.max(1.5, cs * 0.22);
       ctx.save();
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath();
-      for (let i = 0; i < edges.length; i += 4) {
-        ctx.moveTo(ox + edges[i] * cs, oy + edges[i + 1] * cs);
-        ctx.lineTo(ox + edges[i + 2] * cs, oy + edges[i + 3] * cs);
+      for (let i = 0; i < cells.length; i += 2) {
+        const rx = ox + cells[i] * cs + ins, ry = oy + cells[i + 1] * cs + ins;
+        ctx.moveTo(rx + r, ry);
+        ctx.arcTo(rx + sz, ry, rx + sz, ry + sz, r);
+        ctx.arcTo(rx + sz, ry + sz, rx, ry + sz, r);
+        ctx.arcTo(rx, ry + sz, rx, ry, r);
+        ctx.arcTo(rx, ry, rx + sz, ry, r);
+        ctx.closePath();
       }
-      ctx.strokeStyle = 'rgba(90,61,92,' + (0.65 * pulse).toFixed(3) + ')';
-      ctx.lineWidth = Math.max(2.4, cs * 0.18);
+      ctx.strokeStyle = 'rgba(75,35,75,' + (0.85 * pulse).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(2.8, cs * 0.22);
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,254,242,' + (0.95 * pulse).toFixed(3) + ')';
-      ctx.lineWidth = Math.max(1.2, cs * 0.09);
+      ctx.strokeStyle = 'rgba(255,246,140,' + (0.98 * pulse).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(1.5, cs * 0.11);
       ctx.stroke();
       ctx.restore();
     }
