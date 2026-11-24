@@ -27,25 +27,14 @@ const Sound = {
         this.sfx = c.createGain();
         this.sfxF = c.createBiquadFilter(); this.sfxF.type = 'lowpass'; this.sfxF.frequency.value = 4500; this.sfxF.Q.value = 0.4;
         this.sfx.connect(this.sfxF); this.sfxF.connect(this.master); this.sfxF.connect(this.verb);
-        // BGM：音量 → 一時的に下げる用（ダッキング） → 高音カット＋ステレオバス（L/R/Wide）
-        this.mus = c.createGain();
+        // BGM：曲ごとの入力バス（mus/musL/musR/musW） → 音量（musVol） → ダッキング → 高音カット
+        this.musVol = c.createGain();
         this.musDuck = c.createGain(); this.musDuck.gain.value = 1;
         this.musF = c.createBiquadFilter(); this.musF.type = 'lowpass'; this.musF.frequency.value = this.MUS_LP; this.musF.Q.value = 0.55;
-        this.mus.connect(this.musDuck); this.musDuck.connect(this.musF); this.musF.connect(this.master);
+        this.musVol.connect(this.musDuck); this.musDuck.connect(this.musF); this.musF.connect(this.master);
         const mwet = c.createGain(); mwet.gain.value = 0.62;
         this.musF.connect(mwet); mwet.connect(this.verb);
-        if (typeof c.createStereoPanner === 'function') {
-          this.musL = c.createStereoPanner(); this.musL.pan.value = -0.38; this.musL.connect(this.mus);
-          this.musR = c.createStereoPanner(); this.musR.pan.value = 0.38; this.musR.connect(this.mus);
-        } else {
-          this.musL = this.mus;
-          this.musR = this.mus;
-        }
-        // パッド・ベル用の広がりバス（リバーブ成分をさらに豊かにブレンド）
-        this.musW = c.createGain(); this.musW.gain.value = 1;
-        this.musW.connect(this.mus);
-        const wwet = c.createGain(); wwet.gain.value = 0.36;
-        this.musW.connect(wwet); wwet.connect(this.verb);
+        this.buildBgmBus();
         this.applyVol(true);
       }
       if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -53,13 +42,64 @@ const Sound = {
       if (save.settings.bgm && !inBgmMaker) this.startBgm();
     } catch (e) { /* 音声非対応 */ }
   },
+  // 曲切り替え・停止時に予約済みの音ノードを即座にフェードアウトして切り離すため、曲ごとの入力バスを再構築する
+  buildBgmBus() {
+    const c = this.ctx;
+    if (!c || !this.musVol) return;
+    const oldMus = this.mus, oldW = this.musW, oldWwet = this.musWwet;
+    if (oldMus) {
+      const t = c.currentTime;
+      try {
+        oldMus.gain.cancelScheduledValues(t);
+        oldMus.gain.setValueAtTime(oldMus.gain.value, t);
+        oldMus.gain.linearRampToValueAtTime(0, t + 0.02);
+      } catch (e) { /* ignore */ }
+      if (oldW) {
+        try {
+          oldW.gain.cancelScheduledValues(t);
+          oldW.gain.setValueAtTime(oldW.gain.value, t);
+          oldW.gain.linearRampToValueAtTime(0, t + 0.02);
+        } catch (e) { /* ignore */ }
+      }
+      setTimeout(() => {
+        try { oldMus.disconnect(); } catch (e) { /* ignore */ }
+        try { if (oldW) oldW.disconnect(); } catch (e) { /* ignore */ }
+        try { if (oldWwet) oldWwet.disconnect(); } catch (e) { /* ignore */ }
+      }, 40);
+    }
+    const mus = c.createGain();
+    mus.gain.value = 1;
+    mus.connect(this.musVol);
+    this.mus = mus;
+    if (typeof c.createStereoPanner === 'function') {
+      this.musL = c.createStereoPanner(); this.musL.pan.value = -0.38; this.musL.connect(mus);
+      this.musR = c.createStereoPanner(); this.musR.pan.value = 0.38; this.musR.connect(mus);
+    } else {
+      this.musL = mus;
+      this.musR = mus;
+    }
+    // パッド・ベル用の広がりバス（リバーブ成分をさらに豊かにブレンド）
+    this.musW = c.createGain(); this.musW.gain.value = 1;
+    this.musW.connect(mus);
+    const wwet = c.createGain(); wwet.gain.value = 0.36;
+    this.musW.connect(wwet); wwet.connect(this.verb);
+    this.musWwet = wwet;
+  },
+  resetBgm() {
+    this.step = 0;
+    this.lyricQ = [];
+    if (!this.ctx) return;
+    this.buildBgmBus();
+    this.nextT = this.ctx.currentTime + 0.03;
+    if (this.bgmTimer) this.sched();
+  },
   // 設定の音量（0〜100）を、耳で感じる大きさに近い曲線で反映する
   applyVol(now) {
     if (!this.ctx) return;
     const cv = (v, d) => { const n = Number(v); return Math.pow(clamp(Number.isFinite(n) ? n : d, 0, 100) / 100, 2); };
     const t = this.ctx.currentTime, a = cv(save.settings.sfxVol, 90), b = 0.58 * cv(save.settings.bgmVol, 70);
-    if (now) { this.sfx.gain.value = a; this.mus.gain.value = b; }
-    else { this.sfx.gain.setTargetAtTime(a, t, 0.05); this.mus.gain.setTargetAtTime(b, t, 0.05); }
+    if (now) { this.sfx.gain.value = a; this.musVol.gain.value = b; }
+    else { this.sfx.gain.setTargetAtTime(a, t, 0.05); this.musVol.gain.setTargetAtTime(b, t, 0.05); }
   },
   impulse(sec, decay) {
     const c = this.ctx, n = Math.floor(c.sampleRate * sec), b = c.createBuffer(2, n, c.sampleRate);
@@ -516,8 +556,7 @@ const Sound = {
     const ef = this.activeKey();
     if (this._playingKey !== ef) {
       this._playingKey = ef;
-      this.step = 0;
-      this.lyricQ = [];
+      this.resetBgm();
     }
   },
   setFever(on) {
@@ -527,8 +566,7 @@ const Sound = {
     const ef = this.activeKey();
     if (this._playingKey !== ef) {
       this._playingKey = ef;
-      this.step = 0;
-      this.lyricQ = [];
+      this.resetBgm();
     }
   },
   setBgm(name, theme) {
@@ -570,8 +608,7 @@ const Sound = {
     this.bgmKey = k;
     if (!this.sceneKey && !this.feverOn && this._playingKey !== k) {
       this._playingKey = k;
-      this.step = 0;
-      this.lyricQ = [];
+      this.resetBgm();
     }
   },
   BGM_TITLES: {
@@ -653,10 +690,11 @@ const Sound = {
   },
   startBgm() {
     if (!this.ctx || this.bgmTimer) return;
-    this.nextT = this.ctx.currentTime + 0.15; this.step = 0;
+    this.nextT = this.ctx.currentTime + 0.05; this.step = 0; this.lyricQ = [];
     this.bgmTimer = setInterval(() => this.sched(), 40);
+    this.sched();
   },
-  stopBgm() { clearInterval(this.bgmTimer); this.bgmTimer = null; },
+  stopBgm() { clearInterval(this.bgmTimer); this.bgmTimer = null; this.buildBgmBus(); },
 
   /* ---------- BGM：テーマ別・ステージ別シーケンサー（16分音符グリッド） ---------- */
   BPM: 108,
