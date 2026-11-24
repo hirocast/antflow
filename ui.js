@@ -66,12 +66,41 @@ header{flex:0 0 auto;flex-wrap:wrap;padding:2px 6px 2px;row-gap:2px;gap:4px}
 body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;border-radius:22px;box-shadow:inset 0 0 42px rgba(255,160,130,.75);animation:fvg .45s ease-in-out infinite alternate}
 @keyframes fvg{from{opacity:.5}to{opacity:1}}
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
+#ov-title{background:radial-gradient(circle at 50% 25%,rgba(255,248,235,.45),rgba(42,30,64,.66))}
+#ov-title::before{content:'';position:fixed;inset:-24px;background:url('assets/colony-bg.jpg?v=20261124a') center/cover no-repeat;filter:blur(12px) saturate(1.1);opacity:.38;pointer-events:none;z-index:-1}
+#ov-title .card{border:4px solid #fff;box-shadow:0 0 0 3px rgba(255,182,205,.7),0 14px 34px rgba(50,25,65,.34)}
 #ov-title .home-h2{display:none}
 #ov-title .card p{margin:4px 0;font-size:13px;line-height:1.5}
 #ov-title .cfrow .big{font-size:13.5px;padding:0 6px;line-height:1.15;min-width:0}
-#ov-title.first-run .card{padding:26px 18px 24px!important}
-#ov-title.first-run .card > :not(#mascot):not(#ttl):not(#bPlay):not(p:not(.fine)){display:none!important}
-#ov-title.first-run #bPlay{width:84%;max-width:300px;padding:18px 20px;font-size:20px;margin:16px auto 8px;animation:afBreathe 1.4s ease-in-out infinite}
+#mascot,#loadCv,#qCv{display:none!important}
+.af-hero{position:relative;border-radius:22px;overflow:hidden;margin:-4px -4px 8px;padding:12px 10px 8px;background:linear-gradient(180deg,#d8f4c4 0%,#fff8ea 100%);border:3px solid #fff;box-shadow:0 5px 14px rgba(90,61,92,.16),0 2px 0 #f2c8d8;text-align:center}
+.af-hero-bg{position:absolute;inset:-6px;background:url('assets/colony-bg.jpg?v=20261124a') center 42%/cover no-repeat;opacity:.95;filter:blur(3px) brightness(1.03);pointer-events:none}
+.af-hero-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,0) 32%,rgba(255,251,242,.72) 76%,rgba(255,253,246,.98) 100%)}
+.af-hero-sparkles{position:absolute;inset:0;pointer-events:none;z-index:1}
+.af-hero-sparkles span{position:absolute;color:#fff6a8;font-size:15px;text-shadow:0 0 8px rgba(255,180,60,.85);animation:afSpark 2.4s ease-in-out infinite alternate}
+.af-hero-sparkles span:nth-child(1){top:14px;left:16%;animation-delay:0s}
+.af-hero-sparkles span:nth-child(2){top:24px;right:15%;font-size:13px;animation-delay:.8s}
+.af-hero-sparkles span:nth-child(3){top:68px;left:10%;font-size:11px;animation-delay:1.4s}
+@keyframes afSpark{0%{transform:scale(.8) rotate(-10deg);opacity:.55}100%{transform:scale(1.2) rotate(14deg);opacity:1}}
+.af-hero-ant{position:relative;z-index:2;display:block;width:144px;height:auto;margin:0 auto -10px;filter:drop-shadow(0 8px 10px rgba(80,45,30,.28));animation:afHeroFloat 3.1s ease-in-out infinite;cursor:pointer;transition:transform .16s}
+.af-hero-ant.hop{animation:afHeroHop .42s cubic-bezier(.25,1.6,.5,1)!important}
+@keyframes afHeroFloat{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-6px) rotate(1.5deg)}}
+@keyframes afHeroHop{0%{transform:scale(1) translateY(0)}40%{transform:scale(1.08,.93) translateY(-16px)}100%{transform:scale(1) translateY(0)}}
+.af-hero-bubble{position:absolute;top:10px;right:10px;z-index:3;max-width:136px;padding:4px 9px;border-radius:14px;background:rgba(255,255,255,.95);border:2px solid #ffb6cd;box-shadow:0 3px 8px rgba(90,61,92,.18);font-size:10.5px;font-weight:900;color:#b83862;line-height:1.3;opacity:0;transform:translateY(4px) scale(.92);transition:opacity .2s,transform .2s;pointer-events:none}
+.af-hero-bubble.on{opacity:1;transform:translateY(0) scale(1)}
+.af-hero #ttl{position:relative;z-index:2;margin:0}
+.af-load-ant{display:block;width:112px;height:auto;margin:0 auto 4px;filter:drop-shadow(0 8px 10px rgba(90,61,92,.2));animation:afLoadBounce .75s ease-in-out infinite alternate}
+@keyframes afLoadBounce{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-9px) scale(1.03)}}
+.queen-stage{position:relative;width:100%;max-width:296px;aspect-ratio:1/0.76;margin:0 auto 6px;border-radius:20px;overflow:hidden;border:3px solid #fff;box-shadow:0 5px 0 #d9b07a,0 8px 18px rgba(90,61,92,.18);cursor:pointer;background:#f8e8c8}
+.queen-stage img{width:100%;height:100%;object-fit:cover;object-position:center 42%;display:block;transition:transform .2s}
+.queen-stage.bounce{animation:afQueenBounce .45s cubic-bezier(.25,1.6,.5,1)}
+@keyframes afQueenBounce{0%{transform:scale(1)}40%{transform:scale(1.04) translateY(-5px)}100%{transform:scale(1)}}
+.queen-badge{position:absolute;left:8px;bottom:8px;padding:3px 10px;border-radius:999px;background:rgba(255,252,240,.92);border:2px solid #ffcf4a;color:#7a4b00;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+#ov-title.first-run .card{padding:20px 16px 22px!important}
+#ov-title.first-run .card > :not(#afHero):not(#bPlay):not(p:not(.fine)){display:none!important}
+#ov-title.first-run .af-hero{padding:18px 12px 12px;margin-bottom:10px}
+#ov-title.first-run .af-hero-ant{width:154px}
+#ov-title.first-run #bPlay{width:86%;max-width:300px;padding:18px 20px;font-size:20px;margin:14px auto 8px;animation:afBreathe 1.4s ease-in-out infinite}
 @keyframes afBreathe{0%,100%{transform:scale(1);box-shadow:0 6px 0 #d4507c,0 0 0 0 rgba(255,140,180,.55)}50%{transform:scale(1.06);box-shadow:0 6px 0 #d4507c,0 0 0 14px rgba(255,140,180,0)}}
 .upd-bar{background:#fff8fb;border:2px solid #ffd3e2;border-radius:16px;padding:6px 9px;margin:0 0 6px;text-align:left;box-shadow:0 2px 0 #f3d5e0}
 .upd-bar.has-new{background:linear-gradient(180deg,#fff3f8,#ffe4ef);border-color:#ff7aa6;box-shadow:0 3px 0 #e46a92}
@@ -556,7 +585,9 @@ function handleTalkLikeClick(e) {
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
   $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全はこび</small><em class="price" id="pScan"></em></button>');
   $('footer').insertAdjacentHTML('afterbegin', '<button type="button" id="bSkill" aria-label="きせかえスキル"><span class="sk-fill" id="skFill"></span><span class="sk-ico" id="skBtnIco">🐜</span><span class="sk-txt"><b id="skBtnLv">SLv.1</b><small id="skBtnPct">0%</small></span></button>');
-  $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2>');
+  $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2><div class="af-hero" id="afHero"><div class="af-hero-bg"></div><div class="af-hero-sparkles"><span>✦</span><span>✧</span><span>✦</span></div><img class="af-hero-ant" id="afHeroAnt" src="assets/ant-mascot.png?v=20261124a" alt="ありんこ隊"><div class="af-hero-bubble" id="afHeroBubble"></div></div>');
+  if ($('#ttl') && $('#afHero')) $('#afHero').appendChild($('#ttl'));
+  if ($('#loadCv')) $('#loadCv').insertAdjacentHTML('beforebegin', '<img class="af-load-ant" src="assets/ant-jelly.png?v=20261124a" alt="ありんこ隊が準備中">');
   const setBtn = $('#bSet');
   if (setBtn && !$('#setUpdDot')) setBtn.insertAdjacentHTML('beforeend', '<em class="dot" id="setUpdDot"></em>');
   const titleDescEnd = $('#ov-title .fine') || $('#ttl');
@@ -656,7 +687,7 @@ function handleTalkLikeClick(e) {
     '<button class="big mint" id="bHPractice">🎓 れんしゅうステージで教えてもらう</button>';
   $('#fx').insertAdjacentHTML('beforebegin',
     '<div class="ov" id="ov-colony"><div class="card">' +
-      '<h2>👑 女王さまのへや</h2><canvas id="qCv"></canvas><p class="qsay" id="qSay"></p>' +
+      '<h2>👑 女王さまのへや</h2><div class="queen-stage" id="queenStage"><img src="assets/queen-room.jpg?v=20261124a" alt="女王さまのへや"><span class="queen-badge" id="queenStageLv">👑 Lv.1</span></div><canvas id="qCv"></canvas><p class="qsay" id="qSay"></p>' +
       '<div class="qlv"><b id="qLv"></b><span id="qTitle"></span><div class="abar"><i id="qBar"></i></div><small id="qExp"></small></div>' +
       '<p class="fine" id="qFood"></p><div class="feedrow"><button class="big" id="bFeed">🍬 ごはんをあげる</button><button class="big sec" id="bFeedAll">ぜんぶ</button></div>' +
       '<button type="button" class="big gold-soft" id="bQueenShop">🛒 ショップでエサを増やす</button>' +
@@ -2147,6 +2178,7 @@ function openColony(from) {
 function renderColony() {
   const lv = save.qlv, max = lv >= Q_MAX, need = qNeed(lv), chunk = Math.min(save.food, 100), qs = queenStatus();
   $('#qLv').textContent = 'Lv.' + lv;
+  const qsl = $('#queenStageLv'); if (qsl) qsl.textContent = '👑 Lv.' + lv;
   $('#qTitle').textContent = qTitle(lv);
   $('#qBar').style.width = (max ? 100 : clamp(100 * save.qexp / need, 0, 100)) + '%';
   $('#qExp').textContent = max ? 'さいだいレベル！' : 'つぎのレベルまで あと ' + qs.toNext + ' こ（' + save.qexp + ' / ' + need + '）';
@@ -2163,6 +2195,13 @@ function renderColony() {
   $('#qPerks').innerHTML = '<div class="pk on"><b>いつも</b>クリアのコイン +' + (lv - 1) * 2 + '%（レベルごとに+2%）</div>' +
     Q_PERKS.map(p => '<div class="pk' + (lv >= p[0] ? ' on' : '') + '"><b>Lv.' + p[0] + '</b>' + (lv >= p[0] ? '✅ ' : '') + p[1] + '</div>').join('');
 }
+function bounceQueenStage() {
+  const qs = $('#queenStage');
+  if (!qs) return;
+  qs.classList.remove('bounce');
+  void qs.offsetWidth;
+  qs.classList.add('bounce');
+}
 function doFeed(all) {
   if (!save.food || save.qlv >= Q_MAX) return;
   const before = save.qlv, amt = all ? save.food : Math.min(save.food, 100);
@@ -2170,7 +2209,7 @@ function doFeed(all) {
   while (save.qlv < Q_MAX && save.qexp >= qNeed(save.qlv)) { save.qexp -= qNeed(save.qlv); save.qlv++; }
   if (save.qlv >= Q_MAX) save.qexp = 0;
   persist();
-  G.qBounce = 1; Sound.albumIn(); haptic(15);
+  G.qBounce = 1; bounceQueenStage(); Sound.albumIn(); haptic(15);
   if (save.qlv > before) {
     const lv = save.qlv, gain = [];
     ROOMS.forEach(r => { if (r[0] > before && r[0] <= lv) gain.push(r[1] + r[2]); });
@@ -3997,7 +4036,9 @@ on('#bClearShop', () => { Sound.init(); openShop('clear'); });
 on('#bClearQueen', () => openColony('clear'));
 on('#bFeed', () => doFeed(false));
 on('#bFeedAll', () => doFeed(true));
-on('#qCv', () => { G.qBounce = 1; Sound.squeak(); $('#qSay').textContent = '👑「' + talkLine('queen') + '」'; });
+const onQueenTap = () => { G.qBounce = 1; bounceQueenStage(); Sound.squeak(); $('#qSay').textContent = '👑「' + talkLine('queen') + '」'; };
+on('#qCv', onQueenTap);
+on('#queenStage', onQueenTap);
 on('#bQClose', closeMeta);
 on('#bMisClose', closeMeta);
 on('#bBingoClose', closeMeta);
@@ -4389,17 +4430,29 @@ document.querySelectorAll('[data-v]').forEach(inp => {
     if (k === 'sfxVol') { Sound.lastPop = 0; Sound.pop(); }
   });
 });
-let logoTaps = 0, logoT = 0;
-$('#mascot').addEventListener('click', () => {
+let logoTaps = 0, logoT = 0, heroBubbleTimer = 0;
+const HERO_CHATS = ['キャンディ運ぶよ！🍬', 'きょうもいっしょに遊ぼう！✨', 'タップでパズルがほどけるよ！', '女王さまも応援してるよ👑', 'じっくり考えても大丈夫だよ♪'];
+function onMascotTap() {
   const now = Date.now();
   logoTaps = now - logoT < 600 ? logoTaps + 1 : 1; logoT = now;
+  const ant = $('#afHeroAnt'), bbl = $('#afHeroBubble');
+  if (ant) { ant.classList.remove('hop'); void ant.offsetWidth; ant.classList.add('hop'); }
+  if (Sound && Sound.squeak) Sound.squeak();
+  if (bbl) {
+    bbl.textContent = HERO_CHATS[Math.floor(Math.random() * HERO_CHATS.length)];
+    bbl.classList.add('on');
+    clearTimeout(heroBubbleTimer);
+    heroBubbleTimer = setTimeout(() => bbl.classList.remove('on'), 2200);
+  }
   if (logoTaps >= 5) {
     logoTaps = 0;
     const nextDev = !isDevMode();
     toggleDevMode(nextDev);
     toast(nextDev ? '🛠️ 開発モード ON（開発用セーブ）' : '開発モード OFF（通常セーブ）');
   }
-});
+}
+if ($('#mascot')) $('#mascot').addEventListener('click', onMascotTap);
+if ($('#afHeroAnt')) $('#afHeroAnt').addEventListener('click', onMascotTap);
 document.addEventListener('visibilitychange', () => {
   lastT = performance.now();
   if (Sound.ctx) { if (document.hidden) Sound.ctx.suspend(); else Sound.ctx.resume(); }
@@ -4460,10 +4513,7 @@ function frame(now) {
     if (G.reveal && G.overlay === 'clear') drawReveal(rdt);
     if (G.overlay && now - lastOvDrawT >= 32) {
       lastOvDrawT = now;
-      if (G.overlay === 'title') drawMascot($('#mascot'), G.rt);
-      else if (G.overlay === 'load') drawMascot($('#loadCv'), G.rt * 1.6);
-      else if (G.overlay === 'colony') drawColony($('#qCv'), G.rt);
-      else if (G.overlay === 'skins') drawSkinPrev($('#skCv'), G.rt);
+      if (G.overlay === 'skins') drawSkinPrev($('#skCv'), G.rt);
       else if (G.overlay === 'help') drawHelp($('#hCv'), HELP_PAGES[G.helpPage || 0].k, G.rt - (G.helpT || 0));
     }
     // 女王さまをタップ・ごはんをあげたときの「はずみ」を少しずつ戻す
