@@ -587,7 +587,6 @@ function handleTalkLikeClick(e) {
   $('#bUndo').insertAdjacentHTML('beforeend', '<em class="price" id="pUndo"></em>');
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
   $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全はこび</small><em class="price" id="pScan"></em></button>');
-  $('footer').insertAdjacentHTML('afterbegin', '<button type="button" id="bSkill" aria-label="きせかえスキル"><span class="sk-fill" id="skFill"></span><span class="sk-ico" id="skBtnIco">🐜</span><span class="sk-txt"><b id="skBtnLv">SLv.1</b><small id="skBtnPct">0%</small></span></button>');
   $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2><div class="af-hero" id="afHero"><div class="af-hero-bg"></div><div class="af-hero-sparkles"><span>✦</span><span>✧</span><span>✦</span></div><img class="af-hero-ant" id="afHeroAnt" src="assets/ant-mascot.png?v=20261124b" alt="ありんこ隊"><div class="af-hero-bubble" id="afHeroBubble"></div></div>');
   if ($('#ttl') && $('#afHero')) $('#afHero').appendChild($('#ttl'));
   if ($('#loadCv')) $('#loadCv').insertAdjacentHTML('beforebegin', '<img class="af-load-ant" src="assets/ant-jelly.png?v=20261124b" alt="ありんこ隊が準備中">');
@@ -1259,9 +1258,7 @@ function applyLevel(id, L) {
   const carryFever = (!L.custom && !G.firstSim) ? clamp(save.feverG || 0, 0, 0.99) : 0;
   const streakCharge = (!G.firstSim && (G.streak || 0) >= 1) ? Math.min(0.45, (G.streak || 0) * 0.15) : 0;
   G.fever.g = Math.min(0.95, carryFever + streakCharge);
-  const sk = getSkinSkill(save.skin);
-  G.skill = { g: 0, max: calcSkillMax(sk.pNeed, L.total), freezeT: 0, boostT: 0 };
-  if (typeof updateSkillBtn === 'function') updateSkillBtn();
+  G.skill = null;
   G.gold = pickGold(L);
   if (posOf(id) !== 1) G.firstSim = false;
   if (!L.custom && !G.firstSim) { save.level = id; persist(); }
@@ -2297,36 +2294,26 @@ function renderSkins() {
   grid.innerHTML = '';
   for (const s of SKINS) {
     const lv = skinLv(s.k), own = lv > 0, p = skinProgress(s.k), b = document.createElement('button');
-    const sk = getSkinSkill(s.k, Math.max(1, lv));
     b.className = 'sk' + (save.skin === s.k ? ' on' : '') + (own ? '' : ' lock');
     const lvTag = own ? (s.k === 'none' ? '<span class="sk-lv">基本</span>' : '<span class="sk-lv' + (p.isMax ? ' max' : '') + '">' + (p.isMax ? 'MAX' : 'SLv.' + lv) + '</span>') : '';
     const bar = (own && s.k !== 'none') ? '<div class="sk-bar"><i style="width:' + (p.isMax ? 100 : Math.round(100 * p.cur / p.need)) + '%"></i></div>' : '';
-    b.innerHTML = lvTag + '<i>' + (own ? s.e : '❔') + '</i>' + (own ? s.n : '？？？') + '<small>' + (own ? sk.name : 'おたからばこで出るよ') + '</small>' + bar;
+    b.innerHTML = lvTag + '<i>' + (own ? s.e : '❔') + '</i>' + (own ? s.n : '？？？') + '<small>' + (own ? s.d : 'おたからばこで出るよ') + '</small>' + bar;
     if (own) b.addEventListener('click', () => {
       save.skin = s.k; G.skPrev = null; persist();
       antCache.clear(); G.perk = perks(); G.spdMul = G.perk.speed;
-      if (G.skill) {
-        const nsk = getSkinSkill(s.k);
-        G.skill.max = calcSkillMax(nsk.pNeed, G.level ? G.level.total : 0);
-        G.skill.g = Math.min(G.skill.g, G.skill.max);
-        if (typeof updateSkillBtn === 'function') updateSkillBtn();
-      }
       Sound.tap(); renderSkins(); refreshPrices();
-      toast(s.e + ' ' + s.n + '（SLv.' + lv + '）：' + sk.name);
+      toast(s.e + ' ' + s.n + (s.k === 'none' ? '' : '（SLv.' + lv + '）') + '：' + s.d);
     });
     grid.appendChild(b);
   }
   const curKey = G.skPrev || save.skin;
   const curS = SKINS.find(s => s.k === curKey) || SKINS[0];
-  const curLv = Math.max(1, skinLv(curKey)), curP = skinProgress(curKey), curSk = getSkinSkill(curKey, curLv);
+  const curLv = Math.max(1, skinLv(curKey)), curP = skinProgress(curKey);
   const progTxt = curKey === 'none' ? '基本きせかえ' : curP.isMax ? 'SLv.MAX（最大強化！）' : 'SLv.' + curLv + '（あと' + (curP.need - curP.cur) + 'こでUP）';
   const det = $('#skDetail');
   if (det) {
     det.innerHTML = '<div><b>' + curS.e + ' ' + curS.n + '</b><span class="sk-tag">' + progTxt + '</span></div>' +
-      '<div>⚡ スキル「<b>' + curSk.name + '</b>」</div>' +
-      '<div style="opacity:.85">・本編：' + curSk.puzzleDesc + '</div>' +
-      '<div style="opacity:.85">・ありんこチェイン：' + curSk.tsumDesc + '</div>' +
-      '<div style="opacity:.75">・パッシブ：' + curS.d + (curLv > 1 && curKey !== 'none' ? '（SLv.' + curLv + '強化中！）' : '') + '</div>';
+      '<div style="margin-top:3px">✨ <b>パッシブ効果</b>：' + curS.d + (curLv > 1 && curKey !== 'none' ? '（SLv.' + curLv + '強化中！）' : '') + '</div>';
   }
   const maxCnt = SKINS.filter(s => s.k !== 'none' && skinLv(s.k) >= SKIN_MAX_LV).length;
   const walletEl = $('#skWallet');
@@ -2369,7 +2356,6 @@ function showGachaResult(results, count) {
     if (r.kind === 'refund') {
       stage.innerHTML = '<div class="gacha-hero"><span class="gh-ico">🪙</span><div class="gh-name">ぜんぶスキルMAX！</div><div class="gh-sk">🪙 ' + r.coins.toLocaleString() + ' コイン おかえし</div></div>';
     } else {
-      const sk = getSkinSkill(r.s.k, r.newLv);
       const badge = r.kind === 'new'
         ? '<span class="gacha-badge new">NEW!</span> SLv.1'
         : r.kind === 'up'
@@ -2379,8 +2365,8 @@ function showGachaResult(results, count) {
         '<span class="gh-ico">' + r.s.e + '</span>' +
         '<div class="gh-name">' + r.s.n + '</div>' +
         '<div style="margin-top:4px">' + badge + '</div>' +
-        '<div class="gh-sk">⚡ ' + sk.name + '</div>' +
-        '<div class="gh-desc">本編：' + sk.puzzleDesc + '<br>チェイン：' + sk.tsumDesc + '</div>' +
+        '<div class="gh-sk">✨ パッシブ効果</div>' +
+        '<div class="gh-desc">' + r.s.d + '</div>' +
       '</div>';
     }
   } else {
@@ -2425,7 +2411,7 @@ function doGacha(count) {
   }
   confirmSpend({
     title: n === 10 ? '✨ 10連おたからばこ' : '🎁 おたからばこ',
-    desc: '「きせかえ」がランダムで' + n + 'つ手に入ります。同じきせかえを集めるとスキルレベル（SLv.1〜5）が上がり、スキルの効果がパワーアップ！（すべてSLv.MAX時は🪙' + PRICE.box.toLocaleString() + 'かえってきます）',
+    desc: '「きせかえ」がランダムで' + n + 'つ手に入ります。同じきせかえを集めるとスキルレベル（SLv.1〜5）が上がり、パッシブ効果がパワーアップ！（すべてSLv.MAX時は🪙' + PRICE.box.toLocaleString() + 'かえってきます）',
     cost: info.detail,
     okLabel: n === 10 ? '10連を開ける！' : '開ける！'
   }, () => {
@@ -4022,7 +4008,6 @@ on('#bUndo', doUndo);
 on('#bRetry', doRetry);
 on('#bHint', () => { Sound.init(); doHint(); });
 on('#bScan', () => { Sound.init(); doScan(); });
-on('#bSkill', () => { Sound.init(); doMainSkill(); });
 on('#bSet', () => { G.fromTitle = false; showOv('settings'); });
 on('#bTitleSet', () => { Sound.init(); Sound.tap(); G.fromTitle = true; showOv('settings'); });
 on('#bTitleDrop', () => { Sound.init(); Sound.tap(); if (typeof window.openMiniDrop === 'function') window.openMiniDrop(); });
