@@ -1527,16 +1527,14 @@ function drawSpotlightAndFlashes() {
     }
     ctx.restore();
   }
-  // 運び終わったあとに新しく一番外側になるマスをくっきり枠取りして光らせる
-  if (save.settings.wash && s.left < G.vleft && !G.overlay) {
-    if (G.nextReachS !== s || G.nextReachLeft !== s.left || G.nextReachVver !== G.vver) {
-      G.nextReachS = s; G.nextReachLeft = s.left; G.nextReachVver = G.vver;
-      if (!dist) dist = visDist(ne.ex, ne.ey);
+  // 一番外側（運び終わったあとを含めて次に取れるマス）をくっきり枠取りして光らせる
+  if (save.settings.wash && s.left > 0 && !G.overlay) {
+    if (G.nextReachS !== s || G.nextReachLeft !== s.left) {
+      G.nextReachS = s; G.nextReachLeft = s.left;
       const sDist = bfs(s.grid, W, H, ne.ex, ne.ey), cells = [];
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         const idx = y * W + x;
-        if (s.grid[idx] < 0 || cubeDist(sDist, W, x, y) < 0 || cubeDist(dist, W, x, y) >= 0) continue;
-        cells.push(x, y);
+        if (s.grid[idx] >= 0 && cubeDist(sDist, W, x, y) >= 0) cells.push(x, y);
       }
       G.nextReachCells = cells;
     }
