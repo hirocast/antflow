@@ -23,10 +23,7 @@ function nextOf(id) {
   const st = document.createElement('style');
   st.textContent = `
 body{background:linear-gradient(180deg,#86d6ff 0%,#c4ecff 40%,#eefbff 60%,#cdeea0 74%,#9fd86e 100%)}
-body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;opacity:.9;transform:translateZ(0);
- background:radial-gradient(ellipse 90px 30px at 14% 10%,#fff 60%,transparent 62%),radial-gradient(ellipse 56px 24px at 21% 7%,#fff 60%,transparent 62%),
- radial-gradient(ellipse 110px 34px at 82% 18%,#fff 60%,transparent 62%),radial-gradient(ellipse 66px 26px at 89% 14%,#fff 60%,transparent 62%),
- radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%)}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;opacity:.22;transform:translateZ(0);background:url('assets/play-bg.jpg?v=20261124b') center bottom/cover no-repeat;filter:saturate(.85) brightness(1.06)}
 header{flex:0 0 auto;flex-wrap:wrap;padding:2px 6px 2px;row-gap:2px;gap:4px}
 .lv{display:grid!important;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:5px;row-gap:0;flex:1 1 0;min-width:0;margin-right:auto;padding:2px 7px;border:2px solid #fff;border-radius:12px;background:linear-gradient(#fff,#fff2f7);box-shadow:0 2px 0 rgba(90,61,92,.2),0 4px 8px rgba(90,61,92,.1)}
 .lv #lvNum{grid-column:1;grid-row:1;font-size:13.5px;line-height:1.1;white-space:nowrap}
@@ -67,22 +64,22 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 @keyframes fvg{from{opacity:.5}to{opacity:1}}
 .tinfo{display:flex;justify-content:center;gap:8px;margin:4px 0}
 #ov-title{background:radial-gradient(circle at 50% 25%,rgba(255,248,235,.45),rgba(42,30,64,.66))}
-#ov-title::before{content:'';position:fixed;inset:-24px;background:url('assets/colony-bg.jpg?v=20261124a') center/cover no-repeat;filter:blur(12px) saturate(1.1);opacity:.38;pointer-events:none;z-index:-1}
+#ov-title::before{content:'';position:fixed;inset:-24px;background:url('assets/colony-bg.jpg?v=20261124b') center/cover no-repeat;filter:blur(12px) saturate(1.1);opacity:.38;pointer-events:none;z-index:-1}
 #ov-title .card{border:4px solid #fff;box-shadow:0 0 0 3px rgba(255,182,205,.7),0 14px 34px rgba(50,25,65,.34)}
 #ov-title .home-h2{display:none}
 #ov-title .card p{margin:4px 0;font-size:13px;line-height:1.5}
 #ov-title .cfrow .big{font-size:13.5px;padding:0 6px;line-height:1.15;min-width:0}
 #mascot,#loadCv,#qCv{display:none!important}
 .af-hero{position:relative;border-radius:22px;overflow:hidden;margin:-4px -4px 8px;padding:12px 10px 8px;background:linear-gradient(180deg,#d8f4c4 0%,#fff8ea 100%);border:3px solid #fff;box-shadow:0 5px 14px rgba(90,61,92,.16),0 2px 0 #f2c8d8;text-align:center}
-.af-hero-bg{position:absolute;inset:-6px;background:url('assets/colony-bg.jpg?v=20261124a') center 42%/cover no-repeat;opacity:.95;filter:blur(3px) brightness(1.03);pointer-events:none}
-.af-hero-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,0) 32%,rgba(255,251,242,.72) 76%,rgba(255,253,246,.98) 100%)}
+.af-hero-bg{position:absolute;inset:0;background:url('assets/colony-bg.jpg?v=20261124b') center 46%/cover no-repeat;opacity:.96;pointer-events:none}
+.af-hero-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,0) 36%,rgba(255,251,242,.66) 76%,rgba(255,253,246,.97) 100%)}
 .af-hero-sparkles{position:absolute;inset:0;pointer-events:none;z-index:1}
 .af-hero-sparkles span{position:absolute;color:#fff6a8;font-size:15px;text-shadow:0 0 8px rgba(255,180,60,.85);animation:afSpark 2.4s ease-in-out infinite alternate}
 .af-hero-sparkles span:nth-child(1){top:14px;left:16%;animation-delay:0s}
 .af-hero-sparkles span:nth-child(2){top:24px;right:15%;font-size:13px;animation-delay:.8s}
 .af-hero-sparkles span:nth-child(3){top:68px;left:10%;font-size:11px;animation-delay:1.4s}
 @keyframes afSpark{0%{transform:scale(.8) rotate(-10deg);opacity:.55}100%{transform:scale(1.2) rotate(14deg);opacity:1}}
-.af-hero-ant{position:relative;z-index:2;display:block;width:144px;height:auto;margin:0 auto -10px;filter:drop-shadow(0 8px 10px rgba(80,45,30,.28));animation:afHeroFloat 3.1s ease-in-out infinite;cursor:pointer;transition:transform .16s}
+.af-hero-ant{position:relative;z-index:2;display:block;width:136px;height:auto;margin:0 auto -8px;filter:drop-shadow(0 8px 10px rgba(80,45,30,.28));animation:afHeroFloat 3.1s ease-in-out infinite;cursor:pointer;transition:transform .16s}
 .af-hero-ant.hop{animation:afHeroHop .42s cubic-bezier(.25,1.6,.5,1)!important}
 @keyframes afHeroFloat{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-6px) rotate(1.5deg)}}
 @keyframes afHeroHop{0%{transform:scale(1) translateY(0)}40%{transform:scale(1.08,.93) translateY(-16px)}100%{transform:scale(1) translateY(0)}}
@@ -91,6 +88,12 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .af-hero #ttl{position:relative;z-index:2;margin:0}
 .af-load-ant{display:block;width:112px;height:auto;margin:0 auto 4px;filter:drop-shadow(0 8px 10px rgba(90,61,92,.2));animation:afLoadBounce .75s ease-in-out infinite alternate}
 @keyframes afLoadBounce{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-9px) scale(1.03)}}
+.af-jam-ant{display:block;width:104px;height:auto;margin:0 auto 4px;filter:drop-shadow(0 6px 8px rgba(90,61,92,.22));animation:afJamWobble 1.6s ease-in-out infinite}
+@keyframes afJamWobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.af-clear-head{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px}
+.af-clear-ant{width:68px;height:auto;flex:0 0 auto;filter:drop-shadow(0 5px 7px rgba(90,61,92,.22));animation:afHeroFloat 2.4s ease-in-out infinite}
+.af-clear-titles{text-align:left;min-width:0}
+.af-gacha-img{display:block;width:118px;height:auto;margin:0 auto 2px;filter:drop-shadow(0 6px 10px rgba(217,119,6,.28));animation:afHeroFloat 2.8s ease-in-out infinite}
 .queen-stage{position:relative;width:100%;max-width:296px;aspect-ratio:1/0.76;margin:0 auto 6px;border-radius:20px;overflow:hidden;border:3px solid #fff;box-shadow:0 5px 0 #d9b07a,0 8px 18px rgba(90,61,92,.18);cursor:pointer;background:#f8e8c8}
 .queen-stage img{width:100%;height:100%;object-fit:cover;object-position:center 42%;display:block;transition:transform .2s}
 .queen-stage.bounce{animation:afQueenBounce .45s cubic-bezier(.25,1.6,.5,1)}
@@ -585,9 +588,9 @@ function handleTalkLikeClick(e) {
   $('#bHint').insertAdjacentHTML('beforeend', '<em class="price" id="pHint"></em>');
   $('footer').insertAdjacentHTML('beforeend', '<button class="fb" id="bScan"><span>🔍</span><small>全はこび</small><em class="price" id="pScan"></em></button>');
   $('footer').insertAdjacentHTML('afterbegin', '<button type="button" id="bSkill" aria-label="きせかえスキル"><span class="sk-fill" id="skFill"></span><span class="sk-ico" id="skBtnIco">🐜</span><span class="sk-txt"><b id="skBtnLv">SLv.1</b><small id="skBtnPct">0%</small></span></button>');
-  $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2><div class="af-hero" id="afHero"><div class="af-hero-bg"></div><div class="af-hero-sparkles"><span>✦</span><span>✧</span><span>✦</span></div><img class="af-hero-ant" id="afHeroAnt" src="assets/ant-mascot.png?v=20261124a" alt="ありんこ隊"><div class="af-hero-bubble" id="afHeroBubble"></div></div>');
+  $('#ov-title .card').insertAdjacentHTML('afterbegin', '<div class="upd-bar" id="homeUpdateBox"></div><h2 class="home-h2">🏠 ホーム</h2><div class="af-hero" id="afHero"><div class="af-hero-bg"></div><div class="af-hero-sparkles"><span>✦</span><span>✧</span><span>✦</span></div><img class="af-hero-ant" id="afHeroAnt" src="assets/ant-mascot.png?v=20261124b" alt="ありんこ隊"><div class="af-hero-bubble" id="afHeroBubble"></div></div>');
   if ($('#ttl') && $('#afHero')) $('#afHero').appendChild($('#ttl'));
-  if ($('#loadCv')) $('#loadCv').insertAdjacentHTML('beforebegin', '<img class="af-load-ant" src="assets/ant-jelly.png?v=20261124a" alt="ありんこ隊が準備中">');
+  if ($('#loadCv')) $('#loadCv').insertAdjacentHTML('beforebegin', '<img class="af-load-ant" src="assets/ant-jelly.png?v=20261124b" alt="ありんこ隊が準備中">');
   const setBtn = $('#bSet');
   if (setBtn && !$('#setUpdDot')) setBtn.insertAdjacentHTML('beforeend', '<em class="dot" id="setUpdDot"></em>');
   const titleDescEnd = $('#ov-title .fine') || $('#ttl');
@@ -626,6 +629,14 @@ function handleTalkLikeClick(e) {
   }
   const tf = $('#ov-title .fine');
   if (tf) tf.textContent = '★はクリアタイムで決まるよ・ゆっくりでもOK・何手でも戻せる';
+  const clearCard = $('#ov-clear .card');
+  if (clearCard && $('#clearTitle') && $('#clearLv')) {
+    const ch = document.createElement('div'); ch.className = 'af-clear-head';
+    ch.innerHTML = '<img class="af-clear-ant" src="assets/ant-clear.png?v=20261124b" alt="クリア！"><div class="af-clear-titles"></div>';
+    clearCard.insertBefore(ch, $('#clearTitle'));
+    const ct = ch.querySelector('.af-clear-titles');
+    ct.appendChild($('#clearTitle')); ct.appendChild($('#clearLv'));
+  }
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
   $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div><div class="restalk" id="resTalkBox"></div><div class="resvote" id="resCustomVote"></div>');
   $('#resCustomVote').addEventListener('click', async e => {
@@ -687,7 +698,7 @@ function handleTalkLikeClick(e) {
     '<button class="big mint" id="bHPractice">🎓 れんしゅうステージで教えてもらう</button>';
   $('#fx').insertAdjacentHTML('beforebegin',
     '<div class="ov" id="ov-colony"><div class="card">' +
-      '<h2>👑 女王さまのへや</h2><div class="queen-stage" id="queenStage"><img src="assets/queen-room.jpg?v=20261124a" alt="女王さまのへや"><span class="queen-badge" id="queenStageLv">👑 Lv.1</span></div><canvas id="qCv"></canvas><p class="qsay" id="qSay"></p>' +
+      '<h2>👑 女王さまのへや</h2><div class="queen-stage" id="queenStage"><img src="assets/queen-room.jpg?v=20261124b" alt="女王さまのへや"><span class="queen-badge" id="queenStageLv">👑 Lv.1</span></div><canvas id="qCv"></canvas><p class="qsay" id="qSay"></p>' +
       '<div class="qlv"><b id="qLv"></b><span id="qTitle"></span><div class="abar"><i id="qBar"></i></div><small id="qExp"></small></div>' +
       '<p class="fine" id="qFood"></p><div class="feedrow"><button class="big" id="bFeed">🍬 ごはんをあげる</button><button class="big sec" id="bFeedAll">ぜんぶ</button></div>' +
       '<button type="button" class="big gold-soft" id="bQueenShop">🛒 ショップでエサを増やす</button>' +
@@ -708,6 +719,7 @@ function handleTalkLikeClick(e) {
       '<div class="sk-foot"><div class="gacha-row"><button class="big" id="bGacha"></button><button class="big gold" id="bGacha10"></button></div><button class="big sec" id="bSkClose">とじる</button></div></div></div>' +
     '<div class="ov" id="ov-gacha"><div class="card">' +
       '<h2 id="gachaTitle">🎁 おたからばこ</h2>' +
+      '<img class="af-gacha-img" src="assets/gacha-box.png?v=20261124b" alt="おたからばこ">' +
       '<div class="gacha-stage" id="gachaStage"></div>' +
       '<div class="gacha-sum" id="gachaSum"></div>' +
       '<div class="gacha-actions">' +
