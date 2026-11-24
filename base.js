@@ -1444,7 +1444,7 @@ const SKIN_SKILLS = {
   panda:    { name: 'パンダタイム',         type: 'timePlus',  need: 16, pNeed: 20 },
   cherry:   { name: 'チェリーツインズ',     type: 'transform', need: 15, pNeed: 18 },
   tiara:    { name: 'ダイヤモンドラッシュ', type: 'goldRush',  need: 16, pNeed: 20 },
-  robo:     { name: 'レーザービーム',       type: 'sweepH',    need: 15, pNeed: 18 },
+  robo:     { name: 'レーザービーム',       type: 'sweepH',    need: 15, pNeed: 24 },
   astro:    { name: 'コズミックタイム',     type: 'timePlus',  need: 16, pNeed: 20 },
   rainbow:  { name: 'レインボーミラクル',   type: 'color',     need: 16, pNeed: 18 }
 };
@@ -1456,7 +1456,7 @@ function getSkinSkill(k, lvOverride) {
   switch (def.type) {
     case 'sweepH':
       tsumDesc = '横ラインをまとめて消去（はんいLv.' + lv + '）';
-      puzzleDesc = '待機/おすすめ箱 ' + (lv >= 4 ? 2 : 1) + 'つ分をおとどけ＆加速';
+      puzzleDesc = '最大' + (2 + lv) + 'こ即おとどけ（空なら箱1つ）＆加速' + (3 + Math.floor(lv * 0.6)) + '秒';
       break;
     case 'burst':
       tsumDesc = '中央のありんこをまとめて消去（はんいLv.' + lv + '）';

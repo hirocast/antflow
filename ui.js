@@ -1213,7 +1213,7 @@ function applyLevel(id, L) {
   const streakCharge = (!G.firstSim && (G.streak || 0) >= 1) ? Math.min(0.45, (G.streak || 0) * 0.15) : 0;
   G.fever.g = Math.min(0.95, carryFever + streakCharge);
   const sk = getSkinSkill(save.skin);
-  G.skill = { g: 0, max: Math.min(sk.pNeed, Math.max(10, Math.round(L.total * 0.35))), freezeT: 0, boostT: 0 };
+  G.skill = { g: 0, max: calcSkillMax(sk.pNeed, L.total), freezeT: 0, boostT: 0 };
   if (typeof updateSkillBtn === 'function') updateSkillBtn();
   G.gold = pickGold(L);
   if (posOf(id) !== 1) G.firstSim = false;
@@ -2252,7 +2252,7 @@ function renderSkins() {
       antCache.clear(); G.perk = perks(); G.spdMul = G.perk.speed;
       if (G.skill) {
         const nsk = getSkinSkill(s.k);
-        G.skill.max = G.level ? Math.min(nsk.pNeed, Math.max(10, Math.round(G.level.total * 0.35))) : nsk.pNeed;
+        G.skill.max = calcSkillMax(nsk.pNeed, G.level ? G.level.total : 0);
         G.skill.g = Math.min(G.skill.g, G.skill.max);
         if (typeof updateSkillBtn === 'function') updateSkillBtn();
       }
@@ -2774,8 +2774,14 @@ function updateSkillBtn() {
   $('#skFill').style.width = pct + '%';
   b.classList.toggle('ready', ready);
 }
+function calcSkillMax(pNeed, total) {
+  if (!total) return pNeed;
+  if (total <= 60) return Math.min(pNeed, Math.max(10, Math.round(total * 0.32)));
+  return Math.min(90, Math.max(pNeed, Math.round(pNeed + Math.max(0, total - 100) * 0.12)));
+}
 function addSkillCharge(n) {
   if (!G.skill || G.skill.g >= G.skill.max) return;
+  if (G.skill.boostT > 0 || G.skill.freezeT > 0) return;
   G.skill.g = Math.min(G.skill.max, G.skill.g + (n || 1));
   updateSkillBtn();
 }
@@ -2902,10 +2908,10 @@ function doMainSkill() {
     case 'sweepH': {
       bCol = '#ff7eb3';
       addSkillFx({ kind: 'sweepH', col: 'rgba(255,140,200,0.88)', dur: 0.58 });
-      const del = skillDeliverFromSlots(3 + lv * 2);
+      const del = skillDeliverFromSlots(2 + lv);
       if (del > 0) effs.push('📦 ' + del + 'こ即おとどけ');
-      else { const pl = skillAutoPlace(lv >= 4 ? 2 : 1); if (pl > 0) effs.push('✨ 箱' + pl + 'つ自動セット'); }
-      const bSec = 4 + lv;
+      else { const pl = skillAutoPlace(1); if (pl > 0) effs.push('✨ 箱' + pl + 'つ自動セット'); }
+      const bSec = 3 + Math.floor(lv * 0.6);
       G.skill.boostT = Math.max(G.skill.boostT, bSec);
       effs.push('⚡ 加速 ' + bSec + '秒');
       break;
