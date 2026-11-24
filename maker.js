@@ -91,18 +91,18 @@
     active: true,
     title: '🏆 第1回 みんなに投稿ステージコンテスト開催中！',
     period: '11/29（日）まで · テーマ自由！',
-    note: '参加賞：🪙1,000＋🎟️1 ／ 特別賞：🪙3,000＋🎟️2＋💡1 ／ 最優秀賞：🪙5,000＋🎟️3＋💡2＋🔍2',
+    note: '参加賞：🪙5,000 ／ 特別賞：🪙30,000 ／ 最優秀賞：🪙60,000',
     awards: {
       'award-gold': {
-        key: 'gold', badge: '🏆 最優秀賞', rank: 1, coins: 5000, tickets: 3, hintT: 2, scanT: 2,
+        key: 'gold', badge: '🏆 最優秀賞', rank: 1, coins: 60000, tickets: 0, hintT: 0, scanT: 0,
         praise: 'とびきりステキな作品をありがとう！色づかいもアイデアもピカイチで、女王さまもありんこ隊も大感動です✨ 次の作品も楽しみにしているよ！'
       },
       'award-silver': {
-        key: 'silver', badge: '🥈 特別賞', rank: 2, coins: 3000, tickets: 2, hintT: 1, scanT: 0,
+        key: 'silver', badge: '🥈 特別賞', rank: 2, coins: 30000, tickets: 0, hintT: 0, scanT: 0,
         praise: 'キラリと光るステキな作品でした！遊んだみんながニコニコ笑顔になる工夫がいっぱいだね✨ これからも楽しい作品を作ってね！'
       },
       'award-join': {
-        key: 'join', badge: '🎁 参加賞', rank: 3, coins: 1000, tickets: 1, hintT: 0, scanT: 0,
+        key: 'join', badge: '🎁 参加賞', rank: 3, coins: 5000, tickets: 0, hintT: 0, scanT: 0,
         praise: 'コンテストへの応募ありがとう！あなたが心をこめて作ったステージ、ありんこ隊みんなで楽しく運んだよ✨'
       }
     }
@@ -113,7 +113,7 @@
       kind: 'news',
       badge: '📢 おしらせ',
       title: '🏆 第1回 みんなに投稿ステージコンテスト開催中！',
-      body: '11/29（日）まで第1回みんなに投稿ステージコンテストを開催しています！\nテーマは自由！応募してくれた全員に参加賞（🪙1,000＋🎟️1）、優秀作品には豪華報酬をプレゼント！\n\n【参加方法】\n①「🎨 つくる」でステージをかいて名前をつける\n② 下の「📮 投稿・🏆応募」ボタンを押す\n③「🏆 コンテスト応募」ONのまま投稿で完了！',
+      body: '11/29（日）まで第1回みんなに投稿ステージコンテストを開催しています！\nテーマは自由！応募してくれた全員に参加賞（🪙5,000）、優秀作品には豪華報酬をプレゼント！\n\n【参加方法】\n①「🎨 つくる」でステージをかいて名前をつける\n② 下の「📮 投稿・🏆応募」ボタンを押す\n③「🏆 コンテスト応募」ONのまま投稿で完了！',
       at: Date.UTC(2026, 10, 19)
     }
   ];
@@ -1430,11 +1430,11 @@
       '</div>' +
       '<div class="contest-prizes">' +
       '<h3>🎁 賞品（もれなく参加賞！）</h3>' +
-      '<div>🎁 <b>参加賞</b>（応募者全員）：🪙1,000 ＋ 🎟️1</div>' +
-      '<div>🥈 <b>特別賞</b>：🪙3,000 ＋ 🎟️2 ＋ 💡1</div>' +
-      '<div>🏆 <b>最優秀賞</b>：🪙5,000 ＋ 🎟️3 ＋ 💡2 ＋ 🔍2</div>' +
+      '<div>🎁 <b>参加賞</b>（応募者全員）：🪙5,000</div>' +
+      '<div>🥈 <b>特別賞</b>：🪙30,000</div>' +
+      '<div>🏆 <b>最優秀賞</b>：🪙60,000</div>' +
       '</div>' +
-      '<div class="contest-note">📬 <b>結果と賞品の受け取り方：</b><br>発表・賞品はホームの「📬 おしらせ・受賞メール」に届き、コインやチケットが自動でもらえます！（ひとり何作品でも応募OK）</div>' +
+      '<div class="contest-note">📬 <b>結果と賞品の受け取り方：</b><br>発表・賞品はホームの「📬 おしらせ・受賞メール」に届き、コインが自動でもらえます！（ひとり何作品でも応募OK）</div>' +
       '<div class="cfrow">' +
       '<button class="big" id="bCtMake">🎨 さっそくつくる</button>' +
       '<button class="big mint" id="bCtGal">💾 マイ作品から投稿</button>' +
@@ -1598,7 +1598,7 @@
       '<p class="fine">ニックネームを決めて「🌟 みんなの絵」に公開しよう！</p>' +
       '<input id="postNick" type="text" maxlength="16" placeholder="ニックネーム（空欄なら「名無しのありんこ」）" style="width:100%;box-sizing:border-box;border:2px solid #f0c6d6;border-radius:12px;padding:8px 10px;font:800 13px var(--rf);color:var(--ink);margin:8px 0;text-align:center;background:#fff">' +
       '<label class="mkperm" style="margin:6px 0"><input type="checkbox" id="postAllowOfficial" checked> 🏆 コンテスト応募・公式ステージ採用OK</label>' +
-      '<p class="fine" style="font-size:10px;margin:0 0 6px;line-height:1.4">' + (CONTEST.active ? '※ ONのまま投稿すると「第1回みんなに投稿ステージコンテスト」に応募されます！（応募者全員に参加賞 🪙1,000＋🎟️1）' : '※ 許可した作品の中から、素敵なステージが「公式ステージ」やコンテスト受賞作（報酬つき！）に選ばれることがあります。') + '</p>' +
+      '<p class="fine" style="font-size:10px;margin:0 0 6px;line-height:1.4">' + (CONTEST.active ? '※ ONのまま投稿すると「第1回みんなに投稿ステージコンテスト」に応募されます！（応募者全員に参加賞 🪙5,000）' : '※ 許可した作品の中から、素敵なステージが「公式ステージ」やコンテスト受賞作（報酬つき！）に選ばれることがあります。') + '</p>' +
       '<p class="fine" id="postSummary" style="margin:4px 0 8px"></p>' +
       '</div>' +
       '<div id="postGhBox">' +
@@ -3033,7 +3033,7 @@
     if (CONTEST.active) {
       const cb = document.createElement('div');
       cb.className = 'contest-bar contest-home';
-      cb.innerHTML = '<div><b>' + CONTEST.title + '</b><small>' + CONTEST.period + ' · 参加賞 🪙1,000＋🎟️1</small><small>①つくる → ②「📮 投稿・🏆応募」でかんたん応募！</small></div><span>参加方法</span>';
+      cb.innerHTML = '<div><b>' + CONTEST.title + '</b><small>' + CONTEST.period + ' · 参加賞 🪙5,000</small><small>①つくる → ②「📮 投稿・🏆応募」でかんたん応募！</small></div><span>参加方法</span>';
       cb.addEventListener('click', () => { Sound.tap(); openContestGuide('title'); });
       mrow.insertAdjacentElement('beforebegin', cb);
     }
