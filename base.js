@@ -1287,6 +1287,16 @@ const BINGO_CARDS = [
 /* ================= 育成・経済のデータ ================= */
 // PRICE：便利機能とおたからばこの値段（コイン）
 const PRICE = { undo: 20, hint: 30, rewind: 40, box: 3000, scan: 200 };
+// SHOP_PACKS：ショップの販売パック定義（ステップ2：UI・開発テスト基盤／本決済連携時にpriceId等を紐づけ）
+const SHOP_PACKS = [
+  { id: 'starter', cat: 'set', e: '🌱', n: 'おためし応援パック', tag: '1回限定・超おとく', priceJpy: 160, food: 50000, coins: 15000, tickets: 3, once: true, desc: 'ガチャ券3まい＋エサ5万＋コイン1.5万の豪華スタートセット！' },
+  { id: 'food_s', cat: 'food', e: '🍬', n: 'エサこぶり袋', tag: '女王さま育成', priceJpy: 160, food: 40000, coins: 0, tickets: 0, desc: '女王さまが一気にレベルアップ！序〜中盤の育成におすすめ' },
+  { id: 'food_m', cat: 'food', e: '🍯', n: 'エサたっぷり袋', tag: '人気', priceJpy: 480, food: 150000, coins: 0, tickets: 0, desc: '後半戦（Lv.100〜）の★★★狙いに！大きくレベルアップ' },
+  { id: 'food_l', cat: 'food', e: '👑', n: '女王さま満腹セット', tag: 'おとく +25%', priceJpy: 980, food: 400000, coins: 0, tickets: 0, desc: '速度+65%＆★タイム+20%（Lv.160付近）へ一気に近づく大ボリューム！' },
+  { id: 'coin_s', cat: 'coin', e: '🪙', n: 'コイン小袋', tag: 'ガチャ5回分', priceJpy: 160, food: 0, coins: 15000, tickets: 0, desc: 'おたからばこ5回分（1回3,000🪙）や便利機能の補充に' },
+  { id: 'coin_m', cat: 'coin', e: '💰', n: 'コイン宝箱', tag: '10連＋おまけ', priceJpy: 480, food: 0, coins: 36000, tickets: 0, desc: 'おたからばこ10連（30,000🪙）1回分＋おまけ6,000🪙！' },
+  { id: 'dx_set', cat: 'set', e: '✨', n: 'ありんこ隊まるごとDX', tag: 'いちばんおとく', priceJpy: 1480, food: 500000, coins: 60000, tickets: 5, desc: 'エサ50万＋コイン6万（10連2回分）＋ガチャ券5まいの究極セット！' }
+];
 // SKINS：きせかえ。fx はそれぞれの特別な力（perks で合計する）
 const SKINS = [
   { k: 'none', n: 'すっぴん', e: '🐜', d: 'いつものアリさん', fx: {} },

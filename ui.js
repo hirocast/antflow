@@ -159,7 +159,7 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .quick-back{position:fixed;top:max(1px,calc(env(safe-area-inset-top,0px) - 34px));left:2px;z-index:25;border:2px solid #fff;border-radius:999px;padding:4px 9px 4px 7px;background:linear-gradient(#fffdf8,#fff1d6);color:var(--ink);font:900 10.5px/1 var(--rf);box-shadow:0 2px 0 rgba(90,61,92,.22),0 3px 8px rgba(90,61,92,.14);cursor:pointer;display:none;align-items:center;gap:3px;white-space:nowrap}
 .quick-back.on{display:inline-flex}
 @media (max-width:600px){
- #bQClose,#bMisClose,#bBingoClose,#bHelpClose,#bAlbumClose,#bViewBack,#bDevClose,#bMkClose,#bGalClose,#bgmCloseBtn,#bBgmGalClose,#bStBgmBack,#bBgmBuiltinBack,#bCtClose,#bA2hsClose,#bTrClose,#bInboxClose,#ov-settings .set-foot,#ov-clear .clear-foot,#ov-skins .sk-foot{position:sticky;bottom:0;z-index:6;box-shadow:0 4px 0 #e1c48e,0 0 0 4px #fffdf8}
+ #bQClose,#bMisClose,#bBingoClose,#bHelpClose,#bAlbumClose,#bViewBack,#bDevClose,#bMkClose,#bGalClose,#bgmCloseBtn,#bBgmGalClose,#bStBgmBack,#bBgmBuiltinBack,#bCtClose,#bA2hsClose,#bTrClose,#bInboxClose,#bShopClose,#ov-settings .set-foot,#ov-clear .clear-foot,#ov-skins .sk-foot{position:sticky;bottom:0;z-index:6;box-shadow:0 4px 0 #e1c48e,0 0 0 4px #fffdf8}
  #ov-settings .set-foot,#ov-clear .clear-foot,#ov-skins .sk-foot{background:#fffdf8;box-shadow:0 -6px 12px #fffdf8;padding-top:6px;margin-top:10px}
  #ov-settings .set-foot .big,#ov-clear .clear-foot .big{margin-top:0}
  #ov-skins .sk-foot .gacha-row{margin-top:0}
@@ -417,6 +417,45 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .daily-chip{display:none;margin:5px 0 2px;padding:4px 10px;border-radius:999px;background:#fff4d9;border:1.5px solid #f7cf78;font-size:11px;font-weight:800;color:#935516;text-align:center}
 .daily-chip.on{display:inline-block}
 .day-next{margin:8px 0 4px;padding:5px 10px;border-radius:12px;background:#fff5dd;font-size:12px;font-weight:900;color:#a05712}
+.coin .coin-plus{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:1px;border-radius:50%;background:#ff9a3c;color:#fff;font-size:11px;font-weight:900;line-height:1;box-shadow:0 1px 0 #c96a10}
+.shop-home-btn{width:100%;margin-top:8px;padding:9px 12px;border:3px solid #fff;border-radius:16px;background:linear-gradient(135deg,#fff8d6,#ffe49e);box-shadow:0 4px 0 #d9a520;display:flex;align-items:center;justify-content:space-between;gap:8px;font:900 13.5px var(--rf);color:#6e3f00;cursor:pointer;text-align:left}
+.shop-home-btn:active{transform:translateY(2px);box-shadow:none}
+.shop-home-btn small{font-size:11px;font-weight:800;opacity:.82;margin-right:auto}
+.shop-dev-tag{font-style:normal;background:#5fcf9f;color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:999px;white-space:nowrap}
+body.dev .shop-dev-tag.dev-only{display:inline-block!important}
+.big.gold-soft{background:linear-gradient(180deg,#fff3c4,#ffd978);color:#6e3f00;box-shadow:0 4px 0 #d9a520}
+.sk-pill-btn{cursor:pointer;font-family:var(--rf);transition:transform .08s}
+.sk-pill-btn:active{transform:translateY(2px);box-shadow:none}
+.sk-pill-btn span{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#ff9a3c;color:#fff;font-size:11px;line-height:1}
+.clear-shop-tip{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;padding:6px 10px;border-radius:13px;background:#fff8dc;border:2px solid #ffe082;font-size:11px;font-weight:800;color:#7a4b00;text-align:left}
+.clear-shop-tip button{flex:0 0 auto;border:none;border-radius:10px;padding:4px 10px;background:linear-gradient(180deg,#ffe066,#ff9f43);color:#5a2d00;font:900 11px var(--rf);box-shadow:0 2px 0 #d97706;cursor:pointer;white-space:nowrap}
+.clear-shop-tip button:active{transform:translateY(1px);box-shadow:none}
+.shop-wallet{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+.shop-banner{margin:0 0 8px;padding:7px 10px;border-radius:13px;background:#eef9ff;border:2px solid #bde3fa;font-size:11px;font-weight:800;color:#1b5b82;line-height:1.45;text-align:left}
+.shop-banner.dev{background:linear-gradient(135deg,#eafff4,#fff9dc);border-color:#68d39a;color:#16643c}
+.shop-banner.live{background:linear-gradient(135deg,#fff8e2,#ffecf2);border-color:#ffcf6e;color:#7a4400}
+.shop-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:0 0 8px}
+.shop-tab{border:2px solid #fff;border-radius:12px;padding:6px 2px;background:#fff1d6;color:var(--ink);font:900 11px var(--rf);box-shadow:0 2px 0 #e2c48c;cursor:pointer;white-space:nowrap}
+.shop-tab.on{background:linear-gradient(#ff9fc0,#ff6f9e);color:#fff;box-shadow:0 2px 0 #d4507c}
+.shop-list{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow-y:auto;touch-action:pan-y;padding:2px 2px 6px}
+.shop-sec-h{font-size:12px;font-weight:900;color:#c0507a;text-align:left;margin:4px 2px 0;padding-left:4px;border-left:4px solid #ff8fb3}
+.shop-card{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:16px;background:#fff;border:2.5px solid #ffd8e6;box-shadow:0 3px 0 #f2c8d8;text-align:left}
+.shop-card.featured{background:linear-gradient(135deg,#fffdf2,#fff0f7);border-color:#ffcf4a;box-shadow:0 3px 0 #e0ab2a}
+.shop-card.bought{opacity:.65}
+.shop-ico{flex:0 0 42px;height:42px;border-radius:13px;background:#fff6fa;border:2px solid #ffe0ea;display:flex;align-items:center;justify-content:center;font-size:24px}
+.shop-card.featured .shop-ico{background:#fff8d6;border-color:#ffe082}
+.shop-mid{flex:1;min-width:0}
+.shop-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.shop-name{font-size:13px;font-weight:900;color:var(--ink)}
+.shop-tag{display:inline-block;padding:1px 6px;border-radius:8px;background:#ffeef4;color:#c03060;font-size:9.5px;font-weight:900;white-space:nowrap}
+.shop-card.featured .shop-tag{background:linear-gradient(90deg,#ff9a3c,#ffcf4a);color:#5a2d00}
+.shop-items{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 3px}
+.shop-chip{display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:8px;background:#fff7e6;border:1px solid #ffe09a;font-size:10.5px;font-weight:900;color:#7a4b00}
+.shop-desc{font-size:10.5px;font-weight:700;color:#6e5068;line-height:1.35}
+.shop-buy{flex:0 0 auto;min-width:74px;height:38px;padding:0 10px;border:2px solid #fff;border-radius:13px;background:linear-gradient(180deg,#ffcf4a,#ff9a3c);color:#5a2d00;font:900 13px var(--rf);box-shadow:0 3px 0 #d97706;cursor:pointer;white-space:nowrap}
+.shop-buy:active{transform:translateY(2px);box-shadow:none}
+.shop-buy:disabled{background:#e9e2e6;color:#8a7882;box-shadow:none;cursor:default}
+.shop-note{font-size:10.5px;font-weight:700;color:#8a6a7a;margin:6px 0 2px;line-height:1.45;text-align:left}
 `;
   document.head.appendChild(st);
 })();
@@ -503,7 +542,7 @@ function handleTalkLikeClick(e) {
   return true;
 }
 (function buildMetaUI() {
-  $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b>'; return d; })(), $('#bAlbum'));
+  $('header').insertBefore((() => { const d = document.createElement('div'); d.className = 'coin'; d.id = 'coinPill'; d.innerHTML = '<i>🪙</i><b id="coinTxt">0</b><em class="coin-plus" aria-hidden="true">＋</em>'; return d; })(), $('#bAlbum'));
   $('header').insertBefore((() => { const b = document.createElement('button'); b.className = 'ib'; b.id = 'bHome'; b.setAttribute('aria-label', 'ホーム'); b.textContent = '🏠'; return b; })(), $('#bAlbum'));
   const tt = document.createElement('span'); tt.id = 'timeTxt'; $('.prog').appendChild(tt);
   const hfb = document.createElement('button'); hfb.type = 'button'; hfb.className = 'hud-fb'; hfb.id = 'bHudFb'; hfb.setAttribute('aria-label', '要望・不具合報告'); hfb.innerHTML = '<b>!</b>報告<i class="qdot"></i>'; $('.prog').appendChild(hfb);
@@ -525,6 +564,7 @@ function handleTalkLikeClick(e) {
     if (t.dataset.hub === 'queen') openColony('title');
     else if (t.dataset.hub === 'mis') openMissions('title');
     else if (t.dataset.hub === 'bingo') openBingo('title');
+    else if (t.dataset.hub === 'shop') openShop('title');
   });
   $('#homeHub').addEventListener('click', e => {
     const t = e.target.closest('button[data-hub]');
@@ -541,8 +581,9 @@ function handleTalkLikeClick(e) {
     else if (act === 'album') openAlbum(true);
     else if (act === 'skin') openSkins('title');
     else if (act === 'bingo') openBingo('title');
+    else if (act === 'shop') openShop('title');
   });
-  $('#bPlay').insertAdjacentHTML('afterend', '<div id="homeNextGoal" class="ngoal"></div><div id="homeDailyChip" class="daily-chip"></div><div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMBingo"><i>🎯</i>ビンゴ<em class="dot" id="bingoDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div>');
+  $('#bPlay').insertAdjacentHTML('afterend', '<div id="homeNextGoal" class="ngoal"></div><div id="homeDailyChip" class="daily-chip"></div><div class="mrow"><button id="bMQueen"><i>👑</i>女王さま<em class="dot" id="queenDot"></em></button><button id="bMMis"><i>📋</i>ミッション<em class="dot" id="misDot"></em></button><button id="bMBingo"><i>🎯</i>ビンゴ<em class="dot" id="bingoDot"></em></button><button id="bMSkin"><i>🎀</i>きせかえ</button></div><button type="button" class="shop-home-btn" id="bMShop"><span>🛒 ショップ</span><small>エサ・コインでおうえん育成</small><em class="shop-dev-tag dev-only">テスト購入可</em></button>');
   if ($('#bTitleHelp') && $('#bTitleAlbum')) {
     const tr = document.createElement('div'); tr.className = 'cfrow'; tr.style.marginTop = '10px';
     $('#bTitleHelp').parentNode.insertBefore(tr, $('#bTitleHelp'));
@@ -582,7 +623,7 @@ function handleTalkLikeClick(e) {
   $('#bNext').parentNode.insertBefore(cr, $('#bNext'));
   cr.insertAdjacentHTML('beforebegin', '<div id="clearNextGoal" class="ngoal"></div>');
   cr.appendChild($('#bNext')); cr.appendChild($('#bReplay'));
-  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><div class="cfrow"><button class="big sec" id="bClearShare">📣 シェアする</button><button class="big sec" id="bClearHome">🏠 ホームへ</button></div><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
+  cr.insertAdjacentHTML('afterend', '<button class="big mint" id="bClearQueen">👑 女王さまにエサをあげる</button><div class="clear-shop-tip" id="clearShopTip" style="display:none"><span>💡 ★★★には女王育成やスキン強化が効果的！</span><button type="button" id="bClearShop">🛒 ショップ</button></div><div class="cfrow"><button class="big sec" id="bClearShare">📣 シェアする</button><button class="big sec" id="bClearHome">🏠 ホームへ</button></div><button class="big mint" id="bClearA2hs" style="display:none">📲 ホーム画面に追加して広く遊ぶ</button>');
   if ($('#bSetClose')) {
     const sf = document.createElement('div'); sf.className = 'cfrow set-foot';
     $('#bSetClose').parentNode.insertBefore(sf, $('#bSetClose'));
@@ -614,6 +655,7 @@ function handleTalkLikeClick(e) {
       '<h2>👑 女王さまのへや</h2><canvas id="qCv"></canvas><p class="qsay" id="qSay"></p>' +
       '<div class="qlv"><b id="qLv"></b><span id="qTitle"></span><div class="abar"><i id="qBar"></i></div><small id="qExp"></small></div>' +
       '<p class="fine" id="qFood"></p><div class="feedrow"><button class="big" id="bFeed">🍬 ごはんをあげる</button><button class="big sec" id="bFeedAll">ぜんぶ</button></div>' +
+      '<button type="button" class="big gold-soft" id="bQueenShop">🛒 ショップでエサを増やす</button>' +
       '<h3>コロニーのおへや</h3><div class="rooms" id="qRooms"></div>' +
       '<h3>女王さまの力</h3><div class="perks" id="qPerks"></div>' +
       '<button class="big sec" id="bQClose">とじる</button></div></div>' +
@@ -637,6 +679,20 @@ function handleTalkLikeClick(e) {
         '<div class="gacha-row"><button class="big" id="bGachaAgain1"></button><button class="big gold" id="bGachaAgain10"></button></div>' +
         '<button class="big sec" id="bGachaClose">きせかえにもどる</button>' +
       '</div></div></div>' +
+    '<div class="ov" id="ov-shop"><div class="card">' +
+      '<h2>🛒 ショップ</h2>' +
+      '<div class="shop-wallet" id="shopWallet"></div>' +
+      '<div class="shop-banner" id="shopBanner"></div>' +
+      '<div class="shop-tabs" id="shopTabs">' +
+        '<button type="button" class="shop-tab on" data-cat="all">すべて</button>' +
+        '<button type="button" class="shop-tab" data-cat="set">🌟 セット</button>' +
+        '<button type="button" class="shop-tab" data-cat="food">🍬 エサ</button>' +
+        '<button type="button" class="shop-tab" data-cat="coin">🪙 コイン</button>' +
+      '</div>' +
+      '<div class="shop-list" id="shopList"></div>' +
+      '<p class="shop-note">※ 通常プレイのステージ周回でもエサ・コイン・ガチャ券はすべて獲得できます。ショップは「周回せずにすぐ育成したい」方向けのサポートです。</p>' +
+      '<button type="button" class="link dev-only" id="bShopResetTest" style="display:none;margin:4px auto 0">🛠️ 購入履歴をリセット（テスト用）</button>' +
+      '<button class="big sec" id="bShopClose">とじる</button></div></div>' +
     '<div class="ov" id="ov-daily"><div class="card">' +
       '<h2>🎁 ログインボーナス</h2><p id="dayMsg"></p><div class="dayrow" id="dayRow"></div><p class="day-next" id="dayNext"></p>' +
       '<button class="big pulse" id="bDayOk">🎁 うけとって あそぶ！</button>' +
@@ -668,7 +724,7 @@ Sound.lastSpurt = function () { if (this.ok()) [523.25, 659.25, 783.99, 1046.5].
 
 /* ================= 育成・経済（セーブに項目を足す。古いセーブもそのまま使える） ================= */
 // tut：見おわったチュートリアルの記録
-const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skinCnt: { none: 1 }, skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {}, seenTalk: [], bingo: { card: 0, claimed: {} } };
+const META_DEF = { coins: 150, food: 0, qlv: 1, qexp: 0, tickets: 0, hintT: 0, scanT: 0, road: 0, best: {}, skins: ['none'], skinCnt: { none: 1 }, skin: 'none', daily: { day: '', streak: 0 }, mis: { day: '', list: [], bonus: 0 }, tut: {}, seenTalk: [], bingo: { card: 0, claimed: {} }, shopBought: {}, shopReceipts: [] };
 let seenTalkSet = new Set();
 function metaInit(force) {
   for (const k in META_DEF) {
@@ -698,6 +754,7 @@ function metaInit(force) {
   if (save.qlv >= Q_MAX) save.qexp = 0;
   save.coins = Math.max(0, Math.floor(save.coins) || 0);
   save.food = Math.max(0, Math.floor(save.food) || 0);
+  save.tickets = Math.max(0, Math.floor(save.tickets) || 0);
   save.hintT = Math.max(0, Math.floor(save.hintT) || 0);
   save.scanT = Math.max(0, Math.floor(save.scanT) || 0);
   for (const k in save.best) if (!(+k >= 1 && +k <= TOTAL) || !save.best[k] || typeof save.best[k].t !== 'number') delete save.best[k];
@@ -706,6 +763,8 @@ function metaInit(force) {
   if (!save.bingo || typeof save.bingo !== 'object') save.bingo = { card: 0, claimed: {} };
   if (!save.bingo.claimed || typeof save.bingo.claimed !== 'object') save.bingo.claimed = {};
   save.bingo.card = clamp(Math.floor(save.bingo.card) || 0, 0, BINGO_CARDS.length - 1);
+  if (!save.shopBought || typeof save.shopBought !== 'object' || Array.isArray(save.shopBought)) save.shopBought = {};
+  if (!Array.isArray(save.shopReceipts)) save.shopReceipts = [];
   seenTalkSet = new Set(save.seenTalk);
   persist();
 }
@@ -1040,6 +1099,7 @@ function confirmSpend(opts, onOk) {
   $('#cfDesc').textContent = opts.desc;
   $('#cfCost').textContent = opts.costText || ('消費：' + opts.cost);
   $('#bCfOk').textContent = opts.okLabel || 'つかう！';
+  $('#bCfCancel').style.display = opts.okOnly ? 'none' : '';
   G.cf = { prev, onOk };
   Sound.tap();
   showOv('confirm');
@@ -1716,6 +1776,8 @@ function showClear() {
     bn.textContent = 'アルバムを見る 📒';
   }
   bn.disabled = false;
+  const cst = $('#clearShopTip');
+  if (cst) cst.style.display = (!isCustom && pos >= 66 && st < 3) ? '' : 'none';
   if (typeof renderNextGoal === 'function') renderNextGoal('#clearNextGoal', 'clear');
   showOv('clear');
   Fx.rain(130);
@@ -1978,7 +2040,7 @@ function renderTitle() {
   const talkPct = talkTot ? clamp(100 * talkCur / talkTot, 0, 100) : 0;
   const talkPctStr = (Math.floor(talkPct * 10) / 10).toFixed(1);
   const need = qNeed(lv), qPct = maxQ ? 100 : clamp(100 * save.qexp / need, 0, 100);
-  el.innerHTML = '<span>🪙 ' + save.coins + '</span><button type="button" class="tinfo-btn" data-hub="mis">⭐ ' + ts + '</button><button type="button" class="tinfo-btn" data-hub="queen">👑 Lv.' + lv + '</button><button type="button" class="tinfo-btn" data-hub="bingo">💬 ' + talkCur + '/' + talkTot + '</button>' + (save.tickets > 0 ? '<span>🎟️ ' + save.tickets + '</span>' : '');
+  el.innerHTML = '<button type="button" class="tinfo-btn" data-hub="shop">🪙 ' + save.coins.toLocaleString() + ' ＋</button><button type="button" class="tinfo-btn" data-hub="mis">⭐ ' + ts + '</button><button type="button" class="tinfo-btn" data-hub="queen">👑 Lv.' + lv + '</button><button type="button" class="tinfo-btn" data-hub="bingo">💬 ' + talkCur + '/' + talkTot + '</button>' + (save.tickets > 0 ? '<span>🎟️ ' + save.tickets + '</span>' : '');
   $('#misDot').classList.toggle('on', save.mis.list.some(m => !m.done));
   $('#queenDot').classList.toggle('on', qs.canUnlock);
   const bDot = $('#bingoDot');
@@ -2204,7 +2266,9 @@ function renderSkins() {
   if (walletEl) {
     walletEl.innerHTML =
       '<span class="sk-pill">🎟️ チケット <b>' + save.tickets.toLocaleString() + '</b> まい</span>' +
-      '<span class="sk-pill coin">🪙 コイン <b>' + save.coins.toLocaleString() + '</b></span>';
+      '<button type="button" class="sk-pill coin sk-pill-btn" id="bSkShop">🪙 コイン <b>' + save.coins.toLocaleString() + '</b><span>＋</span></button>';
+    const skShopBtn = $('#bSkShop');
+    if (skShopBtn) skShopBtn.addEventListener('click', () => { Sound.init(); openShop('skins', 'coin'); });
   }
   $('#skSum').textContent = '所持 ' + save.skins.length + '/' + SKINS.length + '（MAX ' + maxCnt + '）';
   const g1 = gachaCost(1), g10 = gachaCost(10);
@@ -2281,7 +2345,17 @@ function showGachaResult(results, count) {
 function doGacha(count) {
   const n = count === 10 ? 10 : 1;
   const info = gachaCost(n);
-  if (!info.ok) { toast('🪙 コインが足りないよ（' + info.c.toLocaleString() + 'こ必要）'); Sound.deny(); return; }
+  if (!info.ok) {
+    Sound.deny();
+    const fromOv = G.overlay || 'skins';
+    confirmSpend({
+      title: '🪙 コインが足りません',
+      desc: (n === 10 ? '10連おたからばこ' : 'おたからばこ') + 'を開けるには、あと 🪙' + (info.c - save.coins).toLocaleString() + ' コイン必要です。\nショップでコインを補充するか、ステージをクリアして貯めよう！',
+      costText: '必要：🪙 ' + info.c.toLocaleString() + '（所持：🪙 ' + save.coins.toLocaleString() + '）',
+      okLabel: '🛒 ショップを見る'
+    }, () => openShop(fromOv, 'coin'));
+    return;
+  }
   confirmSpend({
     title: n === 10 ? '✨ 10連おたからばこ' : '🎁 おたからばこ',
     desc: '「きせかえ」がランダムで' + n + 'つ手に入ります。同じきせかえを集めるとスキルレベル（SLv.1〜5）が上がり、スキルの効果がパワーアップ！（すべてSLv.MAX時は🪙' + PRICE.box.toLocaleString() + 'かえってきます）',
@@ -2319,6 +2393,153 @@ function doGacha(count) {
     if (n === 10) setTimeout(() => Fx.burst(innerWidth * 0.3, innerHeight * 0.4, 55, 360, ['star', 'conf']), 220);
     if (n === 10) setTimeout(() => Fx.burst(innerWidth * 0.7, innerHeight * 0.4, 55, 360, ['star', 'conf']), 400);
   });
+}
+
+/* ================= ショップ（ステップ2：UI・パック構成・開発モードテスト購入基盤） ================= */
+const SHOP_CHECKOUT_URL = '';
+function isLiveShopReady() { return !!SHOP_CHECKOUT_URL; }
+function packRewardsText(p) {
+  const parts = [];
+  if (p.food > 0) parts.push('🍬 エサ +' + p.food.toLocaleString());
+  if (p.coins > 0) parts.push('🪙 コイン +' + p.coins.toLocaleString());
+  if (p.tickets > 0) parts.push('🎟️ ガチャ券 +' + p.tickets.toLocaleString() + 'まい');
+  return parts.join(' ／ ');
+}
+function openShop(from, cat) {
+  G.shopFrom = from === undefined ? null : from;
+  if (cat) G.shopCat = cat;
+  else if (!G.shopCat) G.shopCat = 'all';
+  renderShop();
+  showOv('shop');
+}
+function closeShop() {
+  Sound.tap();
+  const f = G.shopFrom;
+  if (f === 'colony') { renderColony(); showOv('colony'); }
+  else if (f === 'skins') { renderSkins(); showOv('skins'); }
+  else if (f === 'gacha') {
+    const g1 = gachaCost(1), g10 = gachaCost(10);
+    $('#bGachaAgain1').innerHTML = '🎁 もう1回<small>' + g1.short + '</small>';
+    $('#bGachaAgain10').innerHTML = '✨ もう10連<small>' + g10.short + '</small>';
+    showOv('gacha');
+  } else if (f === 'clear') { updateClearQueenBtn(); showOv('clear'); }
+  else if (f === 'title') showOv('title');
+  else hideOv();
+}
+function grantShopPack(packId, receiptId) {
+  const p = SHOP_PACKS.find(x => x.id === packId);
+  if (!p) return { ok: false, reason: 'not_found' };
+  const rid = String(receiptId || ('rcpt_' + Date.now()));
+  if (!Array.isArray(save.shopReceipts)) save.shopReceipts = [];
+  if (save.shopReceipts.indexOf(rid) >= 0) return { ok: false, reason: 'duplicate' };
+  if (!save.shopBought || typeof save.shopBought !== 'object') save.shopBought = {};
+  if (p.once && save.shopBought[p.id]) return { ok: false, reason: 'already_bought' };
+  if (p.food > 0) save.food += p.food;
+  if (p.coins > 0) save.coins += p.coins;
+  if (p.tickets > 0) save.tickets += p.tickets;
+  save.shopBought[p.id] = (save.shopBought[p.id] || 0) + 1;
+  save.shopReceipts.push(rid);
+  if (save.shopReceipts.length > 100) save.shopReceipts = save.shopReceipts.slice(-100);
+  persist();
+  updateCoins(true);
+  Sound.fanfare();
+  haptic(18);
+  Fx.burst(innerWidth / 2, innerHeight * 0.35, 70, 380, ['star', 'conf', 'dot']);
+  if (G.overlay === 'shop') renderShop();
+  if (G.overlay === 'colony') renderColony();
+  if (G.overlay === 'skins') renderSkins();
+  updateClearQueenBtn();
+  return { ok: true, pack: p };
+}
+function buyShopPack(packId) {
+  const p = SHOP_PACKS.find(x => x.id === packId);
+  if (!p) return;
+  if (p.once && save.shopBought && save.shopBought[p.id]) {
+    toast('このパックは1回限定のため購入済みだよ！'); Sound.deny(); return;
+  }
+  const rewards = packRewardsText(p);
+  if (save.settings.dev) {
+    confirmSpend({
+      title: '🛠️ テスト購入：' + p.e + ' ' + p.n,
+      desc: '【開発モード専用】実際の決済（¥' + p.priceJpy.toLocaleString() + '）は行われず、開発用セーブデータにアイテムが付与されます。\n\n付与内容：' + rewards,
+      costText: 'テスト価格：¥' + p.priceJpy.toLocaleString() + '（無料テスト）',
+      okLabel: '🧪 テスト購入する'
+    }, () => {
+      const rid = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      const r = grantShopPack(p.id, rid);
+      if (r.ok) toast('✨ テスト購入完了！' + rewards, 3200);
+    });
+    return;
+  }
+  if (!isLiveShopReady()) {
+    Sound.tap();
+    confirmSpend({
+      title: '🛍️ ' + p.e + ' ' + p.n + '（¥' + p.priceJpy.toLocaleString() + '）',
+      desc: '現在ショップの決済連携を準備中です。本決済が有効になると、ここからエサやコインを直接購入できるようになります。\n\n内容：' + rewards + '\n※ 開発モードONでテスト購入の動きをお試しいただけます。',
+      costText: '予定価格：¥' + p.priceJpy.toLocaleString() + '（現在準備中）',
+      okLabel: 'とじる',
+      okOnly: true
+    }, () => {});
+    return;
+  }
+}
+function renderShop() {
+  const cat = G.shopCat || 'all';
+  const dev = !!save.settings.dev;
+  const wallet = $('#shopWallet');
+  if (wallet) {
+    wallet.innerHTML =
+      '<span class="sk-pill">🍬 エサ <b>' + save.food.toLocaleString() + '</b></span>' +
+      '<span class="sk-pill coin">🪙 コイン <b>' + save.coins.toLocaleString() + '</b></span>' +
+      '<span class="sk-pill">🎟️ 券 <b>' + save.tickets.toLocaleString() + '</b></span>' +
+      '<span class="sk-pill">👑 女王 <b>Lv.' + save.qlv + '</b></span>';
+  }
+  const banner = $('#shopBanner');
+  if (banner) {
+    banner.className = 'shop-banner ' + (dev ? 'dev' : isLiveShopReady() ? 'live' : '');
+    banner.textContent = dev
+      ? '🛠️ 開発モード中：すべてのパックを無料テスト購入できます（テスト用セーブにのみ反映）'
+      : isLiveShopReady()
+        ? '✨ 後半の★★★達成やスキン強化をすぐ進めたいときのサポートパックです！'
+        : '🛍️ 決済機能は準備中です（ラインナップ・価格をご確認いただけます。開発モードONでテスト購入可）';
+  }
+  $('#shopTabs').querySelectorAll('.shop-tab').forEach(btn => btn.classList.toggle('on', btn.dataset.cat === cat));
+  const listEl = $('#shopList');
+  if (!listEl) return;
+  const groups = cat === 'all'
+    ? [['set', '🌟 おとくセット'], ['food', '🍬 女王さまのエサ'], ['coin', '🪙 コイン（おたからばこ）']]
+    : [[cat, cat === 'set' ? '🌟 おとくセット' : cat === 'food' ? '🍬 女王さまのエサ' : '🪙 コイン']];
+  let html = '';
+  for (const [gCat, gTitle] of groups) {
+    const items = SHOP_PACKS.filter(x => x.cat === gCat);
+    if (!items.length) continue;
+    if (cat === 'all') html += '<div class="shop-sec-h">' + gTitle + '</div>';
+    for (const p of items) {
+      const boughtOnce = !!(p.once && save.shopBought && save.shopBought[p.id]);
+      const featured = p.id === 'starter' || p.id === 'food_l' || p.id === 'dx_set';
+      const chips = [];
+      if (p.food > 0) chips.push('<span class="shop-chip">🍬 ' + p.food.toLocaleString() + '</span>');
+      if (p.coins > 0) chips.push('<span class="shop-chip">🪙 ' + p.coins.toLocaleString() + '</span>');
+      if (p.tickets > 0) chips.push('<span class="shop-chip">🎟️ ' + p.tickets + 'まい</span>');
+      const btnLbl = boughtOnce ? '購入ずみ' : (dev ? '🧪 ¥' + p.priceJpy.toLocaleString() : '¥' + p.priceJpy.toLocaleString());
+      html +=
+        '<div class="shop-card' + (featured ? ' featured' : '') + (boughtOnce ? ' bought' : '') + '">' +
+          '<div class="shop-ico">' + p.e + '</div>' +
+          '<div class="shop-mid">' +
+            '<div class="shop-top"><span class="shop-name">' + p.n + '</span><span class="shop-tag">' + p.tag + '</span></div>' +
+            '<div class="shop-items">' + chips.join('') + '</div>' +
+            '<div class="shop-desc">' + p.desc + '</div>' +
+          '</div>' +
+          '<button type="button" class="shop-buy" data-pack="' + p.id + '"' + (boughtOnce ? ' disabled' : '') + '>' + btnLbl + '</button>' +
+        '</div>';
+    }
+  }
+  listEl.innerHTML = html;
+  const resetBtn = $('#bShopResetTest');
+  if (resetBtn) {
+    const hasBought = dev && save.shopBought && Object.keys(save.shopBought).length > 0;
+    resetBtn.style.display = hasBought ? 'block' : 'none';
+  }
 }
 function drawSkinPrev(cv, t) {
   const S = 120;
@@ -3745,11 +3966,14 @@ on('#bHome', () => { Sound.init(); showOv('title'); });
 on('#bClearHome', () => { Sound.init(); showOv('title'); });
 on('#bJamHome', () => { Sound.init(); showOv('title'); });
 on('#bAlbumHome', () => { Sound.init(); showOv('title'); });
-on('#coinPill', () => { if (!G.overlay) { Sound.init(); showOv('title'); } });
+on('#coinPill', () => { if (!G.overlay) { Sound.init(); openShop(null); } });
 on('#bMQueen', () => { Sound.init(); openColony('title'); });
 on('#bMMis', () => { Sound.init(); openMissions('title'); });
 on('#bMBingo', () => { Sound.init(); openBingo('title'); });
 on('#bMSkin', () => { Sound.init(); openSkins('title'); });
+on('#bMShop', () => { Sound.init(); openShop('title'); });
+on('#bQueenShop', () => { Sound.init(); openShop('colony', 'food'); });
+on('#bClearShop', () => { Sound.init(); openShop('clear'); });
 on('#bClearQueen', () => openColony('clear'));
 on('#bFeed', () => doFeed(false));
 on('#bFeedAll', () => doFeed(true));
@@ -3764,6 +3988,29 @@ on('#bGacha10', () => { Sound.init(); doGacha(10); });
 on('#bGachaAgain1', () => { Sound.init(); doGacha(1); });
 on('#bGachaAgain10', () => { Sound.init(); doGacha(10); });
 on('#bGachaClose', () => { Sound.tap(); showOv('skins'); });
+on('#bShopClose', closeShop);
+on('#bShopResetTest', () => {
+  if (!save.settings.dev) return;
+  save.shopBought = {};
+  save.shopReceipts = [];
+  persist();
+  Sound.undo();
+  renderShop();
+  toast('🛠️ テスト用の購入履歴をリセットしたよ');
+});
+$('#shopTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.shop-tab');
+  if (!btn || !btn.dataset.cat) return;
+  Sound.tap();
+  G.shopCat = btn.dataset.cat;
+  renderShop();
+});
+$('#shopList').addEventListener('click', e => {
+  const btn = e.target.closest('.shop-buy[data-pack]');
+  if (!btn || btn.disabled) return;
+  Sound.init();
+  buyShopPack(btn.dataset.pack);
+});
 function claimDailyReward() {
   Sound.init();
   const P = G.dailyP;
@@ -4462,7 +4709,7 @@ layout();
   const BACK_MAP = {
     settings: '#bSetClose', album: '#bAlbumClose', view: '#bViewBack',
     colony: '#bQClose', missions: '#bMisClose', bingo: '#bBingoClose',
-    skins: '#bSkClose', gacha: '#bGachaClose', maker: '#bMkClose', gallery: '#bGalClose',
+    skins: '#bSkClose', gacha: '#bGachaClose', shop: '#bShopClose', maker: '#bMkClose', gallery: '#bGalClose',
     bgm: '#bgmCloseBtn', 'bgm-gal': '#bBgmGalClose', 'stage-bgm': '#bStBgmBack',
     'bgm-builtin': '#bBgmBuiltinBack', inbox: '#bInboxClose', clear: '#bClearHome',
     help: '#bHelpClose', dev: '#bDevClose', feedback: '#bFbClose',
