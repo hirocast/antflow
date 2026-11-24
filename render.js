@@ -448,7 +448,7 @@ function slotEntry(i) { return ringCell(slotX(i), slotY - slotSize * 0.3); }
 function nestGate() { return ringCell(nestX, nestY); }
 // 巣穴の穴の位置（マス単位。アリの座標と同じ単位）
 function nestHole() { return { x: (nestX - ox) / cs + 0.5, y: (nestY - oy) / cs + 0.5 }; }
-function makeCube(ci, px) {
+function makeCube(ci, px, hatched) {
   const c = document.createElement('canvas');
   c.width = c.height = px;
   const g = c.getContext('2d');
@@ -458,12 +458,27 @@ function makeCube(ci, px) {
     g.fillStyle = LIGHT.has(ci) ? 'rgba(70,50,60,.75)' : 'rgba(255,255,255,.92)';
     g.fillText(SYM[ci], px / 2, px * 0.45);
   }
+  if (hatched) {
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.strokeStyle = LIGHT.has(ci) ? 'rgba(90,60,85,.34)' : 'rgba(255,255,255,.65)';
+    g.lineWidth = Math.max(1, px * 0.12);
+    const step = Math.max(3, px * 0.36);
+    g.beginPath();
+    for (let d = -px; d <= px * 2; d += step) {
+      g.moveTo(d, 0);
+      g.lineTo(d - px, px);
+    }
+    g.stroke();
+    g.restore();
+  }
   return c;
 }
 function buildSprites() {
   const px = Math.max(3, Math.round(cs * dpr)), cp = Math.max(8, Math.round(antU * 1.3 * dpr));
-  cubeSpr = HEX.map((h, i) => makeCube(i, px));
-  candySpr = HEX.map((h, i) => makeCube(i, cp));
+  cubeSpr = HEX.map((h, i) => makeCube(i, px, false));
+  cubeRes = HEX.map((h, i) => makeCube(i, px, true));
+  candySpr = HEX.map((h, i) => makeCube(i, cp, false));
 }
 function antSprite(c, pose, fr, flip) {
   const fl = flip ? 1 : 0, k = c * 32 + pose * 8 + fr * 2 + fl;
@@ -851,9 +866,10 @@ function renderBoard() {
       g.fillRect(ox + x * cs, oy + y * cs, cs + 0.5, cs + 0.5);
     }
   }
+  const wash = save.settings.wash;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, v = G.vgrid[i];
-    if (v >= 0) g.drawImage(cubeSpr[v], ox + x * cs, oy + y * cs, cs, cs);
+    if (v >= 0) g.drawImage(wash && G.s.grid[i] < 0 ? cubeRes[v] : cubeSpr[v], ox + x * cs, oy + y * cs, cs, cs);
   }
 }
 function updateSoilHoles() {
@@ -1526,42 +1542,6 @@ function drawSpotlightAndFlashes() {
       ctx.strokeRect(ox + f.x * cs, oy + f.y * cs, cs, cs);
     }
     ctx.restore();
-  }
-  // 一番外側（運び終わったあとを含めて次に取れるマス）を明るく際立たせるため、それ以外を少し暗くする
-  if (save.settings.wash && s.left > 0 && !G.overlay) {
-    if (G.nextReachS !== s || G.nextReachLeft !== s.left || G.nextReachVver !== G.vver) {
-      G.nextReachS = s; G.nextReachLeft = s.left; G.nextReachVver = G.vver;
-      const sDist = bfs(s.grid, W, H, ne.ex, ne.ey), dim = [];
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        const idx = y * W + x;
-        if (G.vgrid[idx] < 0) continue;
-        if (s.grid[idx] >= 0 && cubeDist(sDist, W, x, y) >= 0) continue;
-        dim.push(x, y);
-      }
-      G.nextReachDim = dim;
-    }
-    const dim = G.nextReachDim;
-    if (dim && dim.length) {
-      ctx.save();
-      ctx.fillStyle = 'rgba(26,12,38,0.32)';
-      if (cs < 10) {
-        for (let i = 0; i < dim.length; i += 2) ctx.fillRect(ox + dim[i] * cs, oy + dim[i + 1] * cs, cs, cs);
-      } else {
-        const p = cs * 0.035, sz = cs - p * 2, r = sz * 0.26;
-        ctx.beginPath();
-        for (let i = 0; i < dim.length; i += 2) {
-          const rx = ox + dim[i] * cs + p, ry = oy + dim[i + 1] * cs + p;
-          ctx.moveTo(rx + r, ry);
-          ctx.arcTo(rx + sz, ry, rx + sz, ry + sz, r);
-          ctx.arcTo(rx + sz, ry + sz, rx, ry + sz, r);
-          ctx.arcTo(rx, ry + sz, rx, ry, r);
-          ctx.arcTo(rx, ry, rx + sz, ry, r);
-          ctx.closePath();
-        }
-        ctx.fill();
-      }
-      ctx.restore();
-    }
   }
   // アリがキャンディを拾った瞬間の光輪
   if (G.pickFlashes && G.pickFlashes.length) {
