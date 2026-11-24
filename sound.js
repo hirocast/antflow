@@ -522,11 +522,11 @@ const Sound = {
   },
   walk(n) {
     if (!this.ctx) return;
-    const v = save.settings.sfx && save.settings.steps && n > 0 ? Math.min(0.03, 0.005 * Math.sqrt(n)) : 0;
+    const v = save.settings.sfx && save.settings.steps && n > 0 ? Math.min(0.015, 0.0025 * Math.sqrt(n)) : 0;
     if (v > 0) {
       if (this.walkTimer) { clearTimeout(this.walkTimer); this.walkTimer = null; }
       if (!this.walkG) this.initWalk();
-      if (!this.walkG || Math.abs(v - this.walkV) < 0.0015) return;
+      if (!this.walkG || Math.abs(v - this.walkV) < 0.00075) return;
       this.walkV = v;
       this.walkG.gain.setTargetAtTime(v, this.ctx.currentTime, 0.25);
     } else if (this.walkG) {
