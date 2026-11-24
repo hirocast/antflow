@@ -666,7 +666,7 @@ function pickCube(a) {
   if (Math.abs(a.tx - a.x) > 0.01) a.face = a.tx > a.x ? 1 : -1;
   const w = toW(a.tx, a.ty), R = G.run, fev = G.fever.t > 0;
   for (let k = 0; k < (fev ? 8 : 6); k++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 175, vy: -Math.random() * 150 - 45, life: 0, max: 0.42, col: fev && k % 2 ? pick(POP) : HEX[a.c], s: Math.max(2.5, antPx * 0.17), star: k <= 1 });
-  if (G.ants.length === 0) G.combo = 0;
+  if (!hasActiveSlotBox()) G.combo = 0;
   Sound.pop(G.combo++);
   G.comboT = G.time;
   if (G.rt - G.lastVib > 0.09) { haptic(8); G.lastVib = G.rt; }
@@ -717,8 +717,15 @@ function startReturn(a) {
   a.pts = pts; a.i = 0; a.d = 0; a.state = 'back'; a.t = 0;
 }
 const _antVbs = [];
+function hasActiveSlotBox() {
+  for (let i = 0; i < G.vboxes.length; i++) {
+    const b = G.vboxes[i];
+    if (!(b.state === 'slot' && (b.total - b.dispatched) > 0 && !b.queue.length)) return true;
+  }
+  return false;
+}
 function updateAnts(dt, rdt) {
-  const comboSteps = G.ants.length > 0 ? Math.floor(G.combo / 100) : 0;
+  const comboSteps = hasActiveSlotBox() ? Math.floor(G.combo / 100) : 0;
   const comboMul = comboSteps > 0 ? 1 + comboSteps * 0.1 + (G.perk ? G.perk.combo : 0) : 1;
   const fm = (G.fever.t > 0 ? 1.3 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1) * comboMul, gap = gapCells();
   _antVbs.length = 0;
@@ -776,7 +783,7 @@ function updateAnts(dt, rdt) {
       }
     }
   }
-  if (G.ants.length === 0 && G.combo > 0) G.combo = 0;
+  if (!hasActiveSlotBox() && G.combo > 0) G.combo = 0;
   for (let i = 0; i < _antVbs.length; i++) _antVbs[i]._ants.length = 0;
   _antVbs.length = 0;
   const bdt = rdt == null ? dt : rdt;
@@ -920,8 +927,8 @@ function drawFever() {
     gw = gwBase * pulse;
     feverMaxW = gwBase * 1.04;
   }
-  // ライブコンボバッジ（2コンボ以上、盤面にアリが残っている間は継続。サイズ固定で画面内に収める）
-  const showCombo = G.combo >= 2 && G.ants.length > 0 && !G.overlay;
+  // ライブコンボバッジ（2コンボ以上、おやすみ箱以外の箱がスロットにある間は継続。サイズ固定で画面内に収める）
+  const showCombo = G.combo >= 2 && hasActiveSlotBox() && !G.overlay;
   let cTxt = '', cw = 0, cbx = 0, cLeft = maxRight;
   if (showCombo) {
     const cMul = Math.floor(G.combo / 100) * 0.1;
