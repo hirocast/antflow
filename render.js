@@ -1527,49 +1527,38 @@ function drawSpotlightAndFlashes() {
     }
     ctx.restore();
   }
-  // 一番外側（運び終わったあとを含めて次に取れるマス）をくっきり枠取りして光らせる
+  // 一番外側（運び終わったあとを含めて次に取れるマス）を明るく際立たせるため、それ以外を少し暗くする
   if (save.settings.wash && s.left > 0 && !G.overlay) {
-    if (G.nextReachS !== s || G.nextReachLeft !== s.left) {
-      G.nextReachS = s; G.nextReachLeft = s.left;
-      const sDist = bfs(s.grid, W, H, ne.ex, ne.ey), cells = [];
+    if (G.nextReachS !== s || G.nextReachLeft !== s.left || G.nextReachVver !== G.vver) {
+      G.nextReachS = s; G.nextReachLeft = s.left; G.nextReachVver = G.vver;
+      const sDist = bfs(s.grid, W, H, ne.ex, ne.ey), dim = [];
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         const idx = y * W + x;
-        if (s.grid[idx] >= 0 && cubeDist(sDist, W, x, y) >= 0) cells.push(x, y);
+        if (G.vgrid[idx] < 0) continue;
+        if (s.grid[idx] >= 0 && cubeDist(sDist, W, x, y) >= 0) continue;
+        dim.push(x, y);
       }
-      G.nextReachCells = cells;
+      G.nextReachDim = dim;
     }
-    const cells = G.nextReachCells;
-    if (cells && cells.length) {
-      const wave = redMot ? 0.8 : 0.5 + 0.5 * Math.sin(G.rt * 4.5);
-      const pulse = 0.55 + 0.45 * wave;
-      const ins = Math.max(0.8, cs * 0.06), sz = Math.max(2, cs - ins * 2), r = Math.max(1.5, cs * 0.22);
+    const dim = G.nextReachDim;
+    if (dim && dim.length) {
       ctx.save();
-      ctx.beginPath();
-      for (let i = 0; i < cells.length; i += 2) {
-        const rx = ox + cells[i] * cs + ins, ry = oy + cells[i + 1] * cs + ins;
-        ctx.moveTo(rx + r, ry);
-        ctx.arcTo(rx + sz, ry, rx + sz, ry + sz, r);
-        ctx.arcTo(rx + sz, ry + sz, rx, ry + sz, r);
-        ctx.arcTo(rx, ry + sz, rx, ry, r);
-        ctx.arcTo(rx, ry, rx + sz, ry, r);
-        ctx.closePath();
-      }
-      ctx.fillStyle = 'rgba(255,255,255,' + (0.04 + 0.18 * wave).toFixed(3) + ')';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(55,22,60,' + (0.9 * pulse).toFixed(3) + ')';
-      ctx.lineWidth = Math.max(3.2, cs * 0.26);
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,' + pulse.toFixed(3) + ')';
-      ctx.lineWidth = Math.max(1.8, cs * 0.14);
-      ctx.stroke();
-      if (cs >= 12) {
-        const sr = Math.max(2, cs * 0.17);
-        ctx.fillStyle = 'rgba(255,255,255,' + (0.7 + 0.3 * wave).toFixed(3) + ')';
-        for (let i = 0; i < cells.length; i += 2) {
-          const sx = ox + cells[i] * cs + ins + sz * 0.8, sy = oy + cells[i + 1] * cs + ins + sz * 0.2;
-          starPath(ctx, sx, sy, sr, sr * 0.36, 4);
-          ctx.fill();
+      ctx.fillStyle = 'rgba(26,12,38,0.32)';
+      if (cs < 10) {
+        for (let i = 0; i < dim.length; i += 2) ctx.fillRect(ox + dim[i] * cs, oy + dim[i + 1] * cs, cs, cs);
+      } else {
+        const p = cs * 0.035, sz = cs - p * 2, r = sz * 0.26;
+        ctx.beginPath();
+        for (let i = 0; i < dim.length; i += 2) {
+          const rx = ox + dim[i] * cs + p, ry = oy + dim[i + 1] * cs + p;
+          ctx.moveTo(rx + r, ry);
+          ctx.arcTo(rx + sz, ry, rx + sz, ry + sz, r);
+          ctx.arcTo(rx + sz, ry + sz, rx, ry + sz, r);
+          ctx.arcTo(rx, ry + sz, rx, ry, r);
+          ctx.arcTo(rx, ry, rx + sz, ry, r);
+          ctx.closePath();
         }
+        ctx.fill();
       }
       ctx.restore();
     }
