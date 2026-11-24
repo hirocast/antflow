@@ -350,19 +350,19 @@ const rowNeed = s => Math.round(s * 1.4 + 8);
 function planTall(W, H, n) {
   const fp = framePad, cw = Math.min((CW - 16) / n, 120), g = clamp(CW * 0.02, 4, 10);
   const sMax = clamp((CW - 24 - g * 5) / (SLOT_COUNT + 2.2), 24, 62);
-  const singerGap = clamp(CH * 0.05, 30, 38);
+  const singerGap = clamp(CH * 0.045, 26, 34);
   let h = clamp(Math.min(cw * 0.62, CH * 0.085), 32, 58), s = clamp(Math.min(sMax, CH * 0.078), 24, sMax);
   let trayH = trayNeed(h), rowH = rowNeed(s);
-  const avail = CH - trayH - rowH - singerGap - 12;
-  const raw = Math.min((CW - 12 - fp * 2) / (W + 2), (avail - 8 - fp * 2) / (H + 2));
+  const avail = CH - trayH - rowH - singerGap - 8;
+  const raw = Math.min((CW - 4 - fp * 2) / (W + 2), (avail - fp * 2) / (H + 2));
   const c = clamp(q4(raw), 3, 46), frameW = (W + 2) * c + fp * 2, frameH = (H + 2) * c + fp * 2;
   // 余った高さはスロット幅に少しだけ使い、残りはすべてトレイ（奥の箱表示）にまわす
-  let spare = avail - frameH - 8;
+  let spare = avail - frameH;
   if (spare > 0) {
     const s2 = clamp(s + spare * 0.4 / 1.4, s, Math.max(s, sMax));
     s = s2; rowH = rowNeed(s);
   }
-  const top = 4, rowTop = top + frameH + 8;
+  const top = 2, rowTop = top + frameH + 6;
   const slotY = rowTop + s * 0.74 + 4, slotBot = slotY + s * 0.64;
   const nr = s * 0.5, nestW = nr * 4.4, slotsW = s * SLOT_COUNT + g * (SLOT_COUNT - 1), left = (CW - slotsW - g - nestW) / 2;
   return {
@@ -403,7 +403,7 @@ function layout() {
   Fx.resize();
   if (!G.s) return;
   const W = G.s.W, H = G.s.H, n = G.s.cols.length;
-  framePad = clamp(Math.round(Math.min(CW, CH) * 0.018), 6, 10);
+  framePad = clamp(Math.round(Math.min(CW, CH) * 0.015), 5, 9);
   const A = planTall(W, H, n), B = planWide(W, H, n), P = B && B.raw >= A.raw * SIDE_MIN ? B : A;
   boardSide = P.side; cs = P.c; ox = P.ox; oy = P.oy;
   slotSize = P.s; slotGap = P.g; slotCX = P.slotCX; slotY = P.slotY;

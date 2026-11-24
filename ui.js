@@ -27,25 +27,26 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-eve
  background:radial-gradient(ellipse 90px 30px at 14% 10%,#fff 60%,transparent 62%),radial-gradient(ellipse 56px 24px at 21% 7%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 110px 34px at 82% 18%,#fff 60%,transparent 62%),radial-gradient(ellipse 66px 26px at 89% 14%,#fff 60%,transparent 62%),
  radial-gradient(ellipse 80px 26px at 50% 32%,rgba(255,255,255,.7) 60%,transparent 62%)}
-header{flex:0 0 auto;flex-wrap:wrap;padding:5px 8px 4px;row-gap:4px}
-.lv{display:grid!important;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:7px;row-gap:1px;flex:0 1 auto;min-width:0;margin-right:auto;padding:4px 9px;border:3px solid #fff;background:linear-gradient(#fff,#fff2f7);box-shadow:0 4px 0 rgba(90,61,92,.22),0 8px 14px rgba(90,61,92,.12)}
-.lv #lvNum{grid-column:1;grid-row:1;font-size:15px;line-height:1.1;white-space:nowrap}
-.lv #lvStars{grid-column:1;grid-row:2;font-size:10.5px;line-height:1.1;white-space:nowrap}
-.lv #lvName{grid-column:2;grid-row:1;font-size:11px;font-weight:900;color:var(--ink);max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;line-height:1.15;text-align:center;word-break:keep-all;overflow-wrap:anywhere}
-.lv #lvTalkSub{grid-column:2;grid-row:2;font-size:9.5px;font-weight:900;color:#c0507a;letter-spacing:-0.02em;white-space:nowrap;text-align:center}
+header{flex:0 0 auto;flex-wrap:wrap;padding:2px 6px 2px;row-gap:2px;gap:4px}
+.lv{display:grid!important;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:5px;row-gap:0;flex:1 1 0;min-width:0;margin-right:auto;padding:2px 7px;border:2px solid #fff;border-radius:12px;background:linear-gradient(#fff,#fff2f7);box-shadow:0 2px 0 rgba(90,61,92,.2),0 4px 8px rgba(90,61,92,.1)}
+.lv #lvNum{grid-column:1;grid-row:1;font-size:13.5px;line-height:1.1;white-space:nowrap}
+.lv #lvStars{grid-column:1;grid-row:2;font-size:9.5px;line-height:1.05;white-space:nowrap}
+.lv #lvName{grid-column:2;grid-row:1;font-size:10.5px;font-weight:900;color:var(--ink);max-width:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;line-height:1.15;text-align:left}
+.lv #lvTalkSub{grid-column:2;grid-row:2;font-size:9px;font-weight:900;color:#c0507a;letter-spacing:-0.02em;white-space:nowrap;text-align:left;line-height:1.05}
 .al span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.2;font-size:10.5px;text-align:center;word-break:keep-all;overflow-wrap:anywhere;width:100%}
 .dv b,.galcard b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.18;text-align:center;overflow-wrap:anywhere}
-.ib{border:3px solid #fff;background:linear-gradient(#fff,#ffeef5);box-shadow:0 4px 0 rgba(90,61,92,.22)}
-.prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:8px;padding-top:1px}
-.bar{flex:1;min-width:44px;height:12px;border:3px solid #fff;background:#ffe9f1;box-shadow:0 3px 0 rgba(90,61,92,.2)}
-.bar i{background:repeating-linear-gradient(-45deg,#ffcf4a 0 8px,#ffe07d 8px 16px);box-shadow:inset 0 3px 0 rgba(255,255,255,.45);transition:width .9s linear}
+.ib{width:34px;height:34px;border:2px solid #fff;border-radius:11px;font-size:16px;background:linear-gradient(#fff,#ffeef5);box-shadow:0 2px 0 rgba(90,61,92,.22)}
+.badge{top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;font-size:9.5px;line-height:16px}
+.prog{order:10;flex:1 0 100%;flex-direction:row;align-items:center;gap:6px;padding-top:0}
+.bar{flex:1;min-width:44px;height:9px;border:2px solid #fff;background:#ffe9f1;box-shadow:0 2px 0 rgba(90,61,92,.18)}
+.bar i{background:repeating-linear-gradient(-45deg,#ffcf4a 0 8px,#ffe07d 8px 16px);box-shadow:inset 0 2px 0 rgba(255,255,255,.45);transition:width .9s linear}
 .bar i.s2{background:repeating-linear-gradient(-45deg,#6cd6a8 0 8px,#96e6c4 8px 16px)}
 #leftTxt{display:none}
-#timeTxt{flex:0 0 auto;font-size:11px;font-weight:800;white-space:nowrap;text-shadow:0 1px 0 #fff}
+#timeTxt{flex:0 0 auto;font-size:10px;font-weight:800;white-space:nowrap;text-shadow:0 1px 0 #fff;line-height:1.1}
 #timeTxt b{color:#ffa000}
 #timeTxt b.s1{color:#b99aa8}
-.coin{display:flex;align-items:center;gap:3px;height:38px;padding:0 10px 0 6px;border-radius:19px;background:linear-gradient(#fffbe6,#ffe39a);border:3px solid #fff;box-shadow:0 4px 0 #d9a520;font-weight:900;font-size:15px;color:#8a5a00;flex:0 0 auto;cursor:pointer}
-.coin i{font-style:normal;font-size:17px}
+.coin{display:flex;align-items:center;gap:2px;height:32px;padding:0 7px 0 5px;border-radius:16px;background:linear-gradient(#fffbe6,#ffe39a);border:2px solid #fff;box-shadow:0 2px 0 #d9a520;font-weight:900;font-size:13px;color:#8a5a00;flex:0 0 auto;cursor:pointer}
+.coin i{font-style:normal;font-size:15px}
 .coin.bump{animation:cbump .45s}
 @keyframes cbump{40%{transform:scale(1.25)}}
 .fb{position:relative;border:3px solid #fff;border-radius:22px}
@@ -146,9 +147,9 @@ body.fever #stage::after{content:'';position:absolute;top:0;left:0;right:0;botto
 .fb-thanks{display:none;margin:6px 0 2px;padding:9px 10px;background:linear-gradient(135deg,#ecfff4,#fffbe6);border:2px solid #59c988;border-radius:14px;text-align:center;font-size:12px;font-weight:900;line-height:1.5;color:#1b6d42}
 .fb-thanks.on{display:block}
 .fb-gift-tag{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:999px;background:linear-gradient(#ffe36e,#ffb830);color:#6e3a00;font-size:10.5px;font-weight:900;vertical-align:1px;box-shadow:0 1px 0 #d98d12}
-.hud-fb{flex:0 0 auto;border:2px solid #fff;border-radius:999px;padding:4px 9px;min-height:26px;background:linear-gradient(#fff5f9,#ffd8e8);color:#b83060;font:900 10.5px/1.2 var(--rf);box-shadow:0 2px 0 rgba(90,61,92,.2);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
+.hud-fb{flex:0 0 auto;border:1.5px solid #fff;border-radius:999px;padding:2px 7px;min-height:19px;background:linear-gradient(#fff5f9,#ffd8e8);color:#b83060;font:900 9.5px/1.15 var(--rf);box-shadow:0 1.5px 0 rgba(90,61,92,.2);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
 .hud-fb:active{transform:translateY(1px);box-shadow:none}
-.hud-fb b{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#ff5c93;color:#fff;font-size:10px;line-height:1}
+.hud-fb b{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;background:#ff5c93;color:#fff;font-size:9px;line-height:1}
 .quick-fb{position:fixed;top:max(1px,calc(env(safe-area-inset-top,0px) - 34px));right:2px;z-index:25;border:2px solid #fff;border-radius:999px;padding:3px 8px 3px 5px;background:linear-gradient(#fff7fa,#ffdbe9);color:#b83060;font:900 10.5px/1 var(--rf);box-shadow:0 2px 0 rgba(90,61,92,.22),0 3px 8px rgba(90,61,92,.14);cursor:pointer;display:none;align-items:center;gap:4px;white-space:nowrap}
 .quick-fb.on{display:inline-flex}
 .quick-fb:active,.quick-back:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(90,61,92,.22)}
@@ -470,33 +471,36 @@ body.dev .shop-dev-tag.dev-only{display:inline-block!important}
 #app{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 @media (min-width:700px){#app{max-width:min(1400px,100vw)}}
  @media (max-height:820px){
-  header{flex-basis:54px}
-  .lv{padding:2px 9px;min-width:78px}
-  .lv b{font-size:15px}
-  .lv .st{font-size:10px}
+  header{flex-basis:auto}
+  .lv{padding:2px 6px;min-width:0}
+  .lv #lvNum{font-size:13px}
+  .lv .st{font-size:9.5px}
   footer{flex-basis:54px;padding-bottom:2px}
   .fb,#bSkill{height:48px;border-radius:18px}
   .fb span,#bSkill .sk-ico{font-size:18px}
   .fb small{font-size:10px}
  }
  @media (max-height:480px){
-  header{flex-basis:46px;flex-wrap:nowrap;padding:0 8px}
+  header{flex-basis:44px;flex-wrap:nowrap;padding:0 8px}
   .lv{flex-direction:row;align-items:baseline;gap:6px;margin-right:0}
   .prog{order:0;flex:1;flex-direction:column;align-items:stretch;gap:3px;padding-top:0}
   .lv .st,#leftTxt{display:none}
-  .ib{width:34px;height:34px;font-size:16px;border-radius:12px}
-  .coin{height:32px;font-size:13px}
+  .ib{width:32px;height:32px;font-size:15px;border-radius:11px}
+  .coin{height:30px;font-size:12.5px}
   footer{flex-basis:46px;padding-bottom:2px}
   .fb,#bSkill{height:40px;flex-direction:row;gap:4px}
   .fb span,#bSkill .sk-ico{font-size:16px}
  }
  @media (max-width:420px){
-  header{gap:4px;padding:4px 6px 3px}
-  .lv{padding:4px 8px;column-gap:6px}
-  .lv #lvNum{font-size:14px}
-  .ib{width:35px;height:35px;font-size:16px;border-radius:12px}
-  .coin{height:34px;padding:0 8px 0 5px;font-size:13px}
-  .coin i{font-size:15px}
+  header{gap:3px;padding:2px 5px 1px;row-gap:2px}
+  .lv{padding:2px 6px;column-gap:4px}
+  .lv #lvNum{font-size:12.5px}
+  .lv #lvName{font-size:10px}
+  .lv #lvTalkSub{font-size:8.5px}
+  .ib{width:30px;height:30px;font-size:14.5px;border-radius:10px}
+  .coin{height:29px;padding:0 6px 0 4px;font-size:12px}
+  .coin i{font-size:14px}
+  .coin .coin-plus{width:13px;height:13px;font-size:9.5px}
   footer{gap:5px;padding:0 6px 4px}
   .fb small,#bSkill .sk-txt b,#bSkill .sk-txt small{font-size:8.5px}
  }
