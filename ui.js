@@ -4488,8 +4488,8 @@ function frame(now) {
   let dt = rdt;
   const h = G.s && !G.pendingJam ? headsOf(G.s) : null;
   if (G.s && !G.pendingJam && G.fever.t <= 0) {
-    if (G.s.left === 0) dt *= 2.5;
-    else if ((h && h.length === 1) || (G.level && G.s.left <= Math.max(12, Math.floor(G.level.total * 0.15)) && h && !h.length)) dt *= 1.3;
+    if (G.s.left === 0) dt *= 1.25;
+    else if ((h && h.length === 1) || (G.level && G.s.left <= Math.max(12, Math.floor(G.level.total * 0.15)) && h && !h.length)) dt *= 1.15;
   }
   if (G.slowmo > 0) { G.slowmo -= rdt; dt *= 0.3; }
   if (h && h.length === 1 && !G.overlay && !G.loading && !G.pendingWin && !G.pendingJam && !G.auto && !G.press && !Tut.blocking()) {
