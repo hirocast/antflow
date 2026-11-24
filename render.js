@@ -448,25 +448,22 @@ function slotEntry(i) { return ringCell(slotX(i), slotY - slotSize * 0.3); }
 function nestGate() { return ringCell(nestX, nestY); }
 // 巣穴の穴の位置（マス単位。アリの座標と同じ単位）
 function nestHole() { return { x: (nestX - ox) / cs + 0.5, y: (nestY - oy) / cs + 0.5 }; }
-function makeCube(ci, px, washed) {
+function makeCube(ci, px) {
   const c = document.createElement('canvas');
   c.width = c.height = px;
   const g = c.getContext('2d');
-  const sub = washed ? Math.max(2, Math.round(px * 0.68)) : px;
-  const off = (px - sub) / 2;
-  paintCandy(g, off, off, sub, ci);
-  if (save.settings.cb && sub >= 14) {
-    g.font = '700 ' + Math.round(sub * 0.42) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  paintCandy(g, 0, 0, px, ci);
+  if (save.settings.cb && px >= 16) {
+    g.font = '700 ' + Math.round(px * 0.42) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = LIGHT.has(ci) ? 'rgba(70,50,60,.75)' : 'rgba(255,255,255,.92)';
-    g.fillText(SYM[ci], px / 2, off + sub * 0.45);
+    g.fillText(SYM[ci], px / 2, px * 0.45);
   }
   return c;
 }
 function buildSprites() {
   const px = Math.max(3, Math.round(cs * dpr)), cp = Math.max(8, Math.round(antU * 1.3 * dpr));
-  cubeSpr = HEX.map((h, i) => makeCube(i, px, false));
-  cubeRes = HEX.map((h, i) => makeCube(i, px, true));
-  candySpr = HEX.map((h, i) => makeCube(i, cp, false));
+  cubeSpr = HEX.map((h, i) => makeCube(i, px));
+  candySpr = HEX.map((h, i) => makeCube(i, cp));
 }
 function antSprite(c, pose, fr, flip) {
   const fl = flip ? 1 : 0, k = c * 32 + pose * 8 + fr * 2 + fl;
@@ -854,10 +851,9 @@ function renderBoard() {
       g.fillRect(ox + x * cs, oy + y * cs, cs + 0.5, cs + 0.5);
     }
   }
-  const wash = save.settings.wash;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, v = G.vgrid[i];
-    if (v >= 0) g.drawImage(wash && G.s.grid[i] < 0 ? cubeRes[v] : cubeSpr[v], ox + x * cs, oy + y * cs, cs, cs);
+    if (v >= 0) g.drawImage(cubeSpr[v], ox + x * cs, oy + y * cs, cs, cs);
   }
 }
 function updateSoilHoles() {
@@ -1530,6 +1526,41 @@ function drawSpotlightAndFlashes() {
       ctx.strokeRect(ox + f.x * cs, oy + f.y * cs, cs, cs);
     }
     ctx.restore();
+  }
+  // 運び終わったあとに新しく一番外側になるマスの境界を光らせる
+  if (save.settings.wash && s.left < G.vleft && !G.overlay) {
+    if (G.nextReachS !== s || G.nextReachLeft !== s.left || G.nextReachVver !== G.vver) {
+      G.nextReachS = s; G.nextReachLeft = s.left; G.nextReachVver = G.vver;
+      if (!dist) dist = visDist(ne.ex, ne.ey);
+      const EW = W + 2, sDist = bfs(s.grid, W, H, ne.ex, ne.ey), edges = [];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const idx = y * W + x;
+        if (s.grid[idx] < 0 || cubeDist(sDist, W, x, y) < 0 || cubeDist(dist, W, x, y) >= 0) continue;
+        if (sDist[(y + 1) * EW + (x + 2)] >= 0) edges.push(x + 1, y, x + 1, y + 1);
+        if (sDist[(y + 1) * EW + x] >= 0) edges.push(x, y, x, y + 1);
+        if (sDist[(y + 2) * EW + (x + 1)] >= 0) edges.push(x, y + 1, x + 1, y + 1);
+        if (sDist[y * EW + (x + 1)] >= 0) edges.push(x, y, x + 1, y);
+      }
+      G.nextReachEdges = edges;
+    }
+    const edges = G.nextReachEdges;
+    if (edges && edges.length) {
+      const pulse = redMot ? 0.9 : 0.72 + 0.25 * Math.sin(G.rt * 5.2);
+      ctx.save();
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < edges.length; i += 4) {
+        ctx.moveTo(ox + edges[i] * cs, oy + edges[i + 1] * cs);
+        ctx.lineTo(ox + edges[i + 2] * cs, oy + edges[i + 3] * cs);
+      }
+      ctx.strokeStyle = 'rgba(90,61,92,' + (0.65 * pulse).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(2.4, cs * 0.18);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,254,242,' + (0.95 * pulse).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(1.2, cs * 0.09);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
   // アリがキャンディを拾った瞬間の光輪
   if (G.pickFlashes && G.pickFlashes.length) {
