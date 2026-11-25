@@ -580,7 +580,7 @@ function tryDispatch(b) {
       const ant = { vb: b, c: b.c, cell, tx: x + 1, ty: y + 1, pts, i: 0, d: 0, x: p0.x, y: p0.y, face: 1, state: 'out', t: 0, phase: Math.random() * 6, speed: G.antSpeed * G.spdMul * (0.97 + Math.random() * 0.06), sweat: Math.random() * 2, said: false, lifted: false, trav: 0, hx: dx0 / L0, hy: dy0 / L0 };
       G.ants.push(ant);
       G.lastOut[b.slot] = ant;
-      if (b.dispatched === 1) maybeSay(ant, 'go', 0.3);
+      if (b.dispatched === 1 || (b.wakeT && G.rt - b.wakeT < 1.0 && !b._wakeSaid)) { if (b.wakeT) b._wakeSaid = true; maybeSay(ant, 'go', b.wakeT ? 0.65 : 0.3); }
       return;
     }
     if (ent.ver === G.pver) break;
@@ -692,7 +692,7 @@ function pickCube(a) {
       if (!said) { maybeSay(a, 'combo', 0.9); said = true; }
     }
   }
-  if (!said) maybeSay(a, 'pick', 0.4);
+  if (!said) maybeSay(a, fev && Math.random() < 0.45 ? 'fever' : 'pick', fev ? 0.45 : 0.4);
   if (!G.almostNotified && !G.pendingWin && G.vleft > 0 && G.level && G.level.total >= 12 && G.vleft <= Math.ceil(G.level.total * 0.25)) {
     G.almostNotified = true;
     popup(posOf(G.levelId) === 1 ? '✨ もうすぐ完成！' : '✨ あと少し！', bcx(), oy + G.s.H * cs * 0.32, '#ffd23f');
@@ -754,7 +754,7 @@ function updateAnts(dt, rdt) {
     if (a.state === 'back') {
       a.sweat -= dt;
       if (a.sweat < 0) a.sweat = 1.4 + Math.random() * 1.5;
-      if (!a.said && a.i > a.pts.length * 0.45) { a.said = true; maybeSay(a, 'carry', 0.12); }
+      if (!a.said && a.i > a.pts.length * 0.45) { a.said = true; maybeSay(a, G.fever.t > 0 && Math.random() < 0.45 ? 'fever' : 'carry', 0.12); }
       if (G.pendingWin && Math.random() < 0.25) {
         const w = toW(a.x, a.y);
         G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 60, vy: -40 - Math.random() * 40, life: 0, max: 0.3, col: pick(POP), s: Math.max(2, antPx * 0.15), star: true });

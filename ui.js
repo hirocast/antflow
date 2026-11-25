@@ -4428,7 +4428,7 @@ document.querySelectorAll('[data-v]').forEach(inp => {
   });
 });
 let logoTaps = 0, logoT = 0, heroBubbleTimer = 0;
-const HERO_CHATS = ['キャンディ運ぶよ！🍬', 'きょうもいっしょに遊ぼう！✨', 'タップでパズルがほどけるよ！', '女王さまも応援してるよ👑', 'じっくり考えても大丈夫だよ♪'];
+const HERO_CHATS = ['キャンディ運ぶよ！🍬', 'きょうもいっしょに遊ぼう！✨', '女王さまも応援してるよ👑', '指揮官どの、まかせて！', 'みんな仲良しひだまりコロニー♪', 'おみやげたくさん見つけよう！'];
 function onMascotTap() {
   const now = Date.now();
   logoTaps = now - logoT < 600 ? logoTaps + 1 : 1; logoT = now;
@@ -4436,7 +4436,9 @@ function onMascotTap() {
   if (ant) { ant.classList.remove('hop'); void ant.offsetWidth; ant.classList.add('hop'); }
   if (Sound && Sound.squeak) Sound.squeak();
   if (bbl) {
-    bbl.textContent = HERO_CHATS[Math.floor(Math.random() * HERO_CHATS.length)];
+    const sk = save.skin && save.skin !== 'none' ? SKINS.find(x => x.k === save.skin) : null;
+    const pool = sk ? HERO_CHATS.concat(['「' + sk.n + '」女王さまのお見立てなんだ♪', sk.e + ' おそろいのユニフォームどう？']) : HERO_CHATS;
+    bbl.textContent = pool[Math.floor(Math.random() * pool.length)];
     bbl.classList.add('on');
     clearTimeout(heroBubbleTimer);
     heroBubbleTimer = setTimeout(() => bbl.classList.remove('on'), 2200);
