@@ -638,6 +638,8 @@ function handleTalkLikeClick(e) {
   }
   $('#clearName').insertAdjacentHTML('afterend', '<p class="csay" id="clearSay"></p>');
   $('#clearStars').insertAdjacentHTML('afterend', '<p class="ctime" id="clearTime"></p><div class="res" id="resList"></div><div class="restot">🪙 +<b id="resTotal">0</b><small id="resFood"></small></div><div class="restalk" id="resTalkBox"></div><div class="resvote" id="resCustomVote"></div>');
+  const clearTeaser = $('#ov-clear .teaser');
+  if (clearTeaser && $('#clearTime')) $('#clearTime').insertAdjacentElement('afterend', clearTeaser);
   $('#resCustomVote').addEventListener('click', async e => {
     const btn = e.target.closest('[data-cv]');
     if (!btn || !G.level || !G.level.custom || !G.level.customHash) return;
