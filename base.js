@@ -1098,6 +1098,27 @@ const TALK_STAGE = {
     q: ['砂浜に舞い降りた星、なんとロマンチックなのでしょう','五つの腕を広げたお姿、まるで海の踊り子ですわね']
   }
 };
+// 快適プレイのためのTips（ビンゴ集計 TALK とは分け、ありんこ隊が時々しゃべる）
+const TALK_TIPS_LP = [
+  '💡 迷ったら箱を長押し！届く数がわかるよ',
+  '💡 長押しで色の見まちがいも防げるよ！'
+];
+const TALK_TIPS = [
+  ...TALK_TIPS_LP,
+  '💡 緑の枠＆✓全部は全部運びきれる印だよ',
+  '💡 ピンチ時は「全部運べる」が便利だよ！',
+  '💡 動ける箱がある間はコンボが続くよ！',
+  '💡 おやすみ箱だけでも2秒以内に次でコンボ！',
+  '💡 詰まりそうでも⏪で一気に戻れるよ',
+  '💡 届かない箱も先置きOK！後で動くよ',
+  '💡 女王さまにごはんで足が速くなるよ！',
+  '💡 連続クリアで次もフィーバー貯まるよ'
+];
+function pickTipLine(preferLp, lastText) {
+  const pool = (preferLp && Math.random() < 0.55) ? TALK_TIPS_LP : TALK_TIPS;
+  const cand = pool.filter(s => s !== lastText);
+  return pick(cand.length ? cand : pool);
+}
 // プレイ中（アリの吹き出し）の場面
 const TALK_PLAY = new Set(['go', 'pick', 'lift', 'carry', 'home']);
 const talkRecent = [];

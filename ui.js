@@ -4613,8 +4613,13 @@ layout();
     '<div class="card">' +
     '<img src="apple-touch-icon.png" alt="アントフロー" style="width:68px;height:68px;border-radius:16px;box-shadow:0 4px 10px rgba(90,61,92,.2);margin:0 auto 6px;display:block">' +
     '<h2>📲 アプリとして保存しよう</h2>' +
-    '<p class="fine" style="margin-bottom:8px">ホーム画面に追加すると、ツールバーが消えて<b>広い画面</b>で遊べるよ！<br><span style="color:#d4507c">※ いまのブラウザ（LINEやSafari等）のセーブデータはアプリ版には引き継がれないため、早めの追加がおすすめです。</span></p>' +
+    '<p class="fine" style="margin-bottom:8px">ホーム画面に追加すると、ツールバーが消えて<b>広い画面</b>で遊べるよ！</p>' +
     '<div id="a2hsBody" style="background:#fff;border-radius:14px;padding:10px 12px;margin:6px 0;text-align:left;font-size:12px;line-height:1.7;border:2px solid #ffd3e2"></div>' +
+    '<div id="a2hsTransferBox" style="background:#fff7fb;border-radius:14px;padding:10px 12px;margin:8px 0 4px;text-align:left;font-size:11.5px;line-height:1.65;border:2px solid #ffb6cd">' +
+      '<div style="font:900 12px var(--rf);color:#c03060;margin-bottom:3px">💾 セーブデータの引継ぎについて</div>' +
+      '<div id="a2hsTransferDesc"></div>' +
+      '<button class="big mint" id="bA2hsTransfer" style="margin-top:8px">🔑 引継ぎコードを発行する（データ移行）</button>' +
+    '</div>' +
     '<button class="big" id="bA2hsInstall" style="display:none">📲 ワンタップでアプリ化</button>' +
     '<button class="big sec" id="bA2hsCopy" style="display:none">📋 URLをコピーする</button>' +
     '<button class="big sec" id="bA2hsClose">とじる</button>' +
@@ -4623,8 +4628,19 @@ layout();
 
   function renderA2hsBody() {
     const body = $('#a2hsBody'), inst = $('#bA2hsInstall'), cp = $('#bA2hsCopy');
+    const trDesc = $('#a2hsTransferDesc'), trBtn = $('#bA2hsTransfer');
     inst.style.display = deferredPrompt ? '' : 'none';
     cp.style.display = isInApp ? '' : 'none';
+    const clearedCnt = gotCount();
+    const hasProgress = clearedCnt > 0 || save.coins !== 150 || save.qlv > 1 || save.skins.length > 1;
+    if (trDesc) {
+      trDesc.innerHTML =
+        '<div>ブラウザ版とアプリ版はデータの保存場所が別になります。</div>' +
+        (hasProgress
+          ? '<div style="margin-top:3px">いまの記録（<b>クリア ' + clearedCnt + '面 · 🪙' + save.coins + '</b>）を残すには：<br><b>①</b> 下のボタンで<b>引継ぎコード</b>を発行してメモ<br><b>②</b> アプリ版を開いたら <b>⚙️ せってい ＞ 💾 セーブデータの引継ぎ</b> で復元！</div>'
+          : '<div style="margin-top:3px">まだ始めたばかりなら、そのままアプリ化してOK！（記録を引き継ぎたいときは下のボタンからコードを発行できます）</div>');
+    }
+    if (trBtn) trBtn.style.display = hasProgress ? '' : 'none';
     if (isInApp) {
       body.innerHTML = (isIOS
         ? '<div><b style="color:#e46a92">いまアプリ内ブラウザで開いています！</b></div>' +
@@ -4668,6 +4684,7 @@ layout();
   on('#bTitleA2hs', () => openA2hs('title'));
   on('#bClearA2hs', () => openA2hs('clear'));
   on('#bSetA2hs', () => openA2hs('settings'));
+  on('#bA2hsTransfer', () => { Sound.tap(); if (typeof window.AF_openTransfer === 'function') window.AF_openTransfer('a2hs'); });
   on('#bA2hsClose', () => { if (prevOv && prevOv !== 'a2hs') showOv(prevOv); else hideOv(); });
   on('#bA2hsCopy', () => {
     const url = 'https://hirocast.github.io/antflow/';
@@ -4680,8 +4697,10 @@ layout();
     const res = await deferredPrompt.userChoice;
     deferredPrompt = null;
     refreshA2hsBtns();
-    if (res && res.outcome === 'accepted') { toast('ホーム画面に追加したよ！'); hideOv(); }
-    else renderA2hsBody();
+    if (res && res.outcome === 'accepted') {
+      toast(gotCount() > 0 ? 'ホーム画面に追加したよ！記録の移行は「設定＞引継ぎ」からできるよ' : 'ホーム画面に追加したよ！', 3800);
+      hideOv();
+    } else renderA2hsBody();
   });
 })();
 
@@ -5690,7 +5709,9 @@ layout();
     '</div>';
   document.body.appendChild(ov);
 
-  function openTransfer() {
+  let trReturnOv = 'settings';
+  function openTransfer(from) {
+    trReturnOv = from || 'settings';
     let myStagesCnt = 0;
     try { myStagesCnt = (JSON.parse(localStorage.getItem('antflow-my-stages-v1') || '[]') || []).length; } catch (e) {}
     let clearedCnt = 0, coinsCnt = 0;
@@ -5707,8 +5728,9 @@ layout();
     $('#trSum').textContent = (isDevMode() ? '通常セーブの記録（開発用は対象外）：' : '現在の記録：') + 'クリア ' + clearedCnt + '面 · 🪙' + coinsCnt + ' · マイ作品 ' + myStagesCnt + '件';
     showOv('transfer');
   }
-  on('#bSetTransfer', () => { Sound.tap(); openTransfer(); });
-  on('#bTrClose', () => { Sound.tap(); showOv('settings'); });
+  window.AF_openTransfer = openTransfer;
+  on('#bSetTransfer', () => { Sound.tap(); openTransfer('settings'); });
+  on('#bTrClose', () => { Sound.tap(); showOv(trReturnOv || 'settings'); });
   let trBusy = false;
   on('#bTrCopy', async () => {
     if (trBusy) return;

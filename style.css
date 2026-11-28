@@ -37,11 +37,14 @@ footer{flex:0 0 64px;display:flex;gap:8px;justify-content:center;align-items:fle
 #toast.show{opacity:1;transform:translate(-50%,0)}
 .ov{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(110,60,100,.32);z-index:10}
 .ov:not(#ov-title){padding:calc(env(safe-area-inset-top,0px) + 24px) 0 calc(env(safe-area-inset-bottom,0px) + 8px)}
-.ov.show{display:flex;animation:ovFade .18s ease-out}
+.ov.show{display:flex;animation:ovFade .2s ease-out}
 @keyframes ovFade{from{opacity:0}to{opacity:1}}
 .card{background:#fffdf8;border-radius:28px;border:4px solid #ffd3e2;padding:18px;width:min(92vw,400px);max-height:min(94vh,100%);max-height:min(94dvh,100%);overflow:auto;box-shadow:0 10px 24px rgba(110,60,100,.28);text-align:center;touch-action:pan-y}
 .ov.show .card{animation:cardPop .18s ease-out}
+.ov:not(#ov-title):not(#ov-load).show .card{transform-origin:50% 50%;animation:cardSpringPop .34s cubic-bezier(.22,1,.36,1)}
 @keyframes cardPop{from{opacity:.65}to{opacity:1}}
+@keyframes cardSpringPop{0%{opacity:0;transform:scale(.82)}62%{opacity:1;transform:scale(1.025)}100%{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.ov:not(#ov-title):not(#ov-load).show .card{animation:cardPop .18s ease-out}}
 .card h2{margin:0 0 8px;font-size:21px;font-weight:900;color:var(--pinkd)}
 .card p{margin:6px 0;font-size:14px;line-height:1.6}
 .ttl{position:relative;display:inline-flex;flex-direction:column;align-items:center;margin:2px 0 6px}

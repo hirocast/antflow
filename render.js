@@ -605,6 +605,7 @@ function moveAlong(a, dist) {
 function maybeSay(a, kind, p, force) {
   if (!save.settings.talk) return;
   if (G.bubbles.some(b => b.a === a)) return;
+  const wasSaidOnce = G.saidOnce;
   if (!G.saidOnce) p = 1;
   if (!force) {
     if (G.bubbles.length >= 2 || G.rt - G.lastSay < 1.1 || Math.random() > p) return;
@@ -613,7 +614,14 @@ function maybeSay(a, kind, p, force) {
   }
   if (G.bubbles.length >= 3) G.bubbles.shift();
   G.saidOnce = true; G.lastSay = G.rt;
-  G.bubbles.push({ a, text: talkLine(kind, a.c, G.level && G.level.theme), t: 0, life: 2.5 });
+  const canTip = !force && wasSaidOnce && (kind === 'go' || kind === 'carry') && G.level && posOf(G.levelId) >= 2 && (!G.lastTipSay || G.rt - G.lastTipSay >= 20) && typeof pickTipLine === 'function';
+  if (canTip && Math.random() < 0.09) {
+    const tipText = pickTipLine(!(save.flags && save.flags.lp), G.lastTipText);
+    G.lastTipSay = G.rt; G.lastTipText = tipText;
+    G.bubbles.push({ a, text: tipText, t: 0, life: 3.4 });
+  } else {
+    G.bubbles.push({ a, text: talkLine(kind, a.c, G.level && G.level.theme), t: 0, life: 2.5 });
+  }
   Sound.squeak();
 }
 function popup(text, x, y, col, big) {
