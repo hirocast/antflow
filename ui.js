@@ -1541,11 +1541,25 @@ function collapseHomeHist() {
     if (typeof renderUpdateBox === 'function') renderUpdateBox();
   }
 }
+function abandonRunOnHome() {
+  const hasProgress = !!(G.run && !G.run.done && (G.run.started || (G.moves && G.moves.length > 0) || (G.ants && G.ants.length > 0) || G.pendingJam || (G.level && G.level.custom)));
+  if (hasProgress) {
+    G.run.done = true;
+    G.ants = []; G.parts = []; G.bubbles = []; G.popups = []; G.parades = [];
+    G.assignFlashes = []; G.skillFx = []; G.skillBanner = null;
+    G.queued = null; G.auto = false; G.autoPath = null;
+    G.pendingWin = false; G.pendingJam = false; G.jamDismissed = false;
+    G.skill = null; G.combo = 0; G.slowmo = 0;
+    endFever();
+  }
+  if (typeof Sound !== 'undefined' && Sound.walk) Sound.walk(0);
+}
 function showOv(name) {
   resetRootScroll();
   G.overlay = name;
   pushCrumb(name);
   if (name === 'title') {
+    abandonRunOnHome();
     renderTitle();
     if (typeof checkAppUpdate === 'function') checkAppUpdate(false);
   } else {
@@ -4487,23 +4501,27 @@ function frame(now) {
   }
   try {
     if (G.s && CW > 0) {
-      G.time += dt;
-      const R = G.run;
-      // タイム：最初のタップから全部運び終わる（論理的に）まで。メニューやチュートリアルの説明中・スキル停止中は止まる
-      if (G.skill && !G.overlay && !Tut.busy()) {
-        if (G.skill.freezeT > 0) G.skill.freezeT = Math.max(0, G.skill.freezeT - rdt);
-        if (G.skill.boostT > 0) G.skill.boostT = Math.max(0, G.skill.boostT - rdt);
+      if (!G.overlay && !G.loading) {
+        G.time += dt;
+        const R = G.run;
+        // タイム：最初のタップから全部運び終わる（論理的に）まで。メニューやチュートリアルの説明中・スキル停止中は止まる
+        if (G.skill && !Tut.busy()) {
+          if (G.skill.freezeT > 0) G.skill.freezeT = Math.max(0, G.skill.freezeT - rdt);
+          if (G.skill.boostT > 0) G.skill.boostT = Math.max(0, G.skill.boostT - rdt);
+        }
+        if (R && R.started && !R.done && !Tut.busy() && !(G.skill && G.skill.freezeT > 0)) R.time += rdt;
+        if (G.fever.t > 0 && !Tut.busy()) { G.fever.t -= rdt; if (G.fever.t <= 0) endFever(); }
+        updateBoxes(dt); updateAnts(dt, rdt); updateParts(dt);
+        Sound.walk(G.ants.length);
+        for (let j = 0; j < G.trayOff.length; j++) { G.trayOff[j] *= Math.exp(-rdt * 16); if (G.trayOff[j] < 0.3) G.trayOff[j] = 0; }
+        G.nestBounce = Math.max(0, G.nestBounce - rdt * 5);
+        G.slotFlash = Math.max(0, G.slotFlash - rdt);
+        G.jamShake = Math.max(0, G.jamShake - rdt);
+        if (G.shake) { G.shake.t -= rdt; if (G.shake.t <= 0) G.shake = null; }
+        checkEnd(rdt);
+      } else {
+        Sound.walk(0);
       }
-      if (R && R.started && !R.done && !G.overlay && !G.loading && !Tut.busy() && !(G.skill && G.skill.freezeT > 0)) R.time += rdt;
-      if (G.fever.t > 0 && !G.overlay && !Tut.busy()) { G.fever.t -= rdt; if (G.fever.t <= 0) endFever(); }
-      updateBoxes(dt); updateAnts(dt, rdt); updateParts(dt);
-      Sound.walk(G.overlay ? 0 : G.ants.length);
-      for (let j = 0; j < G.trayOff.length; j++) { G.trayOff[j] *= Math.exp(-rdt * 16); if (G.trayOff[j] < 0.3) G.trayOff[j] = 0; }
-      G.nestBounce = Math.max(0, G.nestBounce - rdt * 5);
-      G.slotFlash = Math.max(0, G.slotFlash - rdt);
-      G.jamShake = Math.max(0, G.jamShake - rdt);
-      if (G.shake) { G.shake.t -= rdt; if (G.shake.t <= 0) G.shake = null; }
-      checkEnd(rdt);
       if (G.hudDirty) updateHUD();
       updateTimer();
       if ((!G.overlay || G.boardDirty) && now - lastDrawT >= 14.5) {

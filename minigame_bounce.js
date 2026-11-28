@@ -330,7 +330,7 @@
     const invalid = new Set();
     const validArtCount = Number.isSafeInteger(artList.length) ? artList.length : 0;
     let score = 0, clock = 0, combo = 0, lastHit = -Infinity;
-    let colorChain = 0, lastColor = -1, bombReady = false, shields = 0;
+    let colorChain = 0, lastColor = -1, shields = 0;
     let wideUntil = 0, clearLeft = 0, serveLeft = 0, dryBounces = 0, stageMisses = 0, lastClearBonus = 0;
     let notice = '', noticeUntil = 0, dryHits = 0, lastDrop = -Infinity;
     let balls = [], items = [], particles = [], rings = [], popups = [];
@@ -537,7 +537,7 @@
 
     function serve(delay) {
       serveLeft = delay;
-      balls = [{ x: paddle.x, y: PAD_Y - R - 2, vx: 0, vy: 0, waiting: true, trail: [] }];
+      balls = [{ x: paddle.x, y: PAD_Y - R - 2, vx: 0, vy: 0, waiting: true, bomb: false, trail: [] }];
     }
 
     function launch() {
@@ -628,7 +628,7 @@
       announce(`${stage.name}をクリア。${CLEAR_POINTS + lastClearBonus}点を獲得。`);
     }
 
-    function paint(cell, fromSplash = false) {
+    function paint(cell, fromSplash = false, isBomb = false) {
       if (phase !== 'play' || cell.broken || cell.skipped) return;
       cell.broken = true;
       cell.at = clock;
@@ -659,8 +659,7 @@
         const maxDim = Math.max(stage.cols, stage.rows);
         const r = Math.floor(cell.i / stage.cols);
         const col = cell.i % stage.cols;
-        if (bombReady) {
-          bombReady = false;
+        if (isBomb) {
           const bombR = maxDim >= 43 ? 4 : maxDim >= 25 ? 2 : 1;
           const bombR2 = bombR * bombR + 1;
           addRing(cx, cy, '#ff7e47', 54);
@@ -708,11 +707,11 @@
       if (def.id === 'wide') {
         wideUntil = Math.min(clock + 16, Math.max(clock, wideUntil) + 8);
       } else if (def.id === 'bomb') {
-        if (bombReady) {
+        if (balls.length > 0 && balls.every(b => b.bomb)) {
           score += 50;
           label = 'ボム準備済：+50点';
         } else {
-          bombReady = true;
+          for (const b of balls) b.bomb = true;
         }
       } else if (def.id === 'shield') {
         if (shields >= 2) {
@@ -734,7 +733,7 @@
             if (balls.length >= MAX_BALLS) break;
             const c = Math.cos(angle), s = Math.sin(angle);
             const copy = {
-              x: source.x, y: source.y, waiting: false, trail: [],
+              x: source.x, y: source.y, waiting: false, bomb: false, trail: [],
               vx: source.vx * c - source.vy * s,
               vy: source.vx * s + source.vy * c
             };
@@ -861,7 +860,9 @@
           }
         } else {
           if (collision.cell) {
-            paint(collision.cell);
+            const ballBomb = !!ball.bomb;
+            if (ballBomb) ball.bomb = false;
+            paint(collision.cell, false, ballBomb);
             if (phase !== 'play') return true;
           } else if (collision.type === 'wall') {
             sound('bounceWall', 45);
@@ -1000,7 +1001,8 @@
         if (clock < noticeUntil) status.push(notice);
         if (combo >= 2) status.push(`${combo}連続 ×${multiplier()}`);
         if (colorChain >= 2) status.push(`同色×${colorChain}`);
-        if (bombReady) status.push('ボム弾準備');
+        const bombCount = balls.filter(b => b.bomb).length;
+        if (bombCount > 0) status.push(balls.length > 1 ? `ボム弾×${bombCount}` : 'ボム弾準備');
         if (shields > 0) status.push(`バリア×${shields}`);
         if (clock < wideUntil) status.push(`ワイド ${Math.ceil(wideUntil - clock)}秒`);
       }
@@ -1147,8 +1149,9 @@
       }
 
       for (const ball of balls) {
-        const ballColor = bombReady ? '#ff844b' : '#ffffff';
-        ctx.fillStyle = bombReady ? '#ff844b' : '#ff8fb3';
+        const isBomb = !!ball.bomb;
+        const ballColor = isBomb ? '#ff844b' : '#ffffff';
+        ctx.fillStyle = isBomb ? '#ff844b' : '#ff8fb3';
         for (let i = 0; i < ball.trail.length; i++) {
           const p = ball.trail[i];
           ctx.globalAlpha = 0.28 * (i + 1) / ball.trail.length;
@@ -1161,11 +1164,11 @@
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, R, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = bombReady ? '#b84018' : '#5a3d5c';
+        ctx.strokeStyle = isBomb ? '#b84018' : '#5a3d5c';
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.lineWidth = 1;
-        if (bombReady) {
+        if (isBomb) {
           ctx.strokeStyle = '#ff9e6d';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
@@ -1406,7 +1409,7 @@
       clearControls();
       started = true; settlement = null;
       score = 0; clock = 0; stageNo = 0;
-      wideUntil = 0; clearLeft = 0; bombReady = false; shields = 0;
+      wideUntil = 0; clearLeft = 0; shields = 0;
       stage = null; bag = []; invalid.clear(); completed = [];
       particles = []; rings = []; popups = [];
       roulette = null;
