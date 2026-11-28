@@ -319,7 +319,7 @@ const G = {
   vboxes: [], vslots: [], ants: [], parts: [], bubbles: [], popups: [], trayOff: [],
   vleft: 0, pendingWin: false, pendingJam: false, jamDismissed: false, endT: 0, clearShown: false, clearTok: 0, nextBusy: false,
   hintCol: -1, preview: null, press: null, shake: null, queued: null, slotFreed: false,
-  combo: 0, comboT: -9, slowmo: 0, time: 0, rt: 0, speed: 1, antSpeed: 8,
+  combo: 0, comboGrace: 0, comboT: -9, slowmo: 0, time: 0, rt: 0, speed: 1, antSpeed: 8,
   nestBounce: 0, slotFlash: 0, jamShake: 0, overlay: 'title', reveal: null, saidOnce: false,
   rc: new Map(), hudDirty: true, fromTitle: false, helpFrom: 'title', lastVib: 0, lastSay: -9, rewindTok: 0, rewindTo: -1,
   auto: false, autoNext: 0, autoClearT: 0, autoPath: null, autoAt: -1, genBusy: false, viewId: 1,
@@ -666,7 +666,8 @@ function pickCube(a) {
   if (Math.abs(a.tx - a.x) > 0.01) a.face = a.tx > a.x ? 1 : -1;
   const w = toW(a.tx, a.ty), R = G.run, fev = G.fever.t > 0;
   for (let k = 0; k < (fev ? 8 : 6); k++) G.parts.push({ x: w.x, y: w.y, vx: (Math.random() - 0.5) * 175, vy: -Math.random() * 150 - 45, life: 0, max: 0.42, col: fev && k % 2 ? pick(POP) : HEX[a.c], s: Math.max(2.5, antPx * 0.17), star: k <= 1 });
-  if (!hasActiveSlotBox()) G.combo = 0;
+  if (!hasActiveSlotBox() && !(G.comboGrace > 0)) G.combo = 0;
+  G.comboGrace = 2.0;
   Sound.pop(G.combo++);
   G.comboT = G.time;
   if (G.rt - G.lastVib > 0.09) { haptic(8); G.lastVib = G.rt; }
@@ -725,7 +726,8 @@ function hasActiveSlotBox() {
   return false;
 }
 function updateAnts(dt, rdt) {
-  const comboSteps = hasActiveSlotBox() ? Math.floor(G.combo / 100) : 0;
+  const activeBox = hasActiveSlotBox();
+  const comboSteps = (activeBox || G.comboGrace > 0) ? Math.floor(G.combo / 100) : 0;
   const comboMul = comboSteps > 0 ? 1 + comboSteps * 0.1 + (G.perk ? G.perk.combo : 0) : 1;
   const fm = (G.fever.t > 0 ? 1.3 : 1) * (G.skill && G.skill.boostT > 0 ? 1.45 : 1) * comboMul, gap = gapCells();
   _antVbs.length = 0;
@@ -783,10 +785,17 @@ function updateAnts(dt, rdt) {
       }
     }
   }
-  if (!hasActiveSlotBox() && G.combo > 0) G.combo = 0;
+  const bdt = rdt == null ? dt : rdt;
+  if (hasActiveSlotBox()) {
+    if (G.combo > 0) G.comboGrace = 2.0;
+  } else if (G.combo > 0) {
+    G.comboGrace = Math.max(0, (G.comboGrace || 0) - bdt);
+    if (G.comboGrace <= 0) G.combo = 0;
+  } else {
+    G.comboGrace = 0;
+  }
   for (let i = 0; i < _antVbs.length; i++) _antVbs[i]._ants.length = 0;
   _antVbs.length = 0;
-  const bdt = rdt == null ? dt : rdt;
   for (let i = G.bubbles.length - 1; i >= 0; i--) { G.bubbles[i].t += bdt; if (G.bubbles[i].t > G.bubbles[i].life) G.bubbles.splice(i, 1); }
 }
 function updateBoxes(dt) {
@@ -927,8 +936,9 @@ function drawFever() {
     gw = gwBase * pulse;
     feverMaxW = gwBase * 1.04;
   }
-  // ライブコンボバッジ（2コンボ以上、おやすみ箱以外の箱がスロットにある間は継続。サイズ固定で画面内に収める）
-  const showCombo = G.combo >= 2 && hasActiveSlotBox() && !G.overlay;
+  // ライブコンボバッジ（2コンボ以上、おやすみ箱以外の箱がスロットにある間＋切れた後2秒猶予の間は継続）
+  const comboActive = hasActiveSlotBox(), comboGrace = !comboActive && G.comboGrace > 0;
+  const showCombo = G.combo >= 2 && (comboActive || comboGrace) && !G.overlay;
   let cTxt = '', cw = 0, cbx = 0, cLeft = maxRight;
   if (showCombo) {
     const cMul = Math.floor(G.combo / 100) * 0.1;
@@ -977,6 +987,7 @@ function drawFever() {
   if (showCombo) {
     const ch = 19;
     ctx.save();
+    if (comboGrace) ctx.globalAlpha = 0.6 + 0.4 * Math.sin(G.rt * 16);
     ctx.font = fnt(900, 11.5);
     ctx.fillStyle = G.combo >= 25 ? '#ff9a00' : G.combo >= 10 ? '#ff4d7e' : '#ff6f9f';
     roundRect(ctx, cbx - cw / 2, ty - ch / 2, cw, ch, ch / 2); ctx.fill();
@@ -1223,7 +1234,7 @@ function renderTrayTo(g, needHc) {
         const p = 0.5 + 0.5 * Math.sin(G.rt * 6);
         g.strokeStyle = 'rgba(63,174,127,' + (0.75 + 0.25 * p) + ')'; g.lineWidth = 3.5;
         roundRect(g, x - s * 0.54, y - s * 0.45, s * 1.08, s * 0.9, s * 0.26); g.stroke();
-        if (!save.settings.info && G.scanId === G.levelId) {
+        if (!save.settings.info) {
           const txt = '✓全部';
           g.font = fnt(900, Math.max(10, s * 0.19));
           const tw = g.measureText(txt).width + 10, th = Math.max(14, s * 0.25);

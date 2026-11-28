@@ -1307,7 +1307,7 @@ function resetVisual() {
   G.waitIds = new Set([...G.waitIds].filter(id => G.s.boxes.some(b => b.id === id)));
   G.trayOff = new Array(G.s.cols.length).fill(0);
   G.vleft = G.s.left; G.pendingWin = false; G.pendingJam = isJam(G.s); G.jamDismissed = false; G.endT = 0;
-  G.hintCol = -1; G.preview = null; G.combo = 0; G.slowmo = 0; G.saidOnce = false;
+  G.hintCol = -1; G.preview = null; G.combo = 0; G.comboGrace = 0; G.slowmo = 0; G.saidOnce = false;
   G.rc = reachableCounts(G.s);
   G.hc = null;
   Sound.muffle(false);
@@ -1549,7 +1549,7 @@ function abandonRunOnHome() {
     G.assignFlashes = []; G.skillFx = []; G.skillBanner = null;
     G.queued = null; G.auto = false; G.autoPath = null;
     G.pendingWin = false; G.pendingJam = false; G.jamDismissed = false;
-    G.skill = null; G.combo = 0; G.slowmo = 0;
+    G.skill = null; G.combo = 0; G.comboGrace = 0; G.slowmo = 0;
     endFever();
   }
   if (typeof Sound !== 'undefined' && Sound.walk) Sound.walk(0);
@@ -2626,7 +2626,7 @@ function drawSkinPrev(cv, t) {
 const TIPS = {
   1: [[3, 7, '外側の箱からタップ！道があくと内側も届くよ']],
   2: [[1, 5, '迷ったら長押し！運べるキャンディが光るよ']],
-  3: [[0, 4, '⏱ タイムで★★★！コンボやフィーバーでスピードUP！']],
+  3: [[0, 3, '⏱ タイムで★★★！コンボやフィーバーでスピードUP！'], [3, 7, '🔥 スロットに動ける箱がある間コンボ継続（2秒以内なら次もOK）']],
   4: [[0, 4, '奥の箱は先置きOK！道があくと自動で動くよ']],
   5: [[0, 4, '💤のおやすみ箱をためすぎると渋滞するよ']],
   6: [[0, 3, '渋滞しても⏪で解ける所まで一気に戻れるよ']]
@@ -3394,6 +3394,19 @@ const Tut = {
     if (!ov && G.s && !G.loading) {
       if (G.fever.t > 0) showMicroGuide('fever', '🔥', 'FEVER 突入！', '速さUP＆エサ2倍！詰み防止つき', 3.4);
       if (G.gold.size && TR.gold()) showMicroGuide('gold', '✨', '金のキャンディ発見！', '運ぶとクリア時に🪙+15ボーナス', 3.4);
+      const mgBusy = !!(_mgState.el && _mgState.el.classList.contains('on'));
+      if (!mgBusy && !this.gameBusy()) {
+        if (!save.tut.combo && G.combo >= 5) {
+          showMicroGuide('combo', '🔥', 'コンボ継続のコツ', '動ける箱がスロットにある間続くよ（おやすみ箱だけでも2秒以内ならOK）', 4.0);
+        } else if (!save.tut.greenBox && G.s.boxes.length >= SLOT_COUNT - 1 && G.fever.t <= 0 && G.hc) {
+          let hasGreen = false;
+          for (let j = 0; j < G.s.cols.length; j++) {
+            const h = G.s.heads[j];
+            if (h < G.s.cols[j].length && (G.hc[j] || 0) >= G.s.cols[j][h].n) { hasGreen = true; break; }
+          }
+          if (hasGreen) showMicroGuide('greenBox', '💚', '緑の枠は「いま全部運べる箱」', 'スロット残りわずかのピンチ時、安全に片付く箱の目印だよ', 4.2);
+        }
+      }
     }
     if (ov === 'jam') this.add('jam');
     else if (ov === 'clear') this.add('coins');
